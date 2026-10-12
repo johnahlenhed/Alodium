@@ -1,0 +1,57 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment
+.env
+.env.backup
+.env.production
+
+# Laravel
+/public/hot
+/public/storage
+/public/build/
+/storage/*.key
+/storage/app/
+/storage/framework/
+/storage/logs/
+/storage/pail
+
+# Testing
+/coverage/
+.phpunit.result.cache
+/.phpunit.cache
+
+# IDE & Editor
+/.idea
+/.vscode
+/.cursor/
+/.nova
+/.zed
+/.codex
+_ide_helper.php
+.phpactor.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Astro
+astro/dist/
+astro/node_modules/
+astro/.astro/
+
+# Sentry
+.sentryclirc

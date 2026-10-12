@@ -1,0 +1,108 @@
+# CLAUDE.md — Alodium
+
+## Project overview
+Alodium is a self-hosted content platform built with Laravel + Inertia + React for the admin panel, and Astro for the public-facing website. It includes a privacy-first analytics pipeline, a WordPress XML importer, and a cookieless tracker script.
+
+## Tech stack
+- **Backend:** Laravel (PHP), MySQL
+- **Admin frontend:** React via Inertia.js
+- **Public site:** Astro (separate project, consumes Laravel API)
+- **Rich text editor:** TipTap
+- **Email:** Resend
+- **Media:** Spatie Media Library
+- **Build tool:** Vite
+
+## Project structure
+app/
+├── Http/
+│ ├── Controllers/ ← Request handling, Inertia responses
+│ └── Middleware/ ← Auth guards
+├── Models/ ← Eloquent models
+└── Services/ ← Business logic
+
+database/
+├── migrations/ ← Database schema
+├── seeders/ ← Test data
+└── factories/ ← Fake model generation
+
+routes/
+├── web.php ← Admin panel routes (auth protected)
+└── api.php ← Tracker and public content API
+
+resources/
+└── js/
+├── Pages/ ← React page components (one per route)
+├── Components/ ← Reusable React components
+└── Layouts/ ← Page layout wrappers
+
+public/
+└── tracker.js ← Vanilla JS tracker script
+
+astro/ ← Separate Astro project (public site)
+
+## Key conventions
+
+### Laravel
+- Controllers return `Inertia::render()` for admin panel routes
+- API controllers return `response()->json()` for tracker and public endpoints
+- All admin routes are wrapped in `auth` middleware in `web.php`
+- API routes for the tracker are in `api.php` with no auth middleware
+- Use `Str::slug()` for generating slugs from titles
+- Models use `$fillable` not `$guarded`
+- Visits and events tables use `$timestamps = false` — only `created_at`, no `updated_at`
+
+### React / Inertia
+- Page components live in `resources/js/Pages/`
+- Use `useForm` from `@inertiajs/react` for all forms
+- Use `Link` from `@inertiajs/react` for navigation — never plain `<a>` tags inside the admin panel
+- Props are passed directly from Laravel controllers — no separate API calls needed from page components
+
+### Database
+- Always write migrations for schema changes — never modify the database directly
+- Foreign keys use `constrained()->onDelete('cascade')` unless there is a specific reason not to
+- Nullable columns use `->nullable()` explicitly
+
+### Tracker script
+- `public/tracker.js` is vanilla JS with no dependencies
+- API endpoints are `/api/collect` (POST) and `/api/collect/{id}` (PATCH)
+- All errors are caught silently — the tracker must never break the host site
+- UTM parameters are captured then removed from the visible URL
+
+## Commands
+```bash
+# Start local development
+php artisan serve          # Laravel on localhost:8000
+npm run dev                # Vite on localhost:5173
+
+# Database
+php artisan migrate        # Run migrations
+php artisan migrate:fresh --seed  # Reset and seed
+
+# Testing
+php artisan test           # Run PHPUnit/Pest tests
+
+# Queue worker (for scheduled publishing)
+php artisan queue:work
+```
+
+## npm install note
+Due to Vite 8 and @vitejs/plugin-react peer dependency conflict, always use:
+```bash
+npm install --legacy-peer-deps
+```
+
+## Environment
+Copy `.env.example` to `.env` and configure:
+- `DB_*` — MySQL connection
+- `RESEND_API_KEY` — transactional email
+- `VITE_*` — any frontend environment variables
+
+## What's been built (proof of concept reference)
+A proof of concept exists at a separate repo. The following patterns are established and can be reused:
+- Tracker script logic and API endpoints
+- Analytics dashboard with Recharts
+- Basic CRUD patterns for posts and pages
+- Database schema for visits and events
+
+## Examensarbete context
+This project is being built as an examensarbete (degree project) at a Swedish web development program. AI usage is deliberately documented as part of the methodology. When generating code, explain non-obvious decisions so they can be understood and documented.
