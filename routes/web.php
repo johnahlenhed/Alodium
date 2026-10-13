@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
@@ -27,6 +28,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('posts', PostController::class)->except('show');
     Route::resource('pages', PageController::class)->except('show');
+
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
 });
 
 require __DIR__.'/auth.php';

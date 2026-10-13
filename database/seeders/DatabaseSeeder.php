@@ -22,5 +22,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'john@alodium.dev',
             'password' => bcrypt('password'),
         ]);
+
+        $this->call(VisitSeeder::class);
     }
 }
