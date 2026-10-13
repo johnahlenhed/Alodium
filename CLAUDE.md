@@ -85,6 +85,14 @@ php artisan test           # Run PHPUnit/Pest tests
 php artisan queue:work
 ```
 
+## GeoIP (visitor country lookup)
+Country is derived from the visitor IP with `stevebauman/location` using the **offline MaxMind GeoLite2-Country** database, so visitor IPs are never sent to a third party (and the IP itself is never stored — only the country code).
+- The `.mmdb` file is **not in the repo** (too large, and MaxMind's licence forbids redistributing it). It must be downloaded separately and placed at `storage/app/geoip/GeoLite2-Country.mmdb` (`storage/app/` is gitignored).
+- Get it with a free MaxMind account: set `MAXMIND_LICENSE_KEY` in `.env`, then `mkdir -p storage/app/geoip && php artisan location:update`, or download `GeoLite2-Country` manually from the MaxMind account portal and copy the `.mmdb` there.
+- If the file is missing, lookups return `null` and `visits.country` stays empty; tracking still works.
+- `config/location.php` has `fallbacks` deliberately empty — the package's other drivers are third-party HTTP APIs and would leak IPs if the local lookup failed. Do not re-add them.
+- Tracker conventions above are unchanged; geolocation happens server-side in `TrackingController`.
+
 ## npm install note
 Due to Vite 8 and @vitejs/plugin-react peer dependency conflict, always use:
 ```bash

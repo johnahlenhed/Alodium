@@ -30,6 +30,24 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Dashboard
                                 </NavLink>
+                                <NavLink
+                                    href={route('posts.index')}
+                                    active={route().current('posts.*')}
+                                >
+                                    Posts
+                                </NavLink>
+                                <NavLink
+                                    href={route('pages.index')}
+                                    active={route().current('pages.*')}
+                                >
+                                    Pages
+                                </NavLink>
+                                <NavLink
+                                    href={route('analytics.index')}
+                                    active={route().current('analytics.*')}
+                                >
+                                    Analytics
+                                </NavLink>
                             </div>
                         </div>
 
@@ -133,6 +151,24 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('posts.index')}
+                            active={route().current('posts.*')}
+                        >
+                            Posts
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('pages.index')}
+                            active={route().current('pages.*')}
+                        >
+                            Pages
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('analytics.index')}
+                            active={route().current('analytics.*')}
+                        >
+                            Analytics
                         </ResponsiveNavLink>
                     </div>
 

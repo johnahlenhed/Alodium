@@ -24,7 +24,11 @@ class Visit extends Model
         'country',
         'duration',
         'scroll_depth',
+        'token',
     ];
+
+    // Secret that authorises later updates to this visit; never serialise it.
+    protected $hidden = ['token'];
 
     protected $casts = [
         'created_at' => 'datetime',
