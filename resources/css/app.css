@@ -1,3 +1,69 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Rich text editor content (resources/js/Components/RichTextEditor.jsx).
+ * Tailwind's preflight resets headings, lists etc., so content styling is
+ * restored here, scoped to the editor so it doesn't leak into the admin UI.
+ */
+@layer components {
+    .rich-text-content {
+        @apply min-h-[400px] p-4 text-base leading-relaxed text-gray-900 focus:outline-none;
+    }
+
+    .rich-text-content > * + * {
+        @apply mt-4;
+    }
+
+    .rich-text-content h1 { @apply text-3xl font-bold leading-tight; }
+    .rich-text-content h2 { @apply mt-8 text-2xl font-bold leading-tight; }
+    .rich-text-content h3 { @apply mt-6 text-xl font-semibold leading-snug; }
+    .rich-text-content h4 { @apply text-lg font-semibold; }
+    .rich-text-content h5,
+    .rich-text-content h6 { @apply font-semibold; }
+
+    .rich-text-content ul { @apply list-disc pl-6; }
+    .rich-text-content ol { @apply list-decimal pl-6; }
+    .rich-text-content li > p { @apply my-1; }
+    .rich-text-content li::marker { @apply text-gray-500; }
+
+    .rich-text-content blockquote {
+        @apply border-l-4 border-gray-300 pl-4 italic text-gray-700;
+    }
+
+    .rich-text-content a {
+        @apply cursor-text text-blue-600 underline;
+    }
+
+    .rich-text-content code {
+        @apply rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.875em] text-gray-800;
+    }
+
+    .rich-text-content pre {
+        @apply overflow-x-auto rounded-md bg-gray-100 p-4 font-mono text-sm;
+    }
+
+    .rich-text-content pre code {
+        @apply bg-transparent p-0;
+    }
+
+    .rich-text-content hr {
+        @apply my-8 border-gray-200;
+    }
+
+    .rich-text-content img {
+        @apply h-auto max-w-full rounded;
+    }
+
+    /* Selected image (click on it) */
+    .rich-text-content img.ProseMirror-selectednode {
+        @apply outline outline-2 outline-offset-2 outline-indigo-500;
+    }
+
+    /* Placeholder (Placeholder extension marks the empty first paragraph) */
+    .rich-text-content p.is-editor-empty:first-child::before {
+        content: attr(data-placeholder);
+        @apply pointer-events-none float-left h-0 italic text-gray-400;
+    }
+}

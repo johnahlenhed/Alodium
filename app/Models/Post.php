@@ -2,11 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RegistersImageConversions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Post extends Model
+class Post extends Model implements HasMedia
 {
+    use InteractsWithMedia, RegistersImageConversions {
+        // Both traits define registerMediaConversions(); ours holds the real conversions.
+        RegistersImageConversions::registerMediaConversions insteadof InteractsWithMedia;
+    }
+
     protected $fillable = [
         'author_id',
         'title',
@@ -26,5 +34,11 @@ class Post extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function registerMediaCollections(): void
+    {
+        // One featured image per post; adding a new one replaces the old.
+        $this->addMediaCollection('featured')->singleFile();
     }
 }
