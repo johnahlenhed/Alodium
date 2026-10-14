@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
+import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { Link } from '@inertiajs/react';
 
@@ -26,13 +27,10 @@ export default function PageForm({ form, onSubmit, submitLabel }) {
             </div>
 
             <div>
-                <InputLabel htmlFor="content" value="Content" />
-                <textarea
-                    id="content"
-                    rows={12}
-                    className={textareaClass}
+                <InputLabel value="Content" />
+                <RichTextEditor
                     value={data.content}
-                    onChange={(e) => setData('content', e.target.value)}
+                    onChange={(html) => setData('content', html)}
                 />
                 <InputError message={errors.content} className="mt-2" />
             </div>
