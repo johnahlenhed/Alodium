@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\TrackingController;
 use Illuminate\Support\Facades\Route;
 
@@ -9,4 +10,15 @@ Route::middleware('throttle:120,1')->group(function () {
     Route::post('/collect', [TrackingController::class, 'store']);
     Route::patch('/collect/{visit}', [TrackingController::class, 'update']);
     Route::post('/events', [TrackingController::class, 'storeEvent']);
+});
+
+// Read-only published content for the Astro public site (fetched at build time).
+Route::prefix('public')->group(function () {
+    Route::get('/posts', [PublicContentController::class, 'posts']);
+    Route::get('/posts/{slug}', [PublicContentController::class, 'post']);
+    Route::get('/pages', [PublicContentController::class, 'pages']);
+    Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
+
+    // Each message sends an email, so this is limited much harder than the tracker.
+    Route::post('/contact', [PublicContentController::class, 'contact'])->middleware('throttle:5,1');
 });

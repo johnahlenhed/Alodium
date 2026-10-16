@@ -1,0 +1,31 @@
+---
+import { formatDate } from '../lib/api.js';
+
+interface Props {
+    posts: Array<{ slug: string; title: string; excerpt: string; published_at: string | null }>;
+}
+
+const { posts } = Astro.props;
+---
+
+{
+    posts.length === 0 ? (
+        <p>No posts yet.</p>
+    ) : (
+        <ul class="post-list">
+            {posts.map((post) => (
+                <li>
+                    <h2>
+                        <a href={`/blog/${post.slug}`}>{post.title}</a>
+                    </h2>
+                    {post.published_at && (
+                        <time class="meta" datetime={post.published_at}>
+                            {formatDate(post.published_at)}
+                        </time>
+                    )}
+                    {post.excerpt && <p>{post.excerpt}</p>}
+                </li>
+            ))}
+        </ul>
+    )
+}
