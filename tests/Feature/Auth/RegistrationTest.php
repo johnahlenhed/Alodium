@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,5 +28,47 @@ class RegistrationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_registration_is_disabled_by_default_in_production(): void
+    {
+        // The default is computed from APP_ENV when the config file is loaded,
+        // so load the file again with APP_ENV set to production.
+        putenv('APP_ENV=production');
+        $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'production';
+        try {
+            $this->assertFalse((require config_path('auth.php'))['registration']);
+        } finally {
+            putenv('APP_ENV=testing');
+            $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'testing';
+        }
+        $this->assertTrue((require config_path('auth.php'))['registration']);
+    }
+
+    public function test_disabled_registration_redirects_form_and_forbids_submission(): void
+    {
+        config(['auth.registration' => false]);
+
+        $this->get('/register')->assertRedirect(route('login'));
+
+        $this->post('/register', [
+            'name' => 'Intruder',
+            'email' => 'intruder@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertForbidden();
+
+        $this->assertGuest();
+        $this->assertSame(0, User::count());
+    }
+
+    public function test_can_register_is_shared_with_guest_pages(): void
+    {
+        config(['auth.registration' => false]);
+        $this->get('/')->assertInertia(fn ($page) => $page->where('canRegister', false));
+        $this->get('/login')->assertInertia(fn ($page) => $page->where('canRegister', false));
+
+        config(['auth.registration' => true]);
+        $this->get('/')->assertInertia(fn ($page) => $page->where('canRegister', true));
     }
 }
