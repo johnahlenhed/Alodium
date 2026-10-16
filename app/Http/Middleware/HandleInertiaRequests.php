@@ -34,6 +34,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Whether public registration is open (off in production, see config/auth.php).
+            'canRegister' => config('auth.registration'),
         ];
     }
 }

@@ -15,7 +15,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // The seed data (a login with password "password", fake analytics) must
+        // never reach a live site, even if someone runs db:seed --force there.
+        if (app()->isProduction()) {
+            // ?-> because $this->command is null when the seeder is called outside Artisan.
+            $this->command?->warn('Seeders are disabled in production. Create users with php artisan tinker.');
+
+            return;
+        }
 
         User::factory()->create([
             'name' => 'John',

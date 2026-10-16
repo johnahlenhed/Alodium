@@ -10,6 +10,14 @@ class VisitSeeder extends Seeder
 {
     public function run(): void
     {
+        // Also blocked here, not only in DatabaseSeeder: db:seed --class=VisitSeeder
+        // runs this seeder directly and would otherwise write fake analytics.
+        if (app()->isProduction()) {
+            $this->command?->warn('VisitSeeder is disabled in production.');
+
+            return;
+        }
+
         $urls = ['/', '/blog', '/about', '/contact', '/blog/first-post'];
         $referrers = ['google.com', 'twitter.com', 'instagram.com', null];
         $sources = ['google', 'instagram', 'newsletter', null];
