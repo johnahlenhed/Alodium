@@ -92,6 +92,45 @@ This product includes GeoLite2 data created by MaxMind, available from [https://
 
 Alodium is designed to be deployed on a Hetzner VPS managed by Laravel Forge. See the deployment documentation for full instructions.
 
+### Automatic rebuilds of the public site
+
+The Astro site is static, so it is rebuilt whenever a change becomes visible publicly: content is published, a published post or page is edited, unpublished, deleted, or imported from WordPress. Rebuilds run on the queue, so saving in the editor never waits for a build. Several changes in a row result in a single build, and two builds never run at the same time.
+
+1. Install the rebuild script (paths assume the app lives in `/var/www/alodium`):
+
+   ```bash
+   cp deploy/rebuild-astro.sh /var/www/alodium/rebuild-astro.sh
+   chmod 755 /var/www/alodium/rebuild-astro.sh
+   mkdir -p /var/www/alodium/astro-public   # the web server's document root for the public site
+   ```
+
+   The script runs as the queue worker's user (`www-data`). That user needs write access to `astro/` and `astro-public/`, and must have `node`/`npm` on its `PATH`. This matters if Node was installed with nvm for another user.
+
+2. Add to Laravel's `.env`:
+
+   ```ini
+   ASTRO_REBUILD_SCRIPT=/var/www/alodium/rebuild-astro.sh
+   WEBHOOK_SECRET=   # generate with: openssl rand -hex 32
+   ```
+
+   Then run `php artisan config:cache`.
+
+3. Allow long jobs in the queue worker. A build can take a few minutes, and the job allows up to 10:
+
+   ```bash
+   php artisan queue:work --timeout=660
+   ```
+
+   Set `DB_QUEUE_RETRY_AFTER=720` in `.env`. It must be higher than `--timeout`, or a second worker picks up the job while the first is still building it.
+
+Trigger a rebuild manually (for example from CI):
+
+```bash
+curl -X POST https://your-domain.com/api/webhook/rebuild -H "X-Webhook-Secret: $WEBHOOK_SECRET"
+```
+
+The response is `202 Accepted` and the build happens in the background. Results are logged to `storage/logs/laravel.log` and `storage/logs/astro-rebuild.log`. A failed build is retried once, and the live site keeps the previous version until a build succeeds.
+
 ## License
 
 © 2026 John Ahlenhed. All rights reserved. Commercial use requires explicit permission from the author.
