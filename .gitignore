@@ -52,6 +52,8 @@ yarn-error.log
 astro/dist/
 astro/node_modules/
 astro/.astro/
+astro/.env
+astro/.env.production
 
 # Sentry
 .sentryclirc

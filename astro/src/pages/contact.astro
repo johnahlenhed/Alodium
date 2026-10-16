@@ -1,0 +1,150 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// Resolved at build time and handed to the browser script via a data attribute,
+// so no PUBLIC_ environment variable is needed.
+const endpoint = `${(import.meta.env.API_URL ?? '').replace(/\/+$/, '')}/contact`;
+---
+
+<BaseLayout title="Contact" description="Send a message to Alodium.">
+    <h1>Contact</h1>
+
+    <form id="contact-form" class="contact-form" data-endpoint={endpoint} novalidate>
+        <label>
+            Name
+            <input name="name" type="text" autocomplete="name" required maxlength="255" />
+        </label>
+
+        <label>
+            Email
+            <input name="email" type="email" autocomplete="email" required maxlength="255" />
+        </label>
+
+        <label>
+            Message
+            <textarea name="message" rows="6" required maxlength="5000"></textarea>
+        </label>
+
+        <!-- Honeypot: hidden from people, filled in by spam bots. -->
+        <div class="hp" aria-hidden="true">
+            <label>
+                Website
+                <input name="website" type="text" tabindex="-1" autocomplete="off" />
+            </label>
+        </div>
+
+        <button type="submit">Send message</button>
+
+        <p class="status" role="status" aria-live="polite"></p>
+    </form>
+</BaseLayout>
+
+<style>
+    .contact-form {
+        display: grid;
+        gap: 1rem;
+    }
+
+    label {
+        display: grid;
+        gap: 0.25rem;
+        font-weight: 600;
+    }
+
+    input,
+    textarea {
+        font: inherit;
+        font-weight: 400;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+
+    input:focus,
+    textarea:focus {
+        outline: 2px solid #2563eb;
+        outline-offset: 1px;
+    }
+
+    button {
+        justify-self: start;
+        font: inherit;
+        font-weight: 600;
+        padding: 0.5rem 1.25rem;
+        border: 0;
+        border-radius: 6px;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+    }
+
+    button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    .hp {
+        position: absolute;
+        left: -10000px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+    }
+
+    .status:empty {
+        display: none;
+    }
+
+    .status.success {
+        color: #15803d;
+    }
+
+    .status.error {
+        color: #b91c1c;
+    }
+</style>
+
+<script>
+    const form = document.getElementById('contact-form');
+    const status = form.querySelector('.status');
+    const button = form.querySelector('button');
+
+    const show = (message, type) => {
+        status.textContent = message;
+        status.className = `status ${type}`;
+    };
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        // Use the browser's own validation messages before contacting the server.
+        if (!form.reportValidity()) return;
+
+        button.disabled = true;
+        show('Sending…', '');
+
+        try {
+            const response = await fetch(form.dataset.endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify(Object.fromEntries(new FormData(form))),
+            });
+
+            if (response.ok) {
+                form.reset();
+                show('Thank you! Your message has been sent.', 'success');
+            } else if (response.status === 422) {
+                const { errors } = await response.json();
+                show(Object.values(errors ?? {}).flat().join(' ') || 'Please check the form and try again.', 'error');
+            } else if (response.status === 429) {
+                show('Too many messages sent. Please wait a minute and try again.', 'error');
+            } else {
+                show('Something went wrong. Please try again later.', 'error');
+            }
+        } catch {
+            show('Could not send your message. Check your connection and try again.', 'error');
+        } finally {
+            button.disabled = false;
+        }
+    });
+</script>

@@ -1,0 +1,12 @@
+---
+import PostList from '../components/PostList.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getPosts } from '../lib/api.js';
+
+const posts = await getPosts();
+---
+
+<BaseLayout>
+    <h1>Alodium</h1>
+    <PostList posts={posts} />
+</BaseLayout>
