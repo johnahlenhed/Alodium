@@ -18,6 +18,14 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    // Automatic rebuilds of the Astro public site (see deploy/rebuild-astro.sh).
+    'astro' => [
+        // Shared secret for POST /api/webhook/rebuild. Empty = webhook disabled.
+        'webhook_secret' => env('WEBHOOK_SECRET'),
+        // Absolute path to the rebuild script. Empty = rebuilds are skipped (local dev).
+        'rebuild_script' => env('ASTRO_REBUILD_SCRIPT'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
