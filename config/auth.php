@@ -15,6 +15,18 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public registration
+    |--------------------------------------------------------------------------
+    |
+    | Off in production: every account has full admin access, so accounts are
+    | created by hand (see README). AUTH_REGISTRATION=true/false overrides it.
+    |
+    */
+
+    'registration' => (bool) env('AUTH_REGISTRATION', env('APP_ENV', 'production') !== 'production'),
+
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
