@@ -12,7 +12,9 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "resend/resend-laravel": "^1.6",
+        "spatie/laravel-medialibrary": "^11.23",
         "stevebauman/location": "^7.7",
+        "symfony/html-sanitizer": "^8.1",
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {

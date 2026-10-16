@@ -43,10 +43,24 @@ export default function AuthenticatedLayout({ header, children }) {
                                     Pages
                                 </NavLink>
                                 <NavLink
+                                    href={route('media.index')}
+                                    active={route().current('media.*')}
+                                >
+                                    Media
+                                </NavLink>
+                                <NavLink
                                     href={route('analytics.index')}
                                     active={route().current('analytics.*')}
                                 >
                                     Analytics
+                                </NavLink>
+                                {/* Utilities are kept apart from content sections. */}
+                                <span className="h-6 w-px self-center bg-gray-200" aria-hidden="true" />
+                                <NavLink
+                                    href={route('import.create')}
+                                    active={route().current('import.*')}
+                                >
+                                    Import
                                 </NavLink>
                             </div>
                         </div>
@@ -165,10 +179,25 @@ export default function AuthenticatedLayout({ header, children }) {
                             Pages
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
+                            href={route('media.index')}
+                            active={route().current('media.*')}
+                        >
+                            Media
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
                             href={route('analytics.index')}
                             active={route().current('analytics.*')}
                         >
                             Analytics
+                        </ResponsiveNavLink>
+                        <div className="mt-2 border-t border-gray-200 px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Tools
+                        </div>
+                        <ResponsiveNavLink
+                            href={route('import.create')}
+                            active={route().current('import.*')}
+                        >
+                            Import
                         </ResponsiveNavLink>
                     </div>
 

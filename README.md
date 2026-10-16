@@ -12,10 +12,35 @@ A self-hosted content platform for freelance web developers. Combines a modern C
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.4+
 - Composer
 - Node.js 18+
 - MySQL
+
+### PHP extensions
+
+- `php8.4-gd`: image processing and WebP conversion
+- `php8.4-xml`: WordPress XML import
+- `php8.4-mysql`
+- `php8.4-mbstring`
+- `php8.4-curl`
+
+On Debian/Ubuntu:
+
+```bash
+sudo apt install php-gd php-xml php-mysql php-mbstring php-curl
+```
+
+### PHP upload limits
+
+Media uploads (up to 10 MB) and WordPress XML imports (up to 20 MB) need higher limits than PHP's defaults. In `php.ini`, set at least:
+
+```ini
+upload_max_filesize = 25M
+post_max_size = 30M
+```
+
+Run `php --ini` to find which `php.ini` is loaded. The CLI (`php artisan serve`) and PHP-FPM use separate files, so update the one your server uses and restart it.
 
 ## Installation
 

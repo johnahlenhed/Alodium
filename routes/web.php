@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\ImportController;
+use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
@@ -29,7 +31,15 @@ Route::middleware('auth')->group(function () {
     Route::resource('posts', PostController::class)->except('show');
     Route::resource('pages', PageController::class)->except('show');
 
+    Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+    Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+    Route::delete('/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
+
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+
+    Route::get('/import', [ImportController::class, 'create'])->name('import.create');
+    Route::post('/import', [ImportController::class, 'store'])->name('import.store');
+    Route::get('/import/result', [ImportController::class, 'result'])->name('import.result');
 });
 
 require __DIR__.'/auth.php';
