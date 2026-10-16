@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Public, unauthenticated endpoints called by tracker.js from any origin.
@@ -22,3 +23,6 @@ Route::prefix('public')->group(function () {
     // Each message sends an email, so this is limited much harder than the tracker.
     Route::post('/contact', [PublicContentController::class, 'contact'])->middleware('throttle:5,1');
 });
+
+// Secret-protected trigger for rebuilding the Astro site (X-Webhook-Secret header).
+Route::post('/webhook/rebuild', [WebhookController::class, 'rebuild'])->middleware('throttle:10,1');

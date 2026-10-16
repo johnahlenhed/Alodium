@@ -142,7 +142,7 @@ XML;
         $this->assertArrayNotHasKey('page', $results['found']);
 
         Log::shouldHaveReceived('info')
-            ->withArgs(fn ($message, $context) => $message === 'WordPress import finished'
+            ->withArgs(fn ($message, $context = []) => $message === 'WordPress import finished'
                 && $context['imported_pages'] === 0
                 && $context['found']['post'] === 1)
             ->once();
