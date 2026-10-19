@@ -14,7 +14,7 @@ A self-hosted content platform for freelance web developers. Combines a modern C
 
 - PHP 8.4+
 - Composer
-- Node.js 18+
+- Node.js 22.22+
 - MySQL
 
 ### PHP extensions
@@ -45,7 +45,7 @@ Run `php --ini` to find which `php.ini` is loaded. The CLI (`php artisan serve`)
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/alodium.git
+git clone https://github.com/johnahlenhed/Alodium.git
 cd alodium
 composer install
 npm install --legacy-peer-deps
@@ -229,12 +229,19 @@ Create your admin account:
 
 ```bash
 php artisan tinker
-> App\Models\User::create(['name' => 'Your Name', 'email' => 'you@example.com', 'password' => 'a-strong-password']);
+> App\Models\User::create(['name' => 'Your Name', 'email' => 'you@example.com', 'password' => bcrypt('a-strong-password')]);
 ```
 
-> **Do not run `php artisan db:seed` in production.** The seeder is blocked when APP_ENV=production and exits with a warning. In other environments it creates a dev login (`john@alodium.dev` / `password`) and 200 fake analytics visits for testing. Create the first production admin user with `php artisan tinker` instead.
-
-> **Registration is disabled in production. Create the first admin user with: `php artisan tinker`** (see above). With `APP_ENV=production`, `/register` redirects to the login page, submitting the form returns 403, and the Register link is hidden, because every account has full admin access. To allow sign-ups anyway, set `AUTH_REGISTRATION=true`, then run `php artisan config:cache`.
+> **Registration is disabled and the seeder is blocked in production.**
+> `/register` redirects to the login page, the seeder exits with a
+> warning, and every account has full admin access. Create the first
+> admin user with:
+> ```bash
+> php artisan tinker
+> App\Models\User::create(['name' => 'Your Name', 'email' => 'you@example.com', 'password' => bcrypt('a-strong-password')]);
+> ```
+> To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env`
+> and run `php artisan config:cache`.
 
 Set file ownership so PHP-FPM and the queue worker (both `www-data`) can write to storage:
 
