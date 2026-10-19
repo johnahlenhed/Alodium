@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { toUtcIso } from '@/utils/publishing';
 import { Head, useForm } from '@inertiajs/react';
 import PageForm from './Partials/PageForm';
 
@@ -7,12 +8,17 @@ export default function Create() {
         title: '',
         content: '',
         status: 'draft',
+        publish_at: '',
         meta_title: '',
         meta_description: '',
     });
 
     const submit = (e) => {
         e.preventDefault();
+        form.transform((data) => ({
+            ...data,
+            publish_at: data.status === 'scheduled' ? toUtcIso(data.publish_at) : null,
+        }));
         form.post(route('pages.store'));
     };
 

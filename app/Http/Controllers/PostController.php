@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Traits\GeneratesUniqueSlug;
+use App\Traits\HandlesPublishStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,7 +12,7 @@ use Inertia\Response;
 
 class PostController extends Controller
 {
-    use GeneratesUniqueSlug;
+    use GeneratesUniqueSlug, HandlesPublishStatus;
 
     public function index(): Response
     {
@@ -31,9 +32,9 @@ class PostController extends Controller
 
         Post::create([
             ...$validated,
+            ...$this->publishStatusAttributes($validated),
             'slug' => $this->uniqueSlug(Post::class, $validated['title']),
             'author_id' => $request->user()->id,
-            'published_at' => $validated['status'] === 'published' ? now() : null,
         ]);
 
         return redirect()->route('posts.index');
@@ -50,14 +51,9 @@ class PostController extends Controller
     {
         $validated = $this->validatePost($request);
 
-        // Only stamp published_at the first time the post becomes published,
-        // so re-saving or toggling to draft and back keeps the original date.
-        if ($validated['status'] === 'published' && $post->published_at === null) {
-            $validated['published_at'] = now();
-        }
-
         $post->update([
             ...$validated,
+            ...$this->publishStatusAttributes($validated, $post),
             'slug' => $this->uniqueSlug(Post::class, $validated['title'], $post->id),
         ]);
 
@@ -76,7 +72,7 @@ class PostController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
-            'status' => ['required', 'in:draft,published'],
+            ...$this->publishStatusRules(),
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:255'],
         ]);
