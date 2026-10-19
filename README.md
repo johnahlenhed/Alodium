@@ -554,6 +554,15 @@ If a release adds a new image conversion (for example the 1200×630 `og` image u
 sudo -u www-data php artisan media-library:regenerate --only=og
 ```
 
+**After configuring a domain**
+
+Update these two files, then trigger an Astro rebuild with the webhook:
+
+- `astro/public/robots.txt`: update the `Sitemap` URL
+- `astro/.env.production`: update `API_URL`, `SITE_URL` and `TRACKER_URL`
+
+The admin panel's `public/robots.txt` blocks all crawlers (`Disallow: /`) and needs no change.
+
 **Content changes**
 
 Publishing, editing, unpublishing or deleting posts and pages in the admin panel triggers an Astro rebuild automatically. No manual steps are needed. Changes appear on the public site once the build finishes, usually within a few minutes.
