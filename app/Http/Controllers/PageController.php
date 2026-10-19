@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use App\Models\Revision;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
+use App\Traits\HandlesRevisions;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +15,7 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
-    use GeneratesUniqueSlug, HandlesPublishStatus;
+    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions;
 
     public function index(): Response
     {
@@ -44,6 +47,7 @@ class PageController extends Controller
     {
         return Inertia::render('Pages/Edit', [
             'page' => $page,
+            'revisions' => $this->revisionList($page),
         ]);
     }
 
@@ -58,6 +62,16 @@ class PageController extends Controller
         ]);
 
         return redirect()->route('pages.index');
+    }
+
+    public function revisions(Page $page): JsonResponse
+    {
+        return response()->json($this->revisionList($page));
+    }
+
+    public function restoreRevision(Page $page, Revision $revision): RedirectResponse
+    {
+        return $this->restore($page, $revision, 'pages.edit');
     }
 
     public function destroy(Page $page): RedirectResponse
