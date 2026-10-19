@@ -494,6 +494,34 @@ Backups are stored on the same server. They protect against mistakes and broken 
 scp root@SERVER:/var/www/alodium/storage/app/backups/alodium-backup-*.sql.gz ./backups/
 ```
 
+### 10. Sentry error monitoring (optional)
+
+Sentry collects unhandled errors from production in a dashboard, with stack traces and request details. It covers both Laravel and the admin panel in the browser. It is only active when `APP_ENV=production`, so local and test errors are never sent.
+
+1. Create a free account at [sentry.io](https://sentry.io) and create a Laravel project.
+2. Copy the DSN from the project settings (Client Keys).
+3. Add it to `.env` on the server:
+
+   ```ini
+   SENTRY_LARAVEL_DSN=https://...@....ingest.sentry.io/...
+   SENTRY_TRACES_SAMPLE_RATE=0.1
+   ```
+
+4. Apply and verify:
+
+   ```bash
+   php artisan config:cache
+   php artisan sentry:test   # sends a test event; it should appear in Sentry within a minute
+   ```
+
+No frontend rebuild is needed. Laravel passes the same DSN to the browser when the page loads, so the locally built assets work unchanged.
+
+Notes:
+
+- `SENTRY_TRACES_SAMPLE_RATE` is the share of requests recorded for performance monitoring (0.1 = 10%). Tracker requests from the public site count too, so lower it if the free quota runs out.
+- Personal data (IP addresses, user e-mails) is not sent by default (`send_default_pii` is off in `config/sentry.php`). This keeps the privacy-first analytics promise.
+- Profiling (`SENTRY_PROFILES_SAMPLE_RATE`, default 0.1) needs the PHP `excimer` extension. Without it, profiling is simply skipped.
+
 ### Updating the application
 
 **Code changes**
