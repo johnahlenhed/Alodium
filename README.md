@@ -404,7 +404,7 @@ crontab -u www-data -e
 * * * * * cd /var/www/alodium && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-No scheduled tasks are defined yet. The cron entry means future ones (such as scheduled publishing) run without further server changes.
+The scheduler runs `content:publish-scheduled` every minute. It publishes posts and pages whose scheduled time has passed, which then triggers an Astro rebuild. Without this cron entry, scheduled content is never published.
 
 ### 8. Automatic Astro rebuilds
 

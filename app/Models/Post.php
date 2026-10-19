@@ -28,10 +28,12 @@ class Post extends Model implements HasMedia
         'og_image',
         'status',
         'published_at',
+        'publish_at',
     ];
 
     protected $casts = [
         'published_at' => 'datetime',
+        'publish_at' => 'datetime',
     ];
 
     public function author(): BelongsTo

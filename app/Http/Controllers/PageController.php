@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Page;
 use App\Traits\GeneratesUniqueSlug;
+use App\Traits\HandlesPublishStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,7 +12,7 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
-    use GeneratesUniqueSlug;
+    use GeneratesUniqueSlug, HandlesPublishStatus;
 
     public function index(): Response
     {
@@ -31,9 +32,9 @@ class PageController extends Controller
 
         Page::create([
             ...$validated,
+            ...$this->publishStatusAttributes($validated),
             'slug' => $this->uniqueSlug(Page::class, $validated['title']),
             'author_id' => $request->user()->id,
-            'published_at' => $validated['status'] === 'published' ? now() : null,
         ]);
 
         return redirect()->route('pages.index');
@@ -50,14 +51,9 @@ class PageController extends Controller
     {
         $validated = $this->validatePage($request);
 
-        // Only stamp published_at the first time the page becomes published,
-        // so re-saving or toggling to draft and back keeps the original date.
-        if ($validated['status'] === 'published' && $page->published_at === null) {
-            $validated['published_at'] = now();
-        }
-
         $page->update([
             ...$validated,
+            ...$this->publishStatusAttributes($validated, $page),
             'slug' => $this->uniqueSlug(Page::class, $validated['title'], $page->id),
         ]);
 
@@ -76,7 +72,7 @@ class PageController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
-            'status' => ['required', 'in:draft,published'],
+            ...$this->publishStatusRules(),
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:255'],
         ]);
