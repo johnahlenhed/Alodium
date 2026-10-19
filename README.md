@@ -486,6 +486,12 @@ scp -r public/build/* root@SERVER:/var/www/alodium/public/build/
 
 If the Astro project itself changed (templates, styles), trigger a rebuild with the webhook `curl` command above.
 
+If a release adds a new image conversion (for example the 1200×630 `og` image used for social sharing), generate it for media uploaded before that release:
+
+```bash
+sudo -u www-data php artisan media-library:regenerate --only=og
+```
+
 **Content changes**
 
 Publishing, editing, unpublishing or deleting posts and pages in the admin panel triggers an Astro rebuild automatically. No manual steps are needed. Changes appear on the public site once the build finishes, usually within a few minutes.

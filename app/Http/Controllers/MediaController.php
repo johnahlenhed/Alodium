@@ -19,6 +19,14 @@ class MediaController extends Controller
         ]);
     }
 
+    /** JSON list for the OG image picker in the post/page editor. */
+    public function list(): JsonResponse
+    {
+        return response()->json(
+            Media::latest()->get()->map(fn (Media $media) => $this->present($media))
+        );
+    }
+
     /**
      * Returns JSON for plain API callers (e.g. a future TipTap image upload),
      * and redirects back for Inertia form submissions from the Media page,
@@ -59,6 +67,8 @@ class MediaController extends Controller
             'id' => $media->id,
             'name' => $media->name,
             'file_name' => $media->file_name,
+            // Spatie keeps the uploaded name (sanitised) as file_name.
+            'original_filename' => $media->file_name,
             'mime_type' => $media->mime_type,
             'size' => $media->size,
             'human_size' => $media->human_readable_size,
@@ -68,6 +78,8 @@ class MediaController extends Controller
             'thumb_url' => $media->hasGeneratedConversion('thumb') ? $media->getUrl('thumb') : $media->getUrl(),
             'webp_url' => $media->hasGeneratedConversion('webp') ? $media->getUrl('webp') : null,
             'medium_url' => $media->hasGeneratedConversion('medium') ? $media->getUrl('medium') : null,
+            // 1200x630 JPEG for social sharing; null for SVGs and media uploaded before it existed.
+            'og_url' => $media->hasGeneratedConversion('og') ? $media->getUrl('og') : null,
             'created_at' => $media->created_at,
         ];
     }

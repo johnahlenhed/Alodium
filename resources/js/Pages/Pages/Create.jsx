@@ -11,6 +11,7 @@ export default function Create() {
         publish_at: '',
         meta_title: '',
         meta_description: '',
+        og_image: '',
     });
 
     const submit = (e) => {
