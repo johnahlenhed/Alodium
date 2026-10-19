@@ -75,6 +75,8 @@ class PostController extends Controller
             ...$this->publishStatusRules(),
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:255'],
+            // Full URL of the social sharing image, picked from the media library.
+            'og_image' => ['nullable', 'string', 'max:2048', 'url:http,https'],
         ]);
     }
 }

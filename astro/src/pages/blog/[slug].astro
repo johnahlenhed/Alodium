@@ -22,6 +22,9 @@ const { post, excerpt } = Astro.props;
     metaTitle={post.meta_title}
     description={post.meta_description || excerpt}
     ogImage={post.og_image}
+    ogImageWidth={post.og_image_width}
+    ogImageHeight={post.og_image_height}
+    ogType="article"
 >
     <article>
         <h1>{post.title}</h1>

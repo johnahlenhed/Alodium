@@ -31,6 +31,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('pages', PageController::class)->except('show');
 
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
+    // JSON for the OG image picker. In web.php (not api.php) so it uses the admin session login.
+    Route::get('/api/media', [MediaController::class, 'list'])->name('media.list');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::delete('/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
 

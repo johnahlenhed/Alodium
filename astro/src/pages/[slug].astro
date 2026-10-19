@@ -33,6 +33,9 @@ const { page, excerpt } = Astro.props;
     metaTitle={page.meta_title}
     description={page.meta_description || excerpt}
     ogImage={page.og_image}
+    ogImageWidth={page.og_image_width}
+    ogImageHeight={page.og_image_height}
+    ogType="website"
 >
     <article>
         <h1>{page.title}</h1>
