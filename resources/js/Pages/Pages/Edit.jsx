@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { displayStatus, toLocalInput, toUtcIso } from '@/utils/publishing';
 import { Head, useForm } from '@inertiajs/react';
 import PageForm from './Partials/PageForm';
 
@@ -7,13 +8,19 @@ export default function Edit({ page }) {
     const form = useForm({
         title: page.title,
         content: page.content ?? '',
-        status: page.status,
+        // Stored as draft + publish_at; shown as "scheduled" with the time in local time.
+        status: displayStatus(page),
+        publish_at: toLocalInput(page.publish_at),
         meta_title: page.meta_title ?? '',
         meta_description: page.meta_description ?? '',
     });
 
     const submit = (e) => {
         e.preventDefault();
+        form.transform((data) => ({
+            ...data,
+            publish_at: data.status === 'scheduled' ? toUtcIso(data.publish_at) : null,
+        }));
         form.put(route('pages.update', page.id));
     };
 

@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { displayStatus, formatDateTime, STATUS_BADGE_CLASSES } from '@/utils/publishing';
 import { Head, Link } from '@inertiajs/react';
 
 const formatDate = (value) =>
@@ -53,13 +54,16 @@ export default function Index({ posts }) {
                                             <span
                                                 className={
                                                     'inline-flex rounded-full px-2 py-1 text-xs font-semibold ' +
-                                                    (post.status === 'published'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-yellow-100 text-yellow-800')
+                                                    STATUS_BADGE_CLASSES[displayStatus(post)]
                                                 }
                                             >
-                                                {post.status}
+                                                {displayStatus(post)}
                                             </span>
+                                            {displayStatus(post) === 'scheduled' && (
+                                                <span className="ms-2 text-xs text-gray-500">
+                                                    {formatDateTime(post.publish_at)}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">
                                             {post.author?.name}

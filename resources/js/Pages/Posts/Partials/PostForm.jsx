@@ -3,6 +3,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
+import { localTimeZone, toLocalInput } from '@/utils/publishing';
 import { Link } from '@inertiajs/react';
 
 const textareaClass =
@@ -41,13 +42,41 @@ export default function PostForm({ form, onSubmit, submitLabel }) {
                     id="status"
                     className={textareaClass}
                     value={data.status}
-                    onChange={(e) => setData('status', e.target.value)}
+                    onChange={(e) => {
+                        const status = e.target.value;
+                        // Leaving "Scheduled" discards the chosen time.
+                        setData((current) => ({
+                            ...current,
+                            status,
+                            publish_at: status === 'scheduled' ? current.publish_at : '',
+                        }));
+                    }}
                 >
                     <option value="draft">Draft</option>
+                    <option value="scheduled">Scheduled</option>
                     <option value="published">Published</option>
                 </select>
                 <InputError message={errors.status} className="mt-2" />
             </div>
+
+            {data.status === 'scheduled' && (
+                <div>
+                    <InputLabel htmlFor="publish_at" value="Publish at" />
+                    <input
+                        id="publish_at"
+                        type="datetime-local"
+                        className={textareaClass}
+                        value={data.publish_at}
+                        min={toLocalInput(new Date())}
+                        onChange={(e) => setData('publish_at', e.target.value)}
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                        Published automatically at this time ({localTimeZone}). Until then it
+                        stays a draft and is not shown on the public site.
+                    </p>
+                    <InputError message={errors.publish_at} className="mt-2" />
+                </div>
+            )}
 
             <div>
                 <InputLabel htmlFor="meta_title" value="Meta title" />
