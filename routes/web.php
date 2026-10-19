@@ -30,6 +30,19 @@ Route::middleware('auth')->group(function () {
     Route::resource('posts', PostController::class)->except('show');
     Route::resource('pages', PageController::class)->except('show');
 
+    // Revision history. scopeBindings(): {revision} must belong to the {post}/{page}
+    // in the URL, so one item's revision can't be restored onto another.
+    Route::scopeBindings()->group(function () {
+        Route::get('/posts/{post}/revisions', [PostController::class, 'revisions'])
+            ->name('posts.revisions');
+        Route::post('/posts/{post}/revisions/{revision}/restore', [PostController::class, 'restoreRevision'])
+            ->name('posts.revisions.restore');
+        Route::get('/pages/{page}/revisions', [PageController::class, 'revisions'])
+            ->name('pages.revisions');
+        Route::post('/pages/{page}/revisions/{revision}/restore', [PageController::class, 'restoreRevision'])
+            ->name('pages.revisions.restore');
+    });
+
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     // JSON for the OG image picker. In web.php (not api.php) so it uses the admin session login.
     Route::get('/api/media', [MediaController::class, 'list'])->name('media.list');

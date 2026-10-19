@@ -36,6 +36,10 @@ class HandleInertiaRequests extends Middleware
             ],
             // Whether public registration is open (off in production, see config/auth.php).
             'canRegister' => config('auth.registration'),
+            // One-off messages after a redirect, e.g. "Restored the version from ...".
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+            ],
         ];
     }
 }

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Models\Revision;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
+use App\Traits\HandlesRevisions;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +15,7 @@ use Inertia\Response;
 
 class PostController extends Controller
 {
-    use GeneratesUniqueSlug, HandlesPublishStatus;
+    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions;
 
     public function index(): Response
     {
@@ -44,6 +47,7 @@ class PostController extends Controller
     {
         return Inertia::render('Posts/Edit', [
             'post' => $post,
+            'revisions' => $this->revisionList($post),
         ]);
     }
 
@@ -58,6 +62,16 @@ class PostController extends Controller
         ]);
 
         return redirect()->route('posts.index');
+    }
+
+    public function revisions(Post $post): JsonResponse
+    {
+        return response()->json($this->revisionList($post));
+    }
+
+    public function restoreRevision(Post $post, Revision $revision): RedirectResponse
+    {
+        return $this->restore($post, $revision, 'posts.edit');
     }
 
     public function destroy(Post $post): RedirectResponse

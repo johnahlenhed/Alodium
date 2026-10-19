@@ -1,9 +1,10 @@
+import RevisionHistory from '@/Components/RevisionHistory';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { displayStatus, toLocalInput, toUtcIso } from '@/utils/publishing';
 import { Head, useForm } from '@inertiajs/react';
 import PostForm from './Partials/PostForm';
 
-export default function Edit({ post }) {
+export default function Edit({ post, revisions }) {
     // Nullable DB columns arrive as null; controlled inputs need strings.
     const form = useForm({
         title: post.title,
@@ -35,10 +36,16 @@ export default function Edit({ post }) {
         >
             <Head title="Edit post" />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-3xl bg-white p-4 shadow sm:rounded-lg sm:p-8">
+            <div className="mx-auto max-w-3xl space-y-6 py-12">
+                <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
                     <PostForm form={form} onSubmit={submit} submitLabel="Save changes" />
                 </div>
+
+                <RevisionHistory
+                    revisions={revisions}
+                    restoreRoute="posts.revisions.restore"
+                    modelId={post.id}
+                />
             </div>
         </AuthenticatedLayout>
     );
