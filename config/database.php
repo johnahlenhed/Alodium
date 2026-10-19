@@ -127,6 +127,21 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Database Backups
+    |--------------------------------------------------------------------------
+    |
+    | Used by `php artisan db:backup` (scheduled daily at 02:00). storage/app
+    | is gitignored, so backups are never committed.
+    |
+    */
+
+    'backups' => [
+        'path' => env('DB_BACKUP_PATH', storage_path('app/backups')),
+        'keep' => (int) env('DB_BACKUP_KEEP', 30),
+    ],
+
     'migrations' => [
         'table' => 'migrations',
         'update_date_on_publish' => true,

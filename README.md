@@ -460,6 +460,40 @@ The response is `202 Accepted`, and the build runs in the background. Check prog
 
 A failed build is retried once. The live site keeps the previous version until a build succeeds. Then open `http://SERVER:8080`.
 
+### 9. Database backups
+
+`php artisan db:backup` runs every day at 02:00 UTC through the scheduler (step 7). It writes a compressed dump to `storage/app/backups/alodium-backup-YYYY-MM-DD-HHMM.sql.gz` and keeps the newest 30. A backup counts as successful only if `mysqldump` exits cleanly and the dump is complete. Failures are logged to `storage/logs/laravel.log` at error level.
+
+Backup files are readable only by `www-data` (they contain user accounts and password hashes). Make a manual backup as that user, so the file gets the same owner:
+
+```bash
+cd /var/www/alodium
+sudo -u www-data php artisan db:backup
+```
+
+List available backups:
+
+```bash
+ls -lh storage/app/backups/
+```
+
+To restore a backup manually:
+
+```bash
+php artisan down        # stop visitors and editors from writing during the restore
+gunzip -c storage/app/backups/alodium-backup-YYYY-MM-DD-0200.sql.gz | \
+  mysql -u alodium -p alodium
+php artisan up
+```
+
+The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. After restoring, trigger an Astro rebuild with the webhook (step 8) so the public site matches the restored content.
+
+Backups are stored on the same server. They protect against mistakes and broken data, but not against losing the server itself. Copy one off the server regularly, for example:
+
+```bash
+scp root@SERVER:/var/www/alodium/storage/app/backups/alodium-backup-*.sql.gz ./backups/
+```
+
 ### Updating the application
 
 **Code changes**
