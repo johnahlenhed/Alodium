@@ -10,7 +10,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * conversions per model (not in config/media-library.php), so this trait keeps
  * them identical across Post, Page and User.
  *
- * All conversions output WebP. The original upload is kept untouched as the
+ * All conversions output WebP, except the Open Graph image (JPEG). The original upload is kept untouched as the
  * source of truth, so conversions can be regenerated later
  * (php artisan media-library:regenerate) if sizes change.
  *
@@ -25,6 +25,15 @@ trait RegistersImageConversions
         $this->addMediaConversion('thumb')
             ->fit(Fit::Crop, 400, 400)
             ->format('webp')
+            ->nonQueued();
+
+        // Social sharing image (Open Graph). 1200x630 is the size Facebook, LinkedIn and
+        // X recommend, so the og:image:width/height tags on the public site are accurate.
+        // JPEG rather than WebP: not every platform that reads og:image supports WebP.
+        // Generated during the upload so it can be picked straight away.
+        $this->addMediaConversion('og')
+            ->fit(Fit::Crop, 1200, 630)
+            ->format('jpg')
             ->nonQueued();
 
         // Larger sizes are queued (QUEUE_CONNECTION) to keep uploads and imports responsive.

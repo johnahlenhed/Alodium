@@ -13,6 +13,7 @@ export default function Edit({ page }) {
         publish_at: toLocalInput(page.publish_at),
         meta_title: page.meta_title ?? '',
         meta_description: page.meta_description ?? '',
+        og_image: page.og_image ?? '',
     });
 
     const submit = (e) => {

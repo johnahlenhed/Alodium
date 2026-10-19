@@ -115,11 +115,48 @@ class PublicContentController extends Controller
             'content' => $item->content,
             'meta_title' => $item->meta_title,
             'meta_description' => $item->meta_description,
-            // Fall back to the featured image (e.g. from the WordPress import) for social previews.
-            'og_image' => $item->og_image ?: ($item->getFirstMediaUrl('featured') ?: null),
+            ...$this->ogImage($item),
             'published_at' => $item->published_at?->toIso8601String(),
             'author' => $item->author?->name,
         ]);
+    }
+
+    /**
+     * Image for social sharing, in order of preference:
+     * 1. the OG image chosen in the editor (the 1200x630 "og" conversion),
+     * 2. the featured image (e.g. from the WordPress import),
+     * 3. the first image in the content.
+     * Width/height are only given for 1, the only case where the size is known.
+     */
+    private function ogImage(Model $item): array
+    {
+        if ($item->og_image) {
+            return ['og_image' => $item->og_image, 'og_image_width' => 1200, 'og_image_height' => 630];
+        }
+
+        $featured = $item->getFirstMedia('featured');
+        $url = $featured
+            ? $featured->getUrl($featured->hasGeneratedConversion('og') ? 'og' : '')
+            : $this->firstContentImage($item->content);
+
+        return ['og_image' => $url, 'og_image_width' => null, 'og_image_height' => null];
+    }
+
+    /** src of the first <img> in the HTML, made absolute (social platforms need full URLs). */
+    private function firstContentImage(?string $html): ?string
+    {
+        if (! $html || ! preg_match('/<img\b[^>]*\bsrc=["\']([^"\']+)["\']/i', $html, $match)) {
+            return null;
+        }
+
+        $src = html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5);
+
+        return match (true) {
+            str_starts_with($src, 'http://'), str_starts_with($src, 'https://') => $src,
+            str_starts_with($src, '//') => 'https:'.$src,
+            str_starts_with($src, '/') => rtrim(config('app.url'), '/').$src,
+            default => null, // data: URIs and other relative paths can't be shared
+        };
     }
 
     /** First 160 characters of the content as plain text. */

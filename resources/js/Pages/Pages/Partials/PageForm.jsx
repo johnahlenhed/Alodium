@@ -1,5 +1,6 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import OgImagePicker from '@/Components/OgImagePicker';
 import PrimaryButton from '@/Components/PrimaryButton';
 import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
@@ -100,6 +101,12 @@ export default function PageForm({ form, onSubmit, submitLabel }) {
                 />
                 <InputError message={errors.meta_description} className="mt-2" />
             </div>
+
+            <OgImagePicker
+                value={data.og_image}
+                onChange={(url) => setData('og_image', url)}
+                error={errors.og_image}
+            />
 
             <div className="flex items-center gap-4">
                 <PrimaryButton disabled={processing}>{submitLabel}</PrimaryButton>
