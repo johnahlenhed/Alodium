@@ -25,9 +25,10 @@ class DatabaseSeeder extends Seeder
         }
 
         User::factory()->create([
-            'name' => 'John',
-            'email' => 'john@alodium.dev',
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
             'password' => bcrypt('password'),
+            'role' => 'admin',
         ]);
 
         $this->call(VisitSeeder::class);

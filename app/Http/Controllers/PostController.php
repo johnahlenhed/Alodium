@@ -10,6 +10,7 @@ use App\Traits\HandlesRevisions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,10 +18,17 @@ class PostController extends Controller
 {
     use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         return Inertia::render('Posts/Index', [
-            'posts' => Post::with('author:id,name')->latest()->get(),
+            // "can" tells the list which Edit/Delete buttons to show this user.
+            'posts' => Post::with('author:id,name')->latest()->get()->map(fn (Post $post) => [
+                ...$post->toArray(),
+                'can' => [
+                    'update' => $request->user()->can('update', $post),
+                    'delete' => $request->user()->can('delete', $post),
+                ],
+            ]),
         ]);
     }
 
@@ -45,6 +53,8 @@ class PostController extends Controller
 
     public function edit(Post $post): Response
     {
+        Gate::authorize('update', $post);
+
         return Inertia::render('Posts/Edit', [
             'post' => $post,
             'revisions' => $this->revisionList($post),
@@ -53,6 +63,8 @@ class PostController extends Controller
 
     public function update(Request $request, Post $post): RedirectResponse
     {
+        Gate::authorize('update', $post);
+
         $validated = $this->validatePost($request);
 
         $post->update([
@@ -66,16 +78,22 @@ class PostController extends Controller
 
     public function revisions(Post $post): JsonResponse
     {
+        Gate::authorize('update', $post);
+
         return response()->json($this->revisionList($post));
     }
 
     public function restoreRevision(Post $post, Revision $revision): RedirectResponse
     {
+        Gate::authorize('update', $post);
+
         return $this->restore($post, $revision, 'posts.edit');
     }
 
     public function destroy(Post $post): RedirectResponse
     {
+        Gate::authorize('delete', $post);
+
         $post->delete();
 
         return redirect()->route('posts.index');

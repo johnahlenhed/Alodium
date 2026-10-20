@@ -41,7 +41,7 @@ class SeederTest extends TestCase
     {
         $this->artisan('db:seed')->assertSuccessful();
 
-        $this->assertTrue(User::where('email', 'john@alodium.dev')->exists());
+        $this->assertTrue(User::where('email', 'admin@example.com')->exists());
         $this->assertSame(200, Visit::count());
     }
 }

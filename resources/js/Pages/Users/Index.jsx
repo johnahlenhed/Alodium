@@ -1,0 +1,117 @@
+import InputError from '@/Components/InputError';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+
+const formatDate = (value) => new Date(value).toLocaleDateString('sv-SE');
+
+const ROLE_BADGE = {
+    admin: 'bg-indigo-100 text-indigo-800',
+    editor: 'bg-gray-100 text-gray-700',
+};
+
+function UserRow({ user, isSelf }) {
+    const { data, setData, transform, patch, processing, errors } = useForm({ role: user.role });
+
+    // Saves straight away when another role is picked. setData() only applies on the
+    // next render, so transform() supplies the new value to this request.
+    const changeRole = (role) => {
+        setData('role', role);
+        transform(() => ({ role }));
+        patch(route('users.update', user.id), { preserveScroll: true });
+    };
+
+    return (
+        <tr>
+            <td className="px-6 py-4 font-medium text-gray-900">
+                {user.name}
+                {isSelf && <span className="ms-2 text-xs font-normal text-gray-500">(you)</span>}
+            </td>
+            <td className="px-6 py-4 text-gray-600">{user.email}</td>
+            <td className="px-6 py-4">
+                {isSelf ? (
+                    // Changing your own role could leave the site without an admin.
+                    <span className={'inline-flex rounded-full px-2 py-1 text-xs font-semibold ' + ROLE_BADGE[user.role]}>
+                        {user.role}
+                    </span>
+                ) : (
+                    <>
+                        <select
+                            aria-label={`Role for ${user.name}`}
+                            value={data.role}
+                            disabled={processing}
+                            onChange={(e) => changeRole(e.target.value)}
+                            className="rounded-md border-gray-300 py-1 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                            <option value="admin">Admin</option>
+                            <option value="editor">Editor</option>
+                        </select>
+                        <InputError message={errors.role} className="mt-1" />
+                    </>
+                )}
+            </td>
+            <td className="px-6 py-4 text-gray-600">{formatDate(user.created_at)}</td>
+            <td className="px-6 py-4 text-right">
+                {!isSelf && (
+                    <Link
+                        href={route('users.destroy', user.id)}
+                        method="delete"
+                        as="button"
+                        preserveScroll
+                        onBefore={() =>
+                            confirm(`Delete ${user.name}? Their posts, pages and media will be transferred to you.`)
+                        }
+                        className="text-red-600 hover:text-red-900"
+                    >
+                        Delete
+                    </Link>
+                )}
+            </td>
+        </tr>
+    );
+}
+
+export default function Index({ users }) {
+    const currentUserId = usePage().props.auth.user.id;
+
+    return (
+        <AuthenticatedLayout
+            header={
+                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    Users
+                </h2>
+            }
+        >
+            <Head title="Users" />
+
+            <div className="py-12">
+                <div className="mx-auto max-w-7xl space-y-4 sm:px-6 lg:px-8">
+                    <p className="px-4 text-sm text-gray-600 sm:px-0">
+                        <strong>Admins</strong> have full access. <strong>Editors</strong> can write and
+                        publish, and edit published content by others, but cannot delete content or
+                        use Analytics, Import or Users. New accounts are created with{' '}
+                        <code>php artisan tinker</code>.
+                    </p>
+
+                    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
+                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead className="bg-gray-50">
+                                <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                    <th className="px-6 py-3">Name</th>
+                                    <th className="px-6 py-3">Email</th>
+                                    <th className="px-6 py-3">Role</th>
+                                    <th className="px-6 py-3">Joined</th>
+                                    <th className="px-6 py-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {users.map((user) => (
+                                    <UserRow key={user.id} user={user} isSelf={user.id === currentUserId} />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </AuthenticatedLayout>
+    );
+}

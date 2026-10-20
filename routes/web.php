@@ -6,6 +6,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -27,8 +28,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::resource('posts', PostController::class)->except('show');
-    Route::resource('pages', PageController::class)->except('show');
+    // Editors can create and edit; deleting is admin-only (below). Which items an
+    // editor may edit is decided by PostPolicy/PagePolicy.
+    Route::resource('posts', PostController::class)->except(['show', 'destroy']);
+    Route::resource('pages', PageController::class)->except(['show', 'destroy']);
 
     // Revision history. scopeBindings(): {revision} must belong to the {post}/{page}
     // in the URL, so one item's revision can't be restored onto another.
@@ -47,6 +50,12 @@ Route::middleware('auth')->group(function () {
     // JSON for the OG image picker. In web.php (not api.php) so it uses the admin session login.
     Route::get('/api/media', [MediaController::class, 'list'])->name('media.list');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+});
+
+// Admin only: deleting content, analytics, import, user management.
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+    Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
     Route::delete('/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
 
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
@@ -54,6 +63,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/import', [ImportController::class, 'create'])->name('import.create');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');
     Route::get('/import/result', [ImportController::class, 'result'])->name('import.result');
+
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 });
 
 require __DIR__.'/auth.php';
