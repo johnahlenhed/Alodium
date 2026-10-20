@@ -1,4 +1,3 @@
-# Update Sitemap URL when a domain is configured
 User-agent: *
 Allow: /
-Sitemap: http://159.223.209.201:8080/sitemap-index.xml
+Sitemap: https://alodium.dev/sitemap-index.xml
