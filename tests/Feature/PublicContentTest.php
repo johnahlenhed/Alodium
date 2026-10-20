@@ -136,4 +136,26 @@ class PublicContentTest extends TestCase
             'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
         ])->assertHeader('Access-Control-Allow-Origin', '*');
     }
+
+    public function test_posts_api_returns_updated_at(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 20)->setTime(14, 0));
+        $post = $this->make(Post::class, ['slug' => 'hello']);
+        $this->travel(2)->hours();
+        $post->update(['title' => 'Edited']);
+
+        $expected = $post->fresh()->updated_at->toIso8601String();
+        $this->getJson('/api/public/posts')->assertJsonPath('0.updated_at', $expected);
+        $this->getJson('/api/public/posts/hello')->assertJsonPath('updated_at', $expected);
+        $this->assertNotSame($expected, $this->getJson('/api/public/posts/hello')->json('published_at'));
+    }
+
+    public function test_pages_api_returns_updated_at(): void
+    {
+        $page = $this->make(Page::class, ['slug' => 'about']);
+        $expected = $page->updated_at->toIso8601String();
+
+        $this->getJson('/api/public/pages')->assertJsonPath('0.updated_at', $expected);
+        $this->getJson('/api/public/pages/about')->assertJsonPath('updated_at', $expected);
+    }
 }
