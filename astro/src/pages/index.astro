@@ -2,11 +2,12 @@
 import PostList from '../components/PostList.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getPosts } from '../lib/api.js';
+import { webSiteJsonLd } from '../lib/jsonld.js';
 
 const posts = await getPosts();
 ---
 
-<BaseLayout>
+<BaseLayout jsonLd={webSiteJsonLd({ site: Astro.site })}>
     <h1>Alodium</h1>
     <PostList posts={posts} />
 </BaseLayout>

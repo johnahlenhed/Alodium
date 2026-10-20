@@ -1,4 +1,6 @@
 ---
+import { serializeJsonLd } from '../lib/jsonld.js';
+
 interface Props {
     /** Page title; " | Alodium" is appended. */
     title?: string;
@@ -11,9 +13,11 @@ interface Props {
     ogImageHeight?: number | null;
     /** "article" for blog posts, "website" for everything else. */
     ogType?: 'article' | 'website';
+    /** schema.org structured data for this page (see src/lib/jsonld.js). */
+    jsonLd?: Record<string, unknown> | null;
 }
 
-const { title, metaTitle, description, ogImage, ogImageWidth, ogImageHeight, ogType = 'website' } = Astro.props;
+const { title, metaTitle, description, ogImage, ogImageWidth, ogImageHeight, ogType = 'website', jsonLd } = Astro.props;
 
 const fullTitle = metaTitle || (title ? `${title} | Alodium` : 'Alodium');
 const canonical = new URL(Astro.url.pathname, Astro.site);
@@ -46,6 +50,8 @@ const trackerApi = (import.meta.env.API_URL ?? '').replace(/\/+$/, '').replace(/
         {ogImage && <meta name="twitter:image" content={ogImage} />}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="sitemap" href="/sitemap-index.xml" />
+
+        {jsonLd && <script type="application/ld+json" is:inline set:html={serializeJsonLd(jsonLd)} />}
 
         {
             trackerUrl && (
