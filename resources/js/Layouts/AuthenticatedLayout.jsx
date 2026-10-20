@@ -258,11 +258,18 @@ export default function AuthenticatedLayout({ header, children }) {
                 </header>
             )}
 
-            {flash?.success && (
-                <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
-                    <div role="status" className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-                        {flash.success}
-                    </div>
+            {(flash?.success || flash?.warning) && (
+                <div className="mx-auto max-w-7xl space-y-3 px-4 pt-6 sm:px-6 lg:px-8">
+                    {flash.success && (
+                        <div role="status" className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                            {flash.success}
+                        </div>
+                    )}
+                    {flash.warning && (
+                        <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                            {flash.warning}
+                        </div>
+                    )}
                 </div>
             )}
 

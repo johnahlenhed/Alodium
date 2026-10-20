@@ -1,4 +1,7 @@
 import InputError from '@/Components/InputError';
+import InputLabel from '@/Components/InputLabel';
+import PrimaryButton from '@/Components/PrimaryButton';
+import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
@@ -70,6 +73,80 @@ function UserRow({ user, isSelf }) {
     );
 }
 
+function CreateUserForm() {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
+        email: '',
+        role: 'editor',
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        post(route('users.store'), {
+            preserveScroll: true,
+            onSuccess: () => reset(),
+        });
+    };
+
+    return (
+        <section className="bg-white p-4 shadow sm:rounded-lg sm:p-6">
+            <h3 className="text-lg font-medium text-gray-900">Create user</h3>
+            <p className="mt-1 text-sm text-gray-600">
+                The new user gets an email with a link to set their own password.
+            </p>
+
+            <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-start">
+                <div>
+                    <InputLabel htmlFor="new-name" value="Name" />
+                    <TextInput
+                        id="new-name"
+                        className="mt-1 block w-full"
+                        value={data.name}
+                        autoComplete="off"
+                        onChange={(e) => setData('name', e.target.value)}
+                        required
+                    />
+                    <InputError message={errors.name} className="mt-2" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="new-email" value="Email" />
+                    <TextInput
+                        id="new-email"
+                        type="email"
+                        className="mt-1 block w-full"
+                        value={data.email}
+                        autoComplete="off"
+                        onChange={(e) => setData('email', e.target.value)}
+                        required
+                    />
+                    <InputError message={errors.email} className="mt-2" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="new-role" value="Role" />
+                    <select
+                        id="new-role"
+                        value={data.role}
+                        onChange={(e) => setData('role', e.target.value)}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    >
+                        <option value="editor">Editor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <InputError message={errors.role} className="mt-2" />
+                </div>
+
+                <div className="sm:pt-6">
+                    <PrimaryButton disabled={processing}>
+                        {processing ? 'Creating…' : 'Create user'}
+                    </PrimaryButton>
+                </div>
+            </form>
+        </section>
+    );
+}
+
 export default function Index({ users }) {
     const currentUserId = usePage().props.auth.user.id;
 
@@ -88,9 +165,10 @@ export default function Index({ users }) {
                     <p className="px-4 text-sm text-gray-600 sm:px-0">
                         <strong>Admins</strong> have full access. <strong>Editors</strong> can write and
                         publish, and edit published content by others, but cannot delete content or
-                        use Analytics, Import or Users. New accounts are created with{' '}
-                        <code>php artisan tinker</code>.
+                        use Analytics, Import or Users.
                     </p>
+
+                    <CreateUserForm />
 
                     <div className="overflow-hidden bg-white shadow sm:rounded-lg">
                         <table className="min-w-full divide-y divide-gray-200 text-sm">

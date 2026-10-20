@@ -39,6 +39,7 @@ class HandleInertiaRequests extends Middleware
             // One-off messages after a redirect, e.g. "Restored the version from ...".
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+                'warning' => fn () => $request->session()->get('warning'),
             ],
         ];
     }
