@@ -95,6 +95,7 @@ class PublicContentController extends Controller
                 'meta_title' => $item->meta_title,
                 'meta_description' => $item->meta_description,
                 'published_at' => $item->published_at?->toIso8601String(),
+                'updated_at' => $item->updated_at?->toIso8601String(),
                 'author' => $item->author?->name,
             ])
             ->all();
@@ -117,6 +118,8 @@ class PublicContentController extends Controller
             'meta_description' => $item->meta_description,
             ...$this->ogImage($item),
             'published_at' => $item->published_at?->toIso8601String(),
+            // For dateModified in the public site's JSON-LD.
+            'updated_at' => $item->updated_at?->toIso8601String(),
             'author' => $item->author?->name,
         ]);
     }

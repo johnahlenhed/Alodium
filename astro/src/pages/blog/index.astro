@@ -2,11 +2,13 @@
 import PostList from '../../components/PostList.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getPosts } from '../../lib/api.js';
+import { absoluteUrl, blogJsonLd } from '../../lib/jsonld.js';
 
 const posts = await getPosts();
+const jsonLd = blogJsonLd({ url: absoluteUrl(Astro.url.pathname, Astro.site), site: Astro.site });
 ---
 
-<BaseLayout title="Blog">
+<BaseLayout title="Blog" jsonLd={jsonLd}>
     <h1>Blog</h1>
     <p class="meta">{posts.length} {posts.length === 1 ? 'post' : 'posts'}</p>
     <PostList posts={posts} />
