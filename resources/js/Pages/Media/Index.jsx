@@ -1,6 +1,6 @@
 import InputError from '@/Components/InputError';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useRef } from 'react';
 
 const ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.svg';
@@ -8,6 +8,8 @@ const ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.svg';
 const formatDate = (value) => new Date(value).toLocaleDateString('sv-SE');
 
 export default function Index({ media }) {
+    // Only admins may delete media (the route enforces it; this hides the button).
+    const isAdmin = usePage().props.auth.user.role === 'admin';
     const fileInput = useRef(null);
     const { transform, post, processing, progress, errors, reset } = useForm({ file: null });
 
@@ -97,16 +99,18 @@ export default function Index({ media }) {
                                             <span>
                                                 {item.human_size} · {formatDate(item.created_at)}
                                             </span>
-                                            <Link
-                                                href={route('media.destroy', item.id)}
-                                                method="delete"
-                                                as="button"
-                                                preserveScroll
-                                                className="text-red-600 hover:text-red-900"
-                                                onBefore={() => confirm(`Delete ${item.file_name}?`)}
-                                            >
-                                                Delete
-                                            </Link>
+                                            {isAdmin && (
+                                                <Link
+                                                    href={route('media.destroy', item.id)}
+                                                    method="delete"
+                                                    as="button"
+                                                    preserveScroll
+                                                    className="text-red-600 hover:text-red-900"
+                                                    onBefore={() => confirm(`Delete ${item.file_name}?`)}
+                                                >
+                                                    Delete
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 </li>

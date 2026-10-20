@@ -31,13 +31,12 @@ class RobotsTxtTest extends TestCase
         $this->get('/robots.txt')->assertNotFound();
     }
 
-    public function test_public_site_robots_txt_allows_crawling_and_points_to_the_astro_sitemap(): void
+    public function test_public_site_robots_txt_allows_crawling_and_points_to_the_sitemap(): void
     {
         $robots = file_get_contents(base_path('astro/public/robots.txt'));
 
         $this->assertMatchesRegularExpression('/^Allow: \/$/m', $robots);
-        // The sitemap lives on the Astro site (port 8080), not the Laravel app.
-        $this->assertMatchesRegularExpression('#^Sitemap: https?://[^/\s]+:8080/sitemap-index\.xml$#m', $robots);
-        $this->assertStringContainsString('# Update Sitemap URL when a domain is configured', $robots);
+        // An absolute URL to the sitemap Astro generates (sitemap-index.xml).
+        $this->assertMatchesRegularExpression('#^Sitemap: https?://[^/\s]+/sitemap-index\.xml$#m', $robots);
     }
 }

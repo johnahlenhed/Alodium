@@ -72,21 +72,25 @@ export default function Index({ pages }) {
                                             {formatDate(page.published_at)}
                                         </td>
                                         <td className="space-x-4 px-6 py-4 text-right">
-                                            <Link
-                                                href={route('pages.edit', page.id)}
-                                                className="text-indigo-600 hover:text-indigo-900"
-                                            >
-                                                Edit
-                                            </Link>
-                                            <Link
-                                                href={route('pages.destroy', page.id)}
-                                                method="delete"
-                                                as="button"
-                                                className="text-red-600 hover:text-red-900"
-                                                onBefore={() => confirm('Delete this page?')}
-                                            >
-                                                Delete
-                                            </Link>
+                                            {page.can.update && (
+                                                <Link
+                                                    href={route('pages.edit', page.id)}
+                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                >
+                                                    Edit
+                                                </Link>
+                                            )}
+                                            {page.can.delete && (
+                                                <Link
+                                                    href={route('pages.destroy', page.id)}
+                                                    method="delete"
+                                                    as="button"
+                                                    className="text-red-600 hover:text-red-900"
+                                                    onBefore={() => confirm('Delete this page?')}
+                                                >
+                                                    Delete
+                                                </Link>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

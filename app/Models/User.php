@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements HasMedia
 {
@@ -34,6 +36,34 @@ class User extends Authenticatable implements HasMedia
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isEditor(): bool
+    {
+        return $this->role === 'editor';
+    }
+
+    /**
+     * Deletes this account after handing its posts, pages and media library
+     * uploads to $recipient. Without the hand-over they would be lost:
+     * posts.author_id and pages.author_id cascade on delete, and Spatie deletes
+     * a model's media together with the model.
+     */
+    public function deleteAndTransferContentTo(User $recipient): void
+    {
+        DB::transaction(function () use ($recipient) {
+            Post::where('author_id', $this->id)->update(['author_id' => $recipient->id]);
+            Page::where('author_id', $this->id)->update(['author_id' => $recipient->id]);
+            Media::where('model_type', self::class)->where('model_id', $this->id)
+                ->update(['model_id' => $recipient->id]);
+
+            $this->delete();
+        });
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Traits\HandlesRevisions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,10 +18,17 @@ class PageController extends Controller
 {
     use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         return Inertia::render('Pages/Index', [
-            'pages' => Page::with('author:id,name')->latest()->get(),
+            // "can" tells the list which Edit/Delete buttons to show this user.
+            'pages' => Page::with('author:id,name')->latest()->get()->map(fn (Page $page) => [
+                ...$page->toArray(),
+                'can' => [
+                    'update' => $request->user()->can('update', $page),
+                    'delete' => $request->user()->can('delete', $page),
+                ],
+            ]),
         ]);
     }
 
@@ -45,6 +53,8 @@ class PageController extends Controller
 
     public function edit(Page $page): Response
     {
+        Gate::authorize('update', $page);
+
         return Inertia::render('Pages/Edit', [
             'page' => $page,
             'revisions' => $this->revisionList($page),
@@ -53,6 +63,8 @@ class PageController extends Controller
 
     public function update(Request $request, Page $page): RedirectResponse
     {
+        Gate::authorize('update', $page);
+
         $validated = $this->validatePage($request);
 
         $page->update([
@@ -66,16 +78,22 @@ class PageController extends Controller
 
     public function revisions(Page $page): JsonResponse
     {
+        Gate::authorize('update', $page);
+
         return response()->json($this->revisionList($page));
     }
 
     public function restoreRevision(Page $page, Revision $revision): RedirectResponse
     {
+        Gate::authorize('update', $page);
+
         return $this->restore($page, $revision, 'pages.edit');
     }
 
     public function destroy(Page $page): RedirectResponse
     {
+        Gate::authorize('delete', $page);
+
         $page->delete();
 
         return redirect()->route('pages.index');
