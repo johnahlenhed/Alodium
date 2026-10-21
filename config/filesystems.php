@@ -60,6 +60,25 @@ return [
             'report' => false,
         ],
 
+
+        // Off-server copies of database backups (php artisan db:backup). Any
+        // S3-compatible provider: Cloudflare R2, Hetzner, DigitalOcean Spaces, B2...
+        // Only encrypted files are ever written here (App\Services\OffsiteBackup).
+        'backups' => [
+            'driver' => 's3',
+            'key' => env('BACKUP_S3_KEY'),
+            'secret' => env('BACKUP_S3_SECRET'),
+            // "?:" rather than a default: an empty BACKUP_S3_REGION= in .env is '' not null.
+            'region' => env('BACKUP_S3_REGION') ?: 'auto',
+            'bucket' => env('BACKUP_S3_BUCKET'),
+            'endpoint' => env('BACKUP_S3_ENDPOINT') ?: null,
+            'use_path_style_endpoint' => filter_var(env('BACKUP_S3_USE_PATH_STYLE', true), FILTER_VALIDATE_BOOL),
+            // Throw on failure. With false (Laravel's default) a failed upload just
+            // returns false, which could make a missing backup look like a success.
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*

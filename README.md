@@ -488,10 +488,70 @@ php artisan up
 
 The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. After restoring, trigger an Astro rebuild with the webhook (step 8) so the public site matches the restored content.
 
-Backups are stored on the same server. They protect against mistakes and broken data, but not against losing the server itself. Copy one off the server regularly, for example:
+#### Off-server copies (recommended)
+
+Local backups don't survive the loss of the server. When object storage is configured, `db:backup` also encrypts each new backup and uploads it to an S3-compatible bucket. It keeps the newest 30 there (`DB_BACKUP_REMOTE_KEEP`). Only encrypted files ever leave the server. Without the settings below, backups stay local only, exactly as before.
+
+**1. Create a bucket and an API key.** Any S3-compatible provider works: Cloudflare R2, Hetzner Object Storage, DigitalOcean Spaces or Backblaze B2. Create a private bucket, for example `alodium-backups`. Then create an API key that can read, write and delete objects **in that bucket only**. Pruning needs delete, and `db:backup-test-remote` needs read. Never use an account-wide admin key. For Cloudflare R2: *R2 → Manage API tokens → Object Read & Write*, limited to the bucket. The endpoint is `https://<account-id>.r2.cloudflarestorage.com` and the region is `auto`. Other providers show their endpoint and region in the bucket settings.
+
+**2. Generate an encryption passphrase:**
 
 ```bash
-scp root@SERVER:/var/www/alodium/storage/app/backups/alodium-backup-*.sql.gz ./backups/
+openssl rand -base64 32
+```
+
+**Store the passphrase outside the server too**, for example in a password manager. It's needed to decrypt any remote backup. If the server is lost and the passphrase only existed in its `.env`, the remote backups can't be restored. The encryption protects backups if the bucket or the provider is compromised. It does not protect against someone with access to the server itself, since the passphrase is in `.env`.
+
+**3. Add to `.env`:**
+
+```ini
+BACKUP_S3_KEY=...
+BACKUP_S3_SECRET=...
+BACKUP_S3_REGION=auto
+BACKUP_S3_BUCKET=alodium-backups
+BACKUP_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+BACKUP_S3_USE_PATH_STYLE=true
+BACKUP_ENCRYPTION_PASSPHRASE=the-generated-passphrase
+```
+
+**4. Apply and test:**
+
+```bash
+php artisan config:cache
+sudo -u www-data php artisan db:backup-test-remote
+```
+
+The test encrypts a small file, uploads it, downloads and decrypts it, then deletes it. It reports the exact error if any step fails. After that, `db:backup` uploads automatically every night. Use `php artisan db:backup --no-upload` for a local-only backup.
+
+A failed upload leaves the local backup and the remote backups untouched. It logs an error and makes `db:backup` exit with a failure code. If the bucket is configured but the passphrase is missing, nothing is uploaded, because backups are never uploaded unencrypted.
+
+**Restoring from a remote backup.** On any machine with `openssl`, `gunzip` and `mysql`, and the AWS CLI for the download (for example `sudo snap install aws-cli --classic`):
+
+```bash
+# 1. List and download (or download the file from your provider's web console)
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+aws s3 ls s3://alodium-backups/backups/ --endpoint-url https://<account-id>.r2.cloudflarestorage.com --region auto
+aws s3 cp s3://alodium-backups/backups/alodium-backup-YYYY-MM-DD-0200.sql.gz.enc . \
+  --endpoint-url https://<account-id>.r2.cloudflarestorage.com --region auto
+
+# 2. Decrypt (asks for the passphrase)
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+  -in alodium-backup-YYYY-MM-DD-0200.sql.gz.enc -out alodium-backup-YYYY-MM-DD-0200.sql.gz
+
+# 3. Restore (on the server, from /var/www/alodium)
+php artisan down
+gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | mysql -u alodium -p alodium
+php artisan up
+```
+
+The encryption is OpenSSL AES-256-CBC with a PBKDF2-derived key (600,000 iterations). It keeps the contents secret but does not detect deliberate tampering. Accidental corruption is caught when `gunzip` fails its checksum.
+
+**Test a full restore at least once**, into a scratch database, so you know the backups and the passphrase actually work before you need them:
+
+```bash
+mysql -u root -p -e "CREATE DATABASE alodium_restore_test"
+gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | mysql -u root -p alodium_restore_test
+mysql -u root -p -e "SELECT COUNT(*) FROM alodium_restore_test.posts; DROP DATABASE alodium_restore_test"
 ```
 
 ### 10. Sentry error monitoring (optional)
