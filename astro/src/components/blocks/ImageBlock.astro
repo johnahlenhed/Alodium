@@ -1,0 +1,19 @@
+---
+import { safeImage } from '../../lib/blocks.js';
+
+interface Props {
+    id: string;
+    data: { image: string; alt?: string | null; caption?: string | null };
+    /** The first block on the page loads its image eagerly. */
+    eager?: boolean;
+}
+
+const { id, data, eager = false } = Astro.props;
+const image = safeImage(data.image);
+---
+
+<figure class="block block-image" data-block-id={id}>
+    {/* Empty alt marks the image as decorative. */}
+    <img src={image} alt={data.alt ?? ''} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+    {data.caption && <figcaption>{data.caption}</figcaption>}
+</figure>

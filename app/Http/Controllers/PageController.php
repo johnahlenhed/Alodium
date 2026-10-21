@@ -8,6 +8,7 @@ use App\Models\Revision;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
+use App\Traits\SanitizesContent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
-    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions;
+    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions, SanitizesContent;
 
     public function __construct(private BlockRegistry $blockRegistry) {}
 
@@ -128,7 +129,7 @@ class PageController extends Controller
             $this->blockRegistry->validateUniqueIds($validator, $blocks);
         }
 
-        $validated = $validator->validate();
+        $validated = $this->sanitizeContent($validator->validate());
         unset($validated['blocks']);
 
         if ($hasBlocks) {

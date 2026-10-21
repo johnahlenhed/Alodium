@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Revision;
+use App\Services\ContentSanitizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 
@@ -34,7 +35,8 @@ trait HandlesRevisions
     {
         $model->saveRevision();
         $model->update([
-            'content' => $revision->content,
+            // Older revisions may hold HTML from before content was sanitised on save.
+            'content' => $revision->content === null ? null : app(ContentSanitizer::class)->sanitize($revision->content),
             ...($model->isFillable('blocks') ? ['blocks' => $revision->blocks] : []),
         ]);
 

@@ -1,0 +1,11 @@
+---
+interface Props {
+    id: string;
+    data: { html: string };
+}
+
+const { id, data } = Astro.props;
+---
+
+{/* Rich text, sanitised by the server (App\Services\ContentSanitizer) before it was stored. */}
+<div class="block block-text prose" data-block-id={id} set:html={data.html} />

@@ -1,0 +1,214 @@
+/*
+ * Styles for page blocks and for rich text (.prose: block text and legacy page
+ * content). Self-contained: it depends on nothing in BaseLayout, so the admin
+ * editor preview can load this same file in an iframe. Change the look of every
+ * block here, through the variables below (theme and logo work will hook in here).
+ */
+
+:root {
+    /* Colours */
+    --block-color-text: #1f2937;
+    --block-color-muted: #4b5563;
+    --block-color-subtle: #6b7280;
+    --block-color-border: #e5e7eb;
+    --block-color-border-strong: #d1d5db;
+    --block-color-surface: #f3f4f6;
+    --block-color-accent: #2563eb;
+    --block-color-accent-contrast: #ffffff;
+    --block-hero-bg: #1e293b;
+    --block-hero-text: #ffffff;
+    /* Darkens the hero image so white text stays readable on any photo. */
+    --block-hero-overlay: rgba(15, 23, 42, 0.55);
+
+    /* Fonts */
+    --block-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --block-font-heading: var(--block-font-body);
+    --block-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* Spacing and shape */
+    --block-gap: 2.5rem;
+    --block-space-s: 0.5rem;
+    --block-space-m: 1rem;
+    --block-space-l: 2rem;
+    --block-hero-padding: 3.5rem 2rem;
+    --block-hero-min-height: 18rem;
+    --block-radius: 8px;
+    --block-radius-small: 4px;
+}
+
+/* ------------------------------------------------------------------ blocks */
+
+.block,
+.block *,
+.block *::before,
+.block *::after {
+    box-sizing: border-box;
+}
+
+.block {
+    margin: 0 0 var(--block-gap);
+    font-family: var(--block-font-body);
+    color: var(--block-color-text);
+    line-height: 1.6;
+}
+
+/* hero */
+
+.block-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: var(--block-hero-min-height);
+    padding: var(--block-hero-padding);
+    overflow: hidden;
+    border-radius: var(--block-radius);
+    /* Shown when there is no image, or the image fails to load. */
+    background: var(--block-hero-bg);
+    color: var(--block-hero-text);
+}
+
+.block-hero__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.block-hero--has-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--block-hero-overlay);
+}
+
+.block-hero__content {
+    position: relative;
+    z-index: 1;
+    max-width: 40rem;
+}
+
+.block-hero__heading {
+    margin: 0;
+    font-family: var(--block-font-heading);
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1.2;
+    color: inherit;
+}
+
+.block-hero__subheading {
+    margin: var(--block-space-m) 0 0;
+    font-size: 1.15rem;
+    color: inherit;
+    opacity: 0.9;
+}
+
+.block-hero .block-button {
+    margin-top: var(--block-space-l);
+}
+
+/* button (also used by hero; the standalone button block arrives in stage 4) */
+
+.block-button {
+    display: inline-block;
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--block-radius-small);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.block-button--primary {
+    background: var(--block-color-accent);
+    color: var(--block-color-accent-contrast);
+}
+
+.block-button--primary:hover,
+.block-button--primary:focus-visible {
+    filter: brightness(1.1);
+}
+
+.block-button:focus-visible {
+    outline: 3px solid var(--block-color-accent-contrast);
+    outline-offset: 2px;
+}
+
+/* text: styled by .prose below */
+
+.block-text > :first-child {
+    margin-top: 0;
+}
+
+.block-text > :last-child {
+    margin-bottom: 0;
+}
+
+/* image */
+
+.block-image {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.block-image img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--block-radius);
+}
+
+.block-image figcaption {
+    margin-top: var(--block-space-s);
+    font-size: 0.9rem;
+    color: var(--block-color-subtle);
+}
+
+/* --------------------------------------------- rich text (TipTap / WordPress) */
+
+.prose a {
+    color: var(--block-color-accent);
+}
+
+.prose h1 { font-size: 2rem; line-height: 1.25; }
+.prose h2 { font-size: 1.5rem; line-height: 1.3; margin-top: 2rem; }
+.prose h3 { font-size: 1.25rem; margin-top: 1.5rem; }
+.prose h4 { font-size: 1.1rem; }
+.prose h5,
+.prose h6 { font-size: 1rem; }
+.prose p { margin: 1rem 0; }
+.prose ul,
+.prose ol { padding-left: 1.5rem; }
+.prose li > p { margin: 0.25rem 0; }
+.prose blockquote {
+    margin: 1.5rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid var(--block-color-border-strong);
+    color: var(--block-color-muted);
+    font-style: italic;
+}
+.prose code {
+    padding: 0.1em 0.35em;
+    border-radius: var(--block-radius-small);
+    background: var(--block-color-surface);
+    font-family: var(--block-font-mono);
+    font-size: 0.9em;
+}
+.prose pre {
+    overflow-x: auto;
+    padding: 1rem;
+    border-radius: 6px;
+    background: var(--block-color-surface);
+}
+.prose pre code {
+    padding: 0;
+    background: none;
+}
+.prose img {
+    max-width: 100%;
+    height: auto;
+}
+.prose hr {
+    margin: 2rem 0;
+    border: 0;
+    border-top: 1px solid var(--block-color-border);
+}
+/* text-align from the editor arrives as an inline style (left, center or right only). */

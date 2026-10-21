@@ -1,0 +1,44 @@
+---
+import { safeImage, safeLink } from '../../lib/blocks.js';
+
+interface Props {
+    id: string;
+    data: { heading: string; subheading?: string | null; image?: string | null; button_label?: string | null; button_url?: string | null };
+    /** 1 only for a hero that is the first block on the page (one <h1> per page). */
+    headingLevel?: 1 | 2;
+    /** The first block on the page loads its image eagerly. */
+    eager?: boolean;
+}
+
+const { id, data, headingLevel = 2, eager = false } = Astro.props;
+const Heading = headingLevel === 1 ? 'h1' : 'h2';
+const image = safeImage(data.image);
+// A button needs both a label and a safe URL; otherwise no link is rendered.
+const link = data.button_label ? safeLink(data.button_url) : null;
+---
+
+<section class={image ? 'block block-hero block-hero--has-image' : 'block block-hero'} data-block-id={id}>
+    {
+        image && (
+            <img
+                class="block-hero__image"
+                src={image}
+                alt=""
+                loading={eager ? 'eager' : 'lazy'}
+                decoding="async"
+                fetchpriority={eager ? 'high' : undefined}
+            />
+        )
+    }
+    <div class="block-hero__content">
+        <Heading class="block-hero__heading">{data.heading}</Heading>
+        {data.subheading && <p class="block-hero__subheading">{data.subheading}</p>}
+        {
+            link && (
+                <a class="block-button block-button--primary" href={link.href} rel={link.external ? 'noopener noreferrer' : undefined}>
+                    {data.button_label}
+                </a>
+            )
+        }
+    </div>
+</section>

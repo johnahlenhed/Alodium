@@ -3,6 +3,18 @@
 
 const API_URL = (import.meta.env.API_URL ?? '').replace(/\/+$/, '');
 
+/**
+ * Origin of the Laravel app (e.g. "http://localhost:8000"), where uploaded files
+ * live under /storage/. Used to make relative image paths from the API absolute.
+ */
+export const apiOrigin = (() => {
+    try {
+        return new URL(API_URL).origin;
+    } catch {
+        return '';
+    }
+})();
+
 export async function api(path) {
     if (!API_URL) {
         throw new Error('API_URL is not set. Copy astro/.env.example to astro/.env.');
