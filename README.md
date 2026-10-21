@@ -24,11 +24,14 @@ A self-hosted content platform for freelance web developers. Combines a modern C
 - `php8.4-mysql`
 - `php8.4-mbstring`
 - `php8.4-curl`
+- `php8.4-zip`
+- `php8.4-bcmath`
+- `php8.4-intl`
 
 On Debian/Ubuntu:
 
 ```bash
-sudo apt install php-gd php-xml php-mysql php-mbstring php-curl
+sudo apt install php-gd php-xml php-mysql php-mbstring php-curl php-zip php-bcmath php-intl
 ```
 
 ### PHP upload limits
@@ -46,7 +49,7 @@ Run `php --ini` to find which `php.ini` is loaded. The CLI (`php artisan serve`)
 
 ```bash
 git clone https://github.com/johnahlenhed/Alodium.git
-cd alodium
+cd Alodium
 composer install
 npm install --legacy-peer-deps
 cp .env.example .env
@@ -90,9 +93,9 @@ This product includes GeoLite2 data created by MaxMind, available from [https://
 
 ## Deployment
 
-A step-by-step guide to deploying Alodium on a single Ubuntu server. One server runs both parts: the Laravel admin panel and API on port 80, and the static Astro public site on port 8080.
+A step-by-step guide to deploying Alodium on a single Ubuntu server, over HTTPS on two domains. One server runs both parts: the Laravel admin panel and API on `ADMIN_DOMAIN` (for example `admin.example.com`), and the static Astro public site on `SITE_DOMAIN` (for example `example.com`).
 
-Throughout this guide, replace `SERVER` with your server's IP address or domain. All commands are run as root (or with `sudo`) unless stated otherwise.
+Throughout this guide, replace `ADMIN_DOMAIN` and `SITE_DOMAIN` with your domains, and `SERVER` in `ssh`, `scp` and `rsync` commands with your server's IP address. All commands are run as root (or with `sudo`) unless stated otherwise.
 
 ### Server requirements
 
@@ -143,8 +146,10 @@ mysql_secure_installation
 Create the database and a dedicated user:
 
 ```bash
-mysql -u root -p
+mysql
 ```
+
+On Ubuntu, MySQL's root account uses socket authentication, so run `mysql` as root (or with `sudo`) without `-p`.
 
 ```sql
 CREATE DATABASE alodium CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -204,7 +209,7 @@ Edit `.env` for production. At minimum:
 ```ini
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=http://SERVER
+APP_URL=https://ADMIN_DOMAIN
 
 DB_CONNECTION=mysql
 DB_DATABASE=alodium
@@ -213,7 +218,7 @@ DB_PASSWORD=a-strong-password
 
 MAIL_MAILER=resend
 RESEND_API_KEY=re_...
-MAIL_FROM_ADDRESS=hello@alodium.dev
+MAIL_FROM_ADDRESS=hello@SITE_DOMAIN
 
 QUEUE_CONNECTION=database
 ```
@@ -225,12 +230,7 @@ php artisan migrate --force
 php artisan storage:link
 ```
 
-Create your admin account:
-
-```bash
-php artisan tinker
-> App\Models\User::create(['name' => 'Your Name', 'email' => 'you@example.com', 'password' => bcrypt('a-strong-password')]);
-```
+#### Create the admin account
 
 > **Registration is disabled and the seeder is blocked in production.**
 > `/register` redirects to the login page, the seeder exits with a
@@ -242,6 +242,16 @@ php artisan tinker
 > ```
 > To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env`
 > and run `php artisan config:cache`.
+
+#### Email (Resend)
+
+Add and verify the sending domain in Resend **before any mail is sent**, otherwise sending fails. In the Resend dashboard, add the domain under *Domains* and add the DNS records it shows (DKIM, plus SPF and the return-path records) at your DNS provider. Wait until Resend shows the domain as verified.
+
+Create an API key with **Sending access** only, and put it in `RESEND_API_KEY`. Set `MAIL_FROM_ADDRESS` to an address on the verified domain, then:
+
+```bash
+php artisan config:cache
+```
 
 Set file ownership so PHP-FPM and the queue worker (both `www-data`) can write to storage:
 
@@ -274,16 +284,40 @@ mkdir -p /var/www/alodium/astro-public
 `astro/.env.production` is gitignored, so create it on the server:
 
 ```ini
-API_URL=http://SERVER/api/public
-SITE_URL=http://SERVER:8080
-TRACKER_URL=http://SERVER/tracker.js
+API_URL=https://ADMIN_DOMAIN/api/public
+SITE_URL=https://SITE_DOMAIN
+TRACKER_URL=https://ADMIN_DOMAIN/tracker.js
+SITE_NAME=Your site name
 ```
 
-`API_URL` has no trailing slash. Also update the `Sitemap:` line in `astro/public/robots.txt` to the real site URL.
+`API_URL` has no trailing slash. Also set the `Sitemap:` line in `astro/public/robots.txt` to the real site URL:
 
-### 5. Nginx
+```
+Sitemap: https://SITE_DOMAIN/sitemap-index.xml
+```
 
-Two server blocks: the Laravel admin panel and API on port 80, and the Astro build output on port 8080.
+### 5. DNS, Nginx and HTTPS
+
+#### DNS
+
+Create three A records pointing to the server's IP address:
+
+| Type | Name | Value |
+|---|---|---|
+| A | `SITE_DOMAIN` | server IP |
+| A | `www.SITE_DOMAIN` | server IP |
+| A | `ADMIN_DOMAIN` | server IP |
+
+If you use Cloudflare, set all three to **DNS only** (grey cloud, not proxied), so Let's Encrypt can verify them. Wait until the names resolve to the server before continuing:
+
+```bash
+ping SITE_DOMAIN
+ping ADMIN_DOMAIN
+```
+
+#### Nginx
+
+`ADMIN_DOMAIN` serves Laravel (the admin panel, public content API and tracker). `SITE_DOMAIN` and `www.SITE_DOMAIN` serve the Astro build output. Start with plain HTTP (`listen 80`) blocks that use the real domain names as `server_name`. Certbot (below) cannot install the certificate if `server_name` is an IP address or doesn't match the domain.
 
 `/etc/nginx/sites-available/alodium`:
 
@@ -291,7 +325,7 @@ Two server blocks: the Laravel admin panel and API on port 80, and the Astro bui
 # Laravel: admin panel, public content API, tracker
 server {
     listen 80;
-    server_name SERVER;
+    server_name ADMIN_DOMAIN;
     root /var/www/alodium/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -334,8 +368,8 @@ server {
 
 # Astro: static public site
 server {
-    listen 8080;
-    server_name SERVER;
+    listen 80;
+    server_name SITE_DOMAIN www.SITE_DOMAIN;
     root /var/www/alodium/astro-public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -359,7 +393,53 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 ```
 
-If a firewall is active (`ufw`, or the hosting provider's firewall), open ports 22, 80 and 8080.
+If a firewall is active (`ufw`, or the hosting provider's firewall), open ports 22, 80 and 443. Port 8080 should stay closed. See [Server hardening](#11-server-hardening).
+
+#### HTTPS (Let's Encrypt)
+
+```bash
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d SITE_DOMAIN -d www.SITE_DOMAIN -d ADMIN_DOMAIN
+```
+
+Certbot gets one certificate for all three names, adds the HTTPS settings to the blocks above, and redirects HTTP to HTTPS. For reference, the result looks like this. The Laravel and Astro rules inside the blocks are unchanged and shortened here to `...`:
+
+```nginx
+server {
+    server_name ADMIN_DOMAIN;
+    root /var/www/alodium/public;
+    # ... all the Laravel rules from above ...
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/SITE_DOMAIN/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/SITE_DOMAIN/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    server_name SITE_DOMAIN www.SITE_DOMAIN;
+    root /var/www/alodium/astro-public;
+    # ... all the Astro rules from above ...
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/SITE_DOMAIN/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/SITE_DOMAIN/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+# HTTP to HTTPS for all three names
+server {
+    listen 80;
+    server_name SITE_DOMAIN www.SITE_DOMAIN ADMIN_DOMAIN;
+    return 301 https://$host$request_uri;
+}
+```
+
+Certbot writes the redirect as `if ($host = ...)` lines in one port 80 block per site. That does the same thing as the single block above.
+
+Test both sites in a browser: `https://SITE_DOMAIN` and `https://ADMIN_DOMAIN`. Optionally, check the HTTPS setup at [ssllabs.com/ssltest](https://www.ssllabs.com/ssltest/). Certbot renews the certificate automatically.
 
 ### 6. Queue worker (Supervisor)
 
@@ -449,7 +529,7 @@ The script runs as `www-data` (the queue worker's user) and needs no `sudo`.
 Run the first build by calling the webhook:
 
 ```bash
-curl -X POST http://SERVER/api/webhook/rebuild -H "X-Webhook-Secret: the-generated-secret"
+curl -X POST https://ADMIN_DOMAIN/api/webhook/rebuild -H "X-Webhook-Secret: the-generated-secret"
 ```
 
 The response is `202 Accepted`, and the build runs in the background. Check progress in:
@@ -458,7 +538,7 @@ The response is `202 Accepted`, and the build runs in the background. Check prog
 - `storage/logs/laravel.log`: build output and errors
 - `storage/logs/worker.log`: the queue worker
 
-A failed build is retried once. The live site keeps the previous version until a build succeeds. Then open `http://SERVER:8080`.
+A failed build is retried once. The live site keeps the previous version until a build succeeds. Then open `https://SITE_DOMAIN`.
 
 ### 9. Database backups
 
@@ -482,9 +562,11 @@ To restore a backup manually:
 ```bash
 php artisan down        # stop visitors and editors from writing during the restore
 gunzip -c storage/app/backups/alodium-backup-YYYY-MM-DD-0200.sql.gz | \
-  mysql -u alodium -p alodium
+  mysql -u <DB_USERNAME> -p alodium
 php artisan up
 ```
+
+Replace `<DB_USERNAME>` with the `DB_USERNAME` from your `.env`. `mysql` asks for its `DB_PASSWORD`.
 
 The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. After restoring, trigger an Astro rebuild with the webhook (step 8) so the public site matches the restored content.
 
@@ -492,7 +574,7 @@ The restore replaces the current tables with the ones in the backup. Changes mad
 
 Local backups don't survive the loss of the server. When object storage is configured, `db:backup` also encrypts each new backup and uploads it to an S3-compatible bucket. It keeps the newest 30 there (`DB_BACKUP_REMOTE_KEEP`). Only encrypted files ever leave the server. Without the settings below, backups stay local only, exactly as before.
 
-**1. Create a bucket and an API key.** Any S3-compatible provider works: Cloudflare R2, Hetzner Object Storage, DigitalOcean Spaces or Backblaze B2. Create a private bucket, for example `alodium-backups`. Then create an API key that can read, write and delete objects **in that bucket only**. Pruning needs delete, and `db:backup-test-remote` needs read. Never use an account-wide admin key. For Cloudflare R2: *R2 → Manage API tokens → Object Read & Write*, limited to the bucket. The endpoint is `https://<account-id>.r2.cloudflarestorage.com` and the region is `auto`. Other providers show their endpoint and region in the bucket settings.
+**1. Create a bucket and an API key.** Any S3-compatible provider works: Cloudflare R2, Hetzner Object Storage, DigitalOcean Spaces or Backblaze B2. Create a private bucket, for example `alodium-backups`. Then create an API key that can read, write and delete objects **in that bucket only**. Pruning needs delete, and `db:backup-test-remote` needs read. Never use an account-wide admin key. For Cloudflare R2: *R2 → Manage API tokens → Object Read & Write*, limited to the bucket. The endpoint is `https://<account-id>.r2.cloudflarestorage.com` and the region is `auto`. Buckets created with the EU jurisdiction use `https://<account-id>.eu.r2.cloudflarestorage.com` instead. Copy the exact endpoint from the bucket settings. Other providers show their endpoint and region in the bucket settings.
 
 **2. Generate an encryption passphrase:**
 
@@ -500,7 +582,7 @@ Local backups don't survive the loss of the server. When object storage is confi
 openssl rand -base64 32
 ```
 
-**Store the passphrase outside the server too**, for example in a password manager. It's needed to decrypt any remote backup. If the server is lost and the passphrase only existed in its `.env`, the remote backups can't be restored. The encryption protects backups if the bucket or the provider is compromised. It does not protect against someone with access to the server itself, since the passphrase is in `.env`.
+**Store the passphrase outside the server too**, for example in a password manager. Copy it from the server's `.env` into the password manager as soon as it is generated, and test a restore using the password manager copy. It's needed to decrypt any remote backup. If the server is lost and the passphrase only existed in its `.env`, the remote backups can't be restored. The encryption protects backups if the bucket or the provider is compromised. It does not protect against someone with access to the server itself, since the passphrase is in `.env`.
 
 **3. Add to `.env`:**
 
@@ -509,10 +591,13 @@ BACKUP_S3_KEY=...
 BACKUP_S3_SECRET=...
 BACKUP_S3_REGION=auto
 BACKUP_S3_BUCKET=alodium-backups
+# EU jurisdiction buckets: https://<account-id>.eu.r2.cloudflarestorage.com
 BACKUP_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 BACKUP_S3_USE_PATH_STYLE=true
-BACKUP_ENCRYPTION_PASSPHRASE=the-generated-passphrase
+BACKUP_ENCRYPTION_PASSPHRASE="the-generated-passphrase"
 ```
+
+The quotes only protect characters like `=`, `+` and `/` in the `.env` file and are not part of the passphrase. When decrypting, type the passphrase without quotes.
 
 **4. Apply and test:**
 
@@ -530,9 +615,11 @@ A failed upload leaves the local backup and the remote backups untouched. It log
 ```bash
 # 1. List and download (or download the file from your provider's web console)
 export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
-aws s3 ls s3://alodium-backups/backups/ --endpoint-url https://<account-id>.r2.cloudflarestorage.com --region auto
+# The BACKUP_S3_ENDPOINT from your .env (EU jurisdiction: https://<account-id>.eu.r2.cloudflarestorage.com)
+ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+aws s3 ls s3://alodium-backups/backups/ --endpoint-url "$ENDPOINT" --region auto
 aws s3 cp s3://alodium-backups/backups/alodium-backup-YYYY-MM-DD-0200.sql.gz.enc . \
-  --endpoint-url https://<account-id>.r2.cloudflarestorage.com --region auto
+  --endpoint-url "$ENDPOINT" --region auto
 
 # 2. Decrypt (asks for the passphrase)
 openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
@@ -540,18 +627,77 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
 
 # 3. Restore (on the server, from /var/www/alodium)
 php artisan down
-gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | mysql -u alodium -p alodium
+gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | mysql -u <DB_USERNAME> -p alodium
 php artisan up
 ```
 
+As above, `<DB_USERNAME>` is the `DB_USERNAME` from your `.env`.
+
 The encryption is OpenSSL AES-256-CBC with a PBKDF2-derived key (600,000 iterations). It keeps the contents secret but does not detect deliberate tampering. Accidental corruption is caught when `gunzip` fails its checksum.
 
-**Test a full restore at least once**, into a scratch database, so you know the backups and the passphrase actually work before you need them:
+**Test a full restore at least once**, into a scratch database, so you know the backups and the passphrase actually work before you need them. On Ubuntu, MySQL's root account uses socket authentication, so use `sudo mysql`:
 
 ```bash
-mysql -u root -p -e "CREATE DATABASE alodium_restore_test"
-gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | mysql -u root -p alodium_restore_test
-mysql -u root -p -e "SELECT COUNT(*) FROM alodium_restore_test.posts; DROP DATABASE alodium_restore_test"
+gunzip -t alodium-backup-YYYY-MM-DD-0200.sql.gz   # checks the file is intact before loading it
+sudo mysql -e "CREATE DATABASE alodium_restore_test"
+gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | sudo mysql alodium_restore_test
+sudo mysql -e "SELECT COUNT(*) FROM alodium_restore_test.posts; DROP DATABASE alodium_restore_test"
+rm alodium-backup-YYYY-MM-DD-0200.sql.gz          # the decrypted copy
+```
+
+> **Never restore a test into the live database or your local development database.** Always use a separate scratch database like the one above. Delete decrypted backup files afterwards, because they contain user accounts and password hashes.
+
+#### Disaster recovery
+
+If the server is lost:
+
+1. Create a new droplet.
+2. Follow deployment steps 1–8 and 11, and point the DNS records at the new server's IP address (Certbot then issues a new certificate).
+3. Restore the latest backup as described in "Restoring from a remote backup" above.
+4. Re-add the `.env` values from the password manager: `APP_KEY`, the database password (`DB_PASSWORD`), S3 credentials, encryption passphrase, Resend, Sentry and the webhook secret. Then run `php artisan config:cache`. Use the old `APP_KEY`, not the one `key:generate` created on the new server. Without it, every session is invalidated and anything Laravel encrypted becomes unreadable. Save these values outside the server, so they survive its loss.
+5. Restore uploaded media (see below).
+6. Trigger an Astro rebuild with the webhook (step 8).
+
+#### What the backups don't cover
+
+`db:backup` copies the database only. These need their own copy:
+
+- **Uploaded media** in `storage/app/public`. When off-server copies are configured, `media:backup-remote` copies it to the bucket every night (see "Off-server media copies" below). Without a bucket, copy it off the server yourself, for example with `rsync -a root@SERVER:/var/www/alodium/storage/app/public/ ./alodium-media/`.
+- **The `.env` file.** Keep its values in a password manager.
+- **Server configuration** (Nginx, Supervisor, cron). The deployment steps rebuild it.
+
+#### Off-server media copies
+
+When the `BACKUP_S3_*` settings above are configured, `php artisan media:backup-remote` runs every day at 02:30 UTC. It copies everything in `storage/app/public` (uploads and their conversions) to the same bucket under `media/`, keeping the folder structure. Only new files and files whose size changed are uploaded. Remote files are never deleted, so media deleted in the admin panel can still be recovered from the bucket. Without the settings, the command does nothing.
+
+Media files are stored as they are, not encrypted, because they are public on the site anyway. A failed upload is logged at error level and makes the command exit with a failure code. The other files are still copied.
+
+Run it by hand, for example right after setting up the bucket:
+
+```bash
+cd /var/www/alodium
+sudo -u www-data php artisan media:backup-remote
+```
+
+**Restoring media onto a new server**, with the AWS CLI and the same credentials and endpoint as for database backups:
+
+```bash
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+# The BACKUP_S3_ENDPOINT from your .env (EU jurisdiction: https://<account-id>.eu.r2.cloudflarestorage.com)
+ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+
+aws s3 sync s3://alodium-backups/media/ /var/www/alodium/storage/app/public/ \
+  --endpoint-url "$ENDPOINT" --region auto
+
+chown -R www-data:www-data /var/www/alodium/storage/app/public
+cd /var/www/alodium
+php artisan storage:link        # only if public/storage doesn't exist yet
+```
+
+Restore the database first: Spatie's `media` table says which files belong to which post or page. The sync also brings back files that were deleted on purpose, which is harmless, because nothing in the database points to them. If image conversions (thumbnails, WebP, the social sharing image) are missing, regenerate them:
+
+```bash
+sudo -u www-data php artisan media-library:regenerate
 ```
 
 ### 10. Sentry error monitoring (optional)
@@ -581,6 +727,63 @@ Notes:
 - `SENTRY_TRACES_SAMPLE_RATE` is the share of requests recorded for performance monitoring (0.1 = 10%). Tracker requests from the public site count too, so lower it if the free quota runs out.
 - Personal data (IP addresses, user e-mails) is not sent by default (`send_default_pii` is off in `config/sentry.php`). This keeps the privacy-first analytics promise.
 - Profiling (`SENTRY_PROFILES_SAMPLE_RATE`, default 0.1) needs the PHP `excimer` extension. Without it, profiling is simply skipped.
+
+### 11. Server hardening
+
+**Firewall.** Allow SSH *before* enabling the firewall, or the current session is locked out:
+
+```bash
+ufw allow 22/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable
+ufw status   # 22, 80 and 443 allowed; 8080 closed (not listed, or an explicit DENY rule)
+```
+
+**SSH.** Make sure you can log in with an SSH key first. Then set these in `/etc/ssh/sshd_config`:
+
+```
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+```
+
+```bash
+systemctl restart ssh    # the service is called "ssh" on Ubuntu, not "sshd"
+sshd -T | grep -E 'permitrootlogin|passwordauthentication'   # shows the values in effect
+```
+
+If `sshd -T` shows `permitrootlogin without-password`, that is fine: `without-password` is the old name for `prohibit-password` and means the same.
+
+Files in `/etc/ssh/sshd_config.d/` are read first and take precedence, and some cloud images set `PasswordAuthentication yes` there. If `sshd -T` still shows `yes`, change it in that file too. Open a new connection in a second terminal and check that it works before closing the first one.
+
+**Automatic security updates:**
+
+```bash
+apt install -y unattended-upgrades
+dpkg-reconfigure unattended-upgrades
+```
+
+**MySQL** should listen on 127.0.0.1 only. Check `bind-address` in `/etc/mysql/mysql.conf.d/mysqld.cnf`, and confirm:
+
+```bash
+ss -ltnp | grep 3306   # 127.0.0.1:3306, not 0.0.0.0:3306
+```
+
+**Cron.** The scheduler entry (step 7) must exist only for `www-data`, not also for root. Otherwise every scheduled job (publishing, backups) runs twice:
+
+```bash
+crontab -u www-data -l   # contains schedule:run
+crontab -l               # as root: must not contain schedule:run
+```
+
+### 12. Users and roles
+
+There are two roles:
+
+- **Admin:** full access.
+- **Editor:** can write, publish and edit their own posts and pages, and edit published content by others. Editors cannot delete content, use Analytics or Import, manage users, or edit other authors' drafts.
+
+Admins create users on the **Users** page (name, email and role). The new user gets an invitation email with a link to set their password. The link is valid for 60 minutes. After that, "Forgot your password?" on the login page sends a new one. This needs working email (see [Email (Resend)](#email-resend) in step 3). Roles can be changed on the same page.
 
 ### Updating the application
 
@@ -616,12 +819,7 @@ sudo -u www-data php artisan media-library:regenerate --only=og
 
 **After configuring a domain**
 
-Update these two files, then trigger an Astro rebuild with the webhook:
-
-- `astro/public/robots.txt`: update the `Sitemap` URL
-- `astro/.env.production`: update `API_URL`, `SITE_URL` and `TRACKER_URL`
-
-The admin panel's `public/robots.txt` blocks all crawlers (`Disallow: /`) and needs no change.
+Update the domain settings as described in steps 4 and 5, then trigger an Astro rebuild with the webhook.
 
 **Content changes**
 
@@ -642,6 +840,9 @@ Publishing, editing, unpublishing or deleting posts and pages in the admin panel
 | Uploads fail without an error | Upload limits in `/etc/php/8.4/fpm/php.ini`. Restart `php8.4-fpm` after editing. |
 | `git pull` fails with "dubious ownership" | The repo is owned by www-data. Run `git config --global --add safe.directory /var/www/alodium` once. |
 | Building assets on the server runs out of memory | Build them locally and copy them with `scp -r public/build/*`. |
+| Certbot: "Could not automatically find a matching server block" | `server_name` is an IP address or doesn't match the domain. Fix `server_name`, reload Nginx, then run `certbot install --cert-name SITE_DOMAIN`. |
+| Invitation or password reset emails only appear in `laravel.log` | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `php artisan config:cache` after fixing `.env`. |
+| Astro build fails with `astro: not found` | Dependencies are missing. Run `npm install --legacy-peer-deps` in `astro/` and make sure the files are owned by `www-data`. |
 
 ## License
 

@@ -177,6 +177,15 @@ class BackupDatabaseTest extends TestCase
 
     public function test_backup_is_scheduled_daily_at_two(): void
     {
-        $this->artisan('schedule:list')->expectsOutputToContain('0 2 * * *  php artisan db:backup')->assertSuccessful();
+        $this->assertSame('0 2 * * *', $this->scheduleFor('db:backup'));
+    }
+
+    /** Cron expression the scheduler uses for a command (independent of schedule:list layout). */
+    private function scheduleFor(string $command): ?string
+    {
+        $event = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+            ->first(fn ($event) => str_contains((string) $event->command, $command));
+
+        return $event?->expression;
     }
 }
