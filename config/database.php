@@ -140,6 +140,11 @@ return [
     'backups' => [
         'path' => env('DB_BACKUP_PATH', storage_path('app/backups')),
         'keep' => (int) env('DB_BACKUP_KEEP', 30),
+        // Off-server copies (encrypted, on the "backups" disk in config/filesystems.php).
+        'remote_keep' => (int) env('DB_BACKUP_REMOTE_KEEP', 30),
+        'remote_prefix' => 'backups',
+        // Never stored in the bucket. Keep a copy outside the server too (see README).
+        'passphrase' => env('BACKUP_ENCRYPTION_PASSPHRASE'),
     ],
 
     'migrations' => [
