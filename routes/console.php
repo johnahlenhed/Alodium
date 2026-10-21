@@ -14,3 +14,6 @@ Schedule::command('content:publish-scheduled')->everyMinute()->withoutOverlappin
 
 // Daily database backup to storage/app/backups (keeps the newest 30).
 Schedule::command('db:backup')->dailyAt('02:00')->withoutOverlapping();
+
+// Copies new and changed media to the off-server bucket (only when BACKUP_S3_* is set).
+Schedule::command('media:backup-remote')->dailyAt('02:30')->withoutOverlapping();
