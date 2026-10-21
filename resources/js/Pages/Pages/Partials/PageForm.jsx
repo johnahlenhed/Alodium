@@ -5,17 +5,36 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { localTimeZone, toLocalInput } from '@/utils/publishing';
+import BlockEditor from '@/Components/Blocks/BlockEditor';
 import { Link } from '@inertiajs/react';
+import { useCallback, useRef, useState } from 'react';
 
 const textareaClass =
     'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
 
 // Shared by Create and Edit. The parent owns the useForm instance and submit handler.
-export default function PageForm({ form, onSubmit, submitLabel }) {
+// mode: "blocks" (block editor) or "classic" (one rich-text editor for `content`,
+// for legacy pages). onConvert switches a legacy page to blocks (Edit only).
+export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic', onConvert }) {
     const { data, setData, errors, processing } = form;
 
+    // Stable setter for the block list, so block cards keep stable callbacks.
+    const setDataRef = useRef(setData);
+    setDataRef.current = setData;
+    const setBlocks = useCallback(
+        (update) => setDataRef.current((current) => ({ ...current, blocks: update(current.blocks) })),
+        [],
+    );
+
+    // The block order at submit time, to put server errors on the right block.
+    const [submittedIds, setSubmittedIds] = useState([]);
+    const submit = (e) => {
+        if (mode === 'blocks') setSubmittedIds(data.blocks.map((block) => block.id));
+        onSubmit(e);
+    };
+
     return (
-        <form onSubmit={onSubmit} className="space-y-6">
+        <form onSubmit={submit} className="space-y-6">
             <div>
                 <InputLabel htmlFor="title" value="Title" />
                 <TextInput
@@ -28,14 +47,37 @@ export default function PageForm({ form, onSubmit, submitLabel }) {
                 <InputError message={errors.title} className="mt-2" />
             </div>
 
-            <div>
-                <InputLabel value="Content" />
-                <RichTextEditor
-                    value={data.content}
-                    onChange={(html) => setData('content', html)}
-                />
-                <InputError message={errors.content} className="mt-2" />
-            </div>
+            {mode === 'blocks' ? (
+                <div>
+                    <InputLabel value="Content blocks" />
+                    <div className="mt-2">
+                        <BlockEditor blocks={data.blocks} setBlocks={setBlocks} errors={errors} submittedIds={submittedIds} />
+                    </div>
+                </div>
+            ) : (
+                <div>
+                    {onConvert && (
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-indigo-200 bg-indigo-50 px-4 py-3">
+                            <p className="text-sm text-indigo-900">
+                                This page uses the classic editor. Convert it to build the page from blocks.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={onConvert}
+                                className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 shadow-sm ring-1 ring-indigo-200 hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            >
+                                Convert to blocks
+                            </button>
+                        </div>
+                    )}
+                    <InputLabel value="Content" />
+                    <RichTextEditor
+                        value={data.content}
+                        onChange={(html) => setData('content', html)}
+                    />
+                    <InputError message={errors.content} className="mt-2" />
+                </div>
+            )}
 
             <div>
                 <InputLabel htmlFor="status" value="Status" />

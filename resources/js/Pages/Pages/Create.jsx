@@ -3,10 +3,11 @@ import { toUtcIso } from '@/utils/publishing';
 import { Head, useForm } from '@inertiajs/react';
 import PageForm from './Partials/PageForm';
 
-export default function Create() {
+export default function Create({ blocks = [] }) {
+    // New pages are block pages.
     const form = useForm({
         title: '',
-        content: '',
+        blocks,
         status: 'draft',
         publish_at: '',
         meta_title: '',
@@ -35,7 +36,7 @@ export default function Create() {
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                    <PageForm form={form} onSubmit={submit} submitLabel="Create page" />
+                    <PageForm form={form} onSubmit={submit} submitLabel="Create page" mode="blocks" />
                 </div>
             </div>
         </AuthenticatedLayout>

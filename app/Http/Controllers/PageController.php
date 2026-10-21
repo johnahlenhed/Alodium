@@ -39,7 +39,11 @@ class PageController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Pages/Create');
+        // New pages are block pages.
+        return Inertia::render('Pages/Create', [
+            'hasBlocks' => true,
+            'blocks' => [],
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -63,6 +67,9 @@ class PageController extends Controller
         return Inertia::render('Pages/Edit', [
             'page' => $page,
             'revisions' => $this->revisionList($page),
+            // For a legacy page: its content as one text block, used if it is converted.
+            'blocks' => $page->blocksOrLegacy(),
+            'hasBlocks' => $page->hasBlocks(),
         ]);
     }
 
