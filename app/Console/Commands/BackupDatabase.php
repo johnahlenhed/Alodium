@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\OffsiteBackup;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
@@ -12,17 +13,23 @@ use Throwable;
  * Dumps the MySQL database to storage/app/backups/alodium-backup-YYYY-MM-DD-HHMM.sql.gz
  * and keeps the newest 30 backups. Scheduled daily at 02:00 (routes/console.php);
  * can also be run by hand: php artisan db:backup
+ *
+ * When BACKUP_S3_* and BACKUP_ENCRYPTION_PASSPHRASE are set, an encrypted copy is
+ * also uploaded to object storage (App\Services\OffsiteBackup), so backups survive
+ * the loss of the server.
  */
 class BackupDatabase extends Command
 {
-    protected $signature = 'db:backup {--keep= : Number of backups to keep (default: config database.backups.keep)}';
+    protected $signature = 'db:backup
+        {--keep= : Number of local backups to keep (default: config database.backups.keep)}
+        {--no-upload : Only make the local backup, skip the off-server copy}';
 
     protected $description = 'Back up the database to storage/app/backups and prune old backups';
 
     /** mysqldump's last line. Its absence means the dump stopped part-way. */
     private const COMPLETED_MARKER = '-- Dump completed';
 
-    public function handle(): int
+    public function handle(OffsiteBackup $offsite): int
     {
         $connection = config('database.connections.'.config('database.default'));
 
@@ -61,6 +68,59 @@ class BackupDatabase extends Command
         $this->info("Backup created: {$path} ({$size})");
 
         $this->prune($directory, (int) ($this->option('keep') ?? config('database.backups.keep')));
+
+        if ($this->option('no-upload')) {
+            $this->line('Off-server copy skipped (--no-upload).');
+
+            return self::SUCCESS;
+        }
+
+        return $this->copyOffServer($path, $offsite);
+    }
+
+    /**
+     * Encrypts and uploads the new backup, then prunes old remote copies. Nothing
+     * here touches the local backup: if anything fails, it stays as it is and the
+     * remote backups are left alone. A failure still exits with a failure code, so
+     * the scheduler and the logs show it.
+     */
+    private function copyOffServer(string $path, OffsiteBackup $offsite): int
+    {
+        if (! $offsite->isConfigured()) {
+            $this->line('Off-server copy skipped: BACKUP_S3_* is not configured.');
+
+            return self::SUCCESS;
+        }
+
+        if (! $offsite->hasPassphrase()) {
+            return $this->failed('Off-server backup NOT uploaded: BACKUP_ENCRYPTION_PASSPHRASE is not set, and backups are never uploaded unencrypted. The local backup '.basename($path).' was created.');
+        }
+
+        $encrypted = $path.'.enc';
+
+        try {
+            $offsite->encrypt($path, $encrypted);
+            $offsite->upload($encrypted, basename($encrypted));
+            $size = Number::fileSize(filesize($encrypted), precision: 1);
+        } catch (Throwable $e) {
+            return $this->failed('Off-server backup failed: '.$e->getMessage().' The local backup '.basename($path).' was created and is unchanged.');
+        } finally {
+            @unlink($encrypted);
+        }
+
+        Log::info('Off-server backup uploaded.', ['file' => $offsite->remotePath(basename($encrypted)), 'size' => $size]);
+        $this->info('Off-server copy uploaded: '.$offsite->remotePath(basename($encrypted))." ({$size})");
+
+        try {
+            $pruned = $offsite->prune((int) config('database.backups.remote_keep'));
+        } catch (Throwable $e) {
+            return $this->failed('Off-server backup uploaded, but pruning old remote backups failed: '.$e->getMessage());
+        }
+
+        if ($pruned > 0) {
+            Log::info('Old off-server backups pruned.', ['deleted' => $pruned]);
+            $this->info("Pruned {$pruned} old off-server backup(s).");
+        }
 
         return self::SUCCESS;
     }
