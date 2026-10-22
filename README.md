@@ -763,6 +763,24 @@ apt install -y unattended-upgrades
 dpkg-reconfigure unattended-upgrades
 ```
 
+By default, unattended-upgrades only covers Ubuntu's own repositories, so PHP installed from `ppa:ondrej/php` is **not** updated automatically. To allow it, read the PPA's origin (the `o=` and `a=` values):
+
+```bash
+apt-cache policy | grep -A2 'ppa.launchpadcontent.net/ondrej/php'
+```
+
+The `release` line in its output shows the origin and archive, for example `o=LP-PPA-ondrej-php,a=noble`. The origin is `LP-PPA-ondrej-php` and the archive is your release codename. Add this line to the `Unattended-Upgrade::Allowed-Origins` list in `/etc/apt/apt.conf.d/50unattended-upgrades`:
+
+```
+"LP-PPA-ondrej-php:${distro_codename}";
+```
+
+Then check that it is picked up:
+
+```bash
+unattended-upgrade --dry-run -d 2>&1 | grep 'Allowed origins'
+```
+
 **MySQL** should listen on 127.0.0.1 only. Check `bind-address` in `/etc/mysql/mysql.conf.d/mysqld.cnf`, and confirm:
 
 ```bash
@@ -816,6 +834,18 @@ If a release adds a new image conversion (for example the 1200×630 `og` image u
 ```bash
 sudo -u www-data php artisan media-library:regenerate --only=og
 ```
+
+**After PHP updates**
+
+PHP-FPM is restarted together with the package, but the queue worker is a long-running process and keeps using the old PHP binary until it is restarted:
+
+```bash
+supervisorctl restart alodium-worker:*
+php -v          # CLI version, used by the worker and the scheduler
+php-fpm8.4 -v   # FPM version, used by the website
+```
+
+Both should show the same, new version.
 
 **After configuring a domain**
 
