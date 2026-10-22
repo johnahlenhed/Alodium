@@ -16,7 +16,7 @@ const iconButton =
  * The editor (and its TipTap instance) is only mounted while expanded; the data
  * lives in the form state, so collapsing loses nothing.
  */
-function BlockCard({ block, index, total, expanded, errors = EMPTY, focusRequest, onChange, onToggle, onMove, onRemove }) {
+function BlockCard({ block, index, total, expanded, errors = EMPTY, warning = null, focusRequest, onChange, onToggle, onMove, onRemove }) {
     const type = getBlockType(block.type);
     const Icon = type?.icon ?? Puzzle;
     const label = blockLabel(block);
@@ -55,8 +55,11 @@ function BlockCard({ block, index, total, expanded, errors = EMPTY, focusRequest
     const change = useCallback((patch) => onChange(block.id, patch), [block.id, onChange]);
 
     // Errors the editor doesn't show next to a field (e.g. "type", "id") appear on the card.
-    const fieldKeys = new Set((type?.fields ?? []).map((field) => `data.${field}`));
-    const cardErrors = Object.entries(errors).filter(([key]) => !fieldKeys.has(key));
+    // A nested key such as "data.columns.0.image" belongs to its field ("columns").
+    const fields = (type?.fields ?? []).map((field) => `data.${field}`);
+    const cardErrors = Object.entries(errors).filter(
+        ([key]) => !fields.some((field) => key === field || key.startsWith(`${field}.`)),
+    );
 
     return (
         <li
@@ -104,6 +107,10 @@ function BlockCard({ block, index, total, expanded, errors = EMPTY, focusRequest
                     <Trash className="h-4 w-4" aria-hidden="true" />
                 </button>
             </div>
+
+            {warning && (
+                <p className="mx-4 mb-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">{warning}</p>
+            )}
 
             {cardErrors.length > 0 && (
                 <ul className="mx-4 mb-2 list-disc space-y-1 ps-5 text-sm text-red-600">

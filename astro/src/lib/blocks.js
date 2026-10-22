@@ -49,34 +49,11 @@ export function safeImage(value) {
     }
 }
 
-const isText = (value) => typeof value === 'string' && value.trim() !== '';
+export const isText = (value) => typeof value === 'string' && value.trim() !== '';
 
-/**
- * Required fields per implemented block type. A block that fails its check is
- * skipped by BlockRenderer with a warning. Returns null when valid, otherwise why not.
- */
-export const BLOCK_CHECKS = {
-    hero: (data) => (isText(data.heading) ? null : 'heading is missing'),
-    text: (data) => (typeof data.html === 'string' ? null : 'html is missing'),
-    image: (data) => (safeImage(data.image) ? null : 'image is missing or not an allowed URL'),
-};
+/** Visible text of sanitised HTML, for emptiness checks. */
+export const htmlText = (html) => (typeof html === 'string' ? html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim() : '');
 
-/**
- * Whether a block can be rendered: its type has a component and its required data
- * is present. Returns { ok: true } or { ok: false, reason }. Used by BlockRenderer
- * (which warns and skips) and by the page template (to find the first rendered block).
- */
-export function checkBlock(block) {
-    const type = block?.type;
-    if (!Object.hasOwn(BLOCK_CHECKS, type)) {
-        return { ok: false, reason: `type "${type}" has no component yet` };
-    }
-
-    const data = block && typeof block.data === 'object' && block.data !== null ? block.data : {};
-    const problem = BLOCK_CHECKS[type](data);
-
-    return problem ? { ok: false, reason: `${type} block: ${problem}` } : { ok: true };
-}
-
-/** The first block that will actually be rendered, or undefined. */
-export const firstRenderedBlock = (blocks) => (Array.isArray(blocks) ? blocks.find((block) => checkBlock(block).ok) : undefined);
+/** A column has content when it has text (or an inline image) or an allowed image. */
+export const hasColumnContent = (column) =>
+    Boolean(column) && (Boolean(safeImage(column.image)) || htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? ''));

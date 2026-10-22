@@ -1,0 +1,17 @@
+---
+import { safeLink } from '../../lib/blocks.js';
+
+interface Props {
+    id: string;
+    data: { label: string; url: string; style?: 'primary' | 'secondary' | null };
+}
+
+const { id, data } = Astro.props;
+// BlockRenderer only renders this block when the url passes safeLink().
+const link = safeLink(data.url);
+const style = data.style === 'secondary' ? 'secondary' : 'primary';
+---
+
+<div class="block block-button" data-block-id={id}>
+    <a class={`button button-${style}`} href={link.href} rel={link.external ? 'noopener noreferrer' : undefined}>{data.label}</a>
+</div>

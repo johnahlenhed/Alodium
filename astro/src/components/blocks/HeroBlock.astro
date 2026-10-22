@@ -35,7 +35,7 @@ const link = data.button_label ? safeLink(data.button_url) : null;
         {data.subheading && <p class="block-hero__subheading">{data.subheading}</p>}
         {
             link && (
-                <a class="block-button block-button--primary" href={link.href} rel={link.external ? 'noopener noreferrer' : undefined}>
+                <a class="button button-primary" href={link.href} rel={link.external ? 'noopener noreferrer' : undefined}>
                     {data.button_label}
                 </a>
             )

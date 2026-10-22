@@ -21,6 +21,13 @@ class TextBlock extends BlockType
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'html' => 'text',
+        ];
+    }
+
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         return ['html' => $this->html($data, 'html', $sanitizer)];

@@ -23,9 +23,17 @@ export function addBlock(blocks, type, defaultData = {}, id = newBlockId()) {
     return [[...blocks, { id, type, data: structuredClone(defaultData) }], id];
 }
 
-/** Merges `patch` into one block's data. Other blocks keep their identity. */
+/**
+ * Merges `patch` into one block's data. Other blocks keep their identity.
+ * `patch` can also be a function of the current data (for nested lists such as
+ * columns, so an update is based on the latest data, not a stale copy).
+ */
 export function updateBlockData(blocks, id, patch) {
-    return blocks.map((block) => (block.id === id ? { ...block, data: { ...block.data, ...patch } } : block));
+    return blocks.map((block) => {
+        if (block.id !== id) return block;
+        const changes = typeof patch === 'function' ? patch(block.data ?? {}) : patch;
+        return { ...block, data: { ...block.data, ...changes } };
+    });
 }
 
 /** Moves a block to `toIndex` (clamped to the list). */

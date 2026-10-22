@@ -110,7 +110,7 @@ class PageBlocksTest extends TestCase
 
     public function test_plain_text_for_both_page_kinds(): void
     {
-        $this->assertSame('Welcome To the site Hello world. Second Left Right', $this->blockPage()->plainText());
+        $this->assertSame('Welcome To the site Hello world. Second Left Right Get in touch We reply fast', $this->blockPage()->plainText());
         $this->assertSame('Legacy content', $this->page(['slug' => 'legacy'])->plainText());
     }
 
@@ -432,7 +432,7 @@ class PageBlocksTest extends TestCase
 
         $this->getJson('/api/public/pages')
             ->assertJsonPath('0.blocks', self::validBlocks())
-            ->assertJsonPath('0.excerpt', 'Welcome To the site Hello world. Second Left Right');
+            ->assertJsonPath('0.excerpt', 'Welcome To the site Hello world. Second Left Right Get in touch We reply fast');
     }
 
     public function test_public_api_returns_null_blocks_and_content_for_a_legacy_page(): void

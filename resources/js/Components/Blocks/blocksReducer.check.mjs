@@ -43,6 +43,16 @@ check('update changes only that block and keeps other blocks identical', () => {
     assert.equal(before[1].data.html, '<p>B</p>'); // input not mutated
 });
 
+check('update accepts a function of the current data (for nested lists)', () => {
+    const before = [{ id: 'cols', type: 'columns', data: { columns: [{ html: 'L' }, { html: 'R' }] } }, ...list()];
+    const after = updateBlockData(before, 'cols', (data) => ({
+        columns: data.columns.map((column, i) => (i === 1 ? { ...column, html: 'R2' } : column)),
+    }));
+    assert.deepEqual(after[0].data.columns, [{ html: 'L' }, { html: 'R2' }]);
+    assert.equal(after[0].data.columns[0], before[0].data.columns[0]); // untouched column kept
+    assert.equal(after[1], before[1]);
+});
+
 check('move to index, up and down, clamped at the ends', () => {
     assert.equal(ids(moveBlock(list(), 'a', 2)), 'b,c,a');
     assert.equal(ids(moveBlock(list(), 'c', 0)), 'c,a,b');

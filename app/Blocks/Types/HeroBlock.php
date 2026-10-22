@@ -25,6 +25,17 @@ class HeroBlock extends BlockType
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'heading' => 'hero heading',
+            'subheading' => 'hero subheading',
+            'image' => 'hero image',
+            'button_label' => 'hero button label',
+            'button_url' => 'hero button URL',
+        ];
+    }
+
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         return [

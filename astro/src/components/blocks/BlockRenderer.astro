@@ -5,10 +5,7 @@
  * never breaks the build. Markup and class names are kept simple on purpose,
  * because the editor preview has to produce the same HTML.
  */
-import { checkBlock } from '../../lib/blocks.js';
-import HeroBlock from './HeroBlock.astro';
-import ImageBlock from './ImageBlock.astro';
-import TextBlock from './TextBlock.astro';
+import { BLOCK_TYPES, checkBlock } from './registry.js';
 
 interface Props {
     blocks: Array<{ id?: string; type?: string; data?: Record<string, unknown> }>;
@@ -17,8 +14,6 @@ interface Props {
 }
 
 const { blocks, slug } = Astro.props;
-
-const COMPONENTS = { hero: HeroBlock, text: TextBlock, image: ImageBlock };
 
 const renderable = (Array.isArray(blocks) ? blocks : []).flatMap((block, index) => {
     const id = block?.id ?? `#${index}`;
@@ -29,7 +24,7 @@ const renderable = (Array.isArray(blocks) ? blocks : []).flatMap((block, index) 
         return [];
     }
 
-    return [{ id, type: block.type, data: block.data, Component: COMPONENTS[block.type] }];
+    return [{ id, type: block.type, data: block.data, Component: BLOCK_TYPES[block.type].component }];
 });
 
 // The first rendered block loads its image eagerly (if it is a hero or image),

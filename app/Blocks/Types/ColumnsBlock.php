@@ -27,6 +27,17 @@ class ColumnsBlock extends BlockType
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'columns' => 'columns',
+            'columns.*' => 'column :second-position',
+            'columns.*.html' => 'column :second-position text',
+            'columns.*.image' => 'column :second-position image',
+            'columns.*.alt' => 'column :second-position alt text',
+        ];
+    }
+
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         return [

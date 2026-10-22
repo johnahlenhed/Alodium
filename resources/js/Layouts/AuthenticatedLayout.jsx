@@ -6,7 +6,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth, flash, unreadSubmissions = 0 } = usePage().props;
     const user = auth.user;
     // Analytics, Import and Users are admin-only (the routes enforce it; this only hides the links).
     const isAdmin = user.role === 'admin';
@@ -50,6 +50,18 @@ export default function AuthenticatedLayout({ header, children }) {
                                     active={route().current('media.*')}
                                 >
                                     Media
+                                </NavLink>
+                                <NavLink
+                                    href={route('submissions.index')}
+                                    active={route().current('submissions.*')}
+                                >
+                                    Submissions
+                                    {unreadSubmissions > 0 && (
+                                        <span className="ms-1.5 rounded-full bg-indigo-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white">
+                                            {unreadSubmissions}
+                                            <span className="sr-only"> unread</span>
+                                        </span>
+                                    )}
                                 </NavLink>
                                 {isAdmin && (
                                     <>
@@ -196,6 +208,13 @@ export default function AuthenticatedLayout({ header, children }) {
                             active={route().current('media.*')}
                         >
                             Media
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            href={route('submissions.index')}
+                            active={route().current('submissions.*')}
+                        >
+                            Submissions
+                            {unreadSubmissions > 0 && ` (${unreadSubmissions} unread)`}
                         </ResponsiveNavLink>
                         {isAdmin && (
                             <>

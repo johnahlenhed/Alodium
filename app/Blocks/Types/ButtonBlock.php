@@ -24,6 +24,15 @@ class ButtonBlock extends BlockType
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'label' => 'button label',
+            'url' => 'button URL',
+            'style' => 'button style',
+        ];
+    }
+
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         return [

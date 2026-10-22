@@ -26,6 +26,17 @@ abstract class BlockType
      */
     abstract public function sanitize(array $data, ContentSanitizer $sanitizer): array;
 
+    /**
+     * Plain-language names for the fields in "data", keyed like rules(), used in
+     * validation messages ("The hero heading field is required." instead of
+     * "The blocks.0.data.heading field is required."). For nested lists,
+     * :second-position is the item's position (e.g. "column 2 text").
+     */
+    public function attributes(): array
+    {
+        return [];
+    }
+
     /** Readable text, for excerpts and descriptions. */
     public function plainText(array $data): string
     {

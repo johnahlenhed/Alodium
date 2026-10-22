@@ -66,7 +66,7 @@ class PublicContentController extends Controller
         // The submission is already saved (and visible in the admin), so a mail
         // outage must not turn into an error for the visitor.
         try {
-            Mail::to(config('mail.from.address'))->send(new ContactSubmissionReceived($submission));
+            Mail::to(config('mail.contact_recipient') ?: config('mail.from.address'))->send(new ContactSubmissionReceived($submission));
         } catch (Throwable $e) {
             Log::error('Contact notification email failed', ['submission_id' => $submission->id, 'error' => $e->getMessage()]);
         }

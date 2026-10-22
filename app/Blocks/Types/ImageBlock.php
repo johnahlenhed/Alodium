@@ -22,6 +22,15 @@ class ImageBlock extends BlockType
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'image' => 'image',
+            'alt' => 'image alt text',
+            'caption' => 'image caption',
+        ];
+    }
+
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         return [

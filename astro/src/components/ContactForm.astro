@@ -1,0 +1,94 @@
+---
+/**
+ * The contact form, used by /contact and by the contact_form page block. Several
+ * forms can be on one page: each gets its own id, and the script below handles
+ * every form. Submits to the Laravel API without a page reload.
+ * Styles: .contact-form in src/styles/blocks.css.
+ */
+interface Props {
+    /** Unique per page; /contact uses the default. */
+    id?: string;
+}
+
+const { id = 'contact-form' } = Astro.props;
+
+// Resolved at build time and handed to the browser script via a data attribute,
+// so no PUBLIC_ environment variable is needed.
+const endpoint = `${(import.meta.env.API_URL ?? '').replace(/\/+$/, '')}/contact`;
+---
+
+<form id={id} class="contact-form" data-endpoint={endpoint} novalidate>
+    <label>
+        Name
+        <input name="name" type="text" autocomplete="name" required maxlength="255" />
+    </label>
+
+    <label>
+        Email
+        <input name="email" type="email" autocomplete="email" required maxlength="255" />
+    </label>
+
+    <label>
+        Message
+        <textarea name="message" rows="6" required maxlength="5000"></textarea>
+    </label>
+
+    <!-- Honeypot: hidden from people, filled in by spam bots. -->
+    <div class="hp" aria-hidden="true">
+        <label>
+            Website
+            <input name="website" type="text" tabindex="-1" autocomplete="off" />
+        </label>
+    </div>
+
+    <button type="submit">Send message</button>
+
+    <p class="status" role="status" aria-live="polite"></p>
+</form>
+
+<script>
+    // Astro includes this script once per page, however many forms there are.
+    document.querySelectorAll('form.contact-form[data-endpoint]').forEach((form) => {
+        const status = form.querySelector('.status');
+        const button = form.querySelector('button');
+
+        const show = (message, type) => {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        };
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            // Use the browser's own validation messages before contacting the server.
+            if (!form.reportValidity()) return;
+
+            button.disabled = true;
+            show('Sending…', '');
+
+            try {
+                const response = await fetch(form.dataset.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify(Object.fromEntries(new FormData(form))),
+                });
+
+                if (response.ok) {
+                    form.reset();
+                    show('Thank you! Your message has been sent.', 'success');
+                } else if (response.status === 422) {
+                    const { errors } = await response.json();
+                    show(Object.values(errors ?? {}).flat().join(' ') || 'Please check the form and try again.', 'error');
+                } else if (response.status === 429) {
+                    show('Too many messages sent. Please wait a minute and try again.', 'error');
+                } else {
+                    show('Something went wrong. Please try again later.', 'error');
+                }
+            } catch {
+                show('Could not send your message. Check your connection and try again.', 'error');
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
+</script>

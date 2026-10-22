@@ -90,6 +90,33 @@ class BlockRegistry
         return $rules;
     }
 
+    /**
+     * Plain-language attribute names for validation messages, per block index:
+     * "blocks.2.data.heading" => "hero heading".
+     */
+    public function attributes(mixed $blocks, string $attribute = 'blocks'): array
+    {
+        $names = [
+            "{$attribute}.*.type" => 'block type',
+            "{$attribute}.*.id" => 'block id',
+            "{$attribute}.*.data" => 'block content',
+        ];
+
+        if (! is_array($blocks) || count($blocks) > self::MAX_BLOCKS) {
+            return $names;
+        }
+
+        foreach ($blocks as $index => $block) {
+            $type = is_array($block) ? $this->get($block['type'] ?? null) : null;
+
+            foreach ($type?->attributes() ?? [] as $field => $name) {
+                $names["{$attribute}.{$index}.data.{$field}"] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     /** Adds an error for every block id that is used more than once. */
     public function validateUniqueIds(Validator $validator, mixed $blocks, string $attribute = 'blocks'): void
     {

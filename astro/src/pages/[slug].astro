@@ -2,7 +2,7 @@
 import BlockRenderer from '../components/blocks/BlockRenderer.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getPage, getPages } from '../lib/api.js';
-import { firstRenderedBlock } from '../lib/blocks.js';
+import { firstRenderedBlock } from '../components/blocks/registry.js';
 import { absoluteUrl, webPageJsonLd } from '../lib/jsonld.js';
 
 export async function getStaticPaths() {

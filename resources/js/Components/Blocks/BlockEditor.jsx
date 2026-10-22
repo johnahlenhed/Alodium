@@ -12,7 +12,7 @@ import { Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BlockCard from './BlockCard';
 import { addBlock, canAdd, errorsByBlockId, hasContent, MAX_BLOCKS, moveBlock, moveBlockBy, removeBlock, updateBlockData } from './blocksReducer';
-import { BLOCK_TYPES, blockLabel, blockSummary } from './blockTypes';
+import { BLOCK_TYPES, blockLabel, blockSummary, getBlockType } from './blockTypes';
 
 /** Cards start expanded on short pages and collapsed on longer ones. */
 const EXPANDED_UP_TO = 5;
@@ -37,6 +37,17 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
     const addButtonRef = useRef(null);
 
     const errorsById = useMemo(() => errorsByBlockId(errors, submittedIds), [errors, submittedIds]);
+
+    // Optional per-type warnings that depend on the whole page (e.g. two contact
+    // forms). Plain strings, so cards whose warning doesn't change don't re-render.
+    const warnings = useMemo(() => {
+        const result = {};
+        for (const block of blocks) {
+            const warning = getBlockType(block.type)?.warning?.(block, blocks);
+            if (warning) result[block.id] = warning;
+        }
+        return result;
+    }, [blocks]);
 
     // SortableContext re-renders every card when `items` is a new array, so the id
     // list only changes when the order does (not on every keystroke in a block).
@@ -185,6 +196,7 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
                                     total={blocks.length}
                                     expanded={!collapsed.has(block.id)}
                                     errors={errorsById[block.id]}
+                                    warning={warnings[block.id] ?? null}
                                     focusRequest={focusRequest?.id === block.id ? focusRequest : null}
                                     onChange={onChange}
                                     onToggle={onToggle}

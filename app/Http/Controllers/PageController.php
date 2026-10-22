@@ -130,7 +130,7 @@ class PageController extends Controller
             // Full URL of the social sharing image, picked from the media library.
             'og_image' => ['nullable', 'string', 'max:2048', 'url:http,https'],
             ...($hasBlocks ? $this->blockRegistry->rules($blocks) : []),
-        ]);
+        ], [], $hasBlocks ? $this->blockRegistry->attributes($blocks) : []);
 
         if ($hasBlocks) {
             $this->blockRegistry->validateUniqueIds($validator, $blocks);

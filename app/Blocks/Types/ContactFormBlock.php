@@ -21,11 +21,24 @@ class ContactFormBlock extends BlockType
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'heading' => 'contact form heading',
+            'intro' => 'contact form intro',
+        ];
+    }
+
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         return [
             'heading' => $this->text($data, 'heading'),
             'intro' => $this->text($data, 'intro'),
         ];
+    }
+
+    public function plainText(array $data): string
+    {
+        return trim(($data['heading'] ?? '').' '.($data['intro'] ?? ''));
     }
 }
