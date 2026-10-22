@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Blocks\BlockRegistry;
+use App\Support\PlainText;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
@@ -16,10 +18,13 @@ class Revision extends Model
         'model_id',
         'title',
         'content',
+        'blocks',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
+        // Same shape as pages.blocks; null for posts and for legacy page versions.
+        'blocks' => 'array',
     ];
 
     /** The post or page this revision belongs to. */
@@ -28,12 +33,15 @@ class Revision extends Model
         return $this->morphTo(__FUNCTION__, 'model_type', 'model_id');
     }
 
-    /** First 100 characters of the content as plain text. */
+    /**
+     * First 100 characters as plain text: from the text blocks for a block-page
+     * revision, otherwise from the HTML content.
+     */
     public function excerpt(int $length = 100): string
     {
-        // A space at block boundaries first, so "</p><p>" doesn't glue words together.
-        $text = strip_tags(preg_replace('/<(\/p|br\s*\/?|\/h[1-6]|\/li|\/blockquote)>/i', '$0 ', $this->content ?? '') ?? '');
-        $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode($text, ENT_QUOTES | ENT_HTML5)) ?? '');
+        $text = $this->blocks !== null
+            ? app(BlockRegistry::class)->plainText($this->blocks['blocks'] ?? [], onlyTypes: ['text'])
+            : PlainText::fromHtml($this->content);
 
         return Str::limit($text, $length);
     }

@@ -1,0 +1,44 @@
+---
+/**
+ * Renders a page's blocks in order. A block of a type without a component, or
+ * with missing required data, is skipped with a build warning: one bad block
+ * never breaks the build. Markup and class names are kept simple on purpose,
+ * because the editor preview has to produce the same HTML.
+ */
+import { BLOCK_TYPES, checkBlock } from './registry.js';
+
+interface Props {
+    blocks: Array<{ id?: string; type?: string; data?: Record<string, unknown> }>;
+    /** For warnings only. */
+    slug: string;
+}
+
+const { blocks, slug } = Astro.props;
+
+const renderable = (Array.isArray(blocks) ? blocks : []).flatMap((block, index) => {
+    const id = block?.id ?? `#${index}`;
+    const result = checkBlock(block);
+
+    if (!result.ok) {
+        console.warn(`[blocks] Page "${slug}": skipping block ${id}: ${result.reason}.`);
+        return [];
+    }
+
+    return [{ id, type: block.type, data: block.data, Component: BLOCK_TYPES[block.type].component }];
+});
+
+// The first rendered block loads its image eagerly (if it is a hero or image),
+// and a hero there gets the page's <h1>.
+const first = renderable[0];
+---
+
+{
+    renderable.map(({ id, type, data, Component }) => (
+        <Component
+            id={id}
+            data={data}
+            eager={first?.id === id && (type === 'hero' || type === 'image')}
+            headingLevel={type === 'hero' && first?.id === id ? 1 : 2}
+        />
+    ))
+}

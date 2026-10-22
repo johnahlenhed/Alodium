@@ -1,0 +1,17 @@
+---
+import ContactForm from '../ContactForm.astro';
+
+interface Props {
+    id: string;
+    data: { heading?: string | null; intro?: string | null };
+}
+
+const { id, data } = Astro.props;
+---
+
+<section class="block block-contact-form" data-block-id={id}>
+    {data.heading && <h2 class="block-contact-form__heading">{data.heading}</h2>}
+    {data.intro && <p class="block-contact-form__intro">{data.intro}</p>}
+    {/* Form id from the block id, so several forms on one page stay distinct. */}
+    <ContactForm id={`contact-form-${id}`} />
+</section>

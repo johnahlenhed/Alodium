@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Revision;
+use App\Services\ContentSanitizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 
@@ -24,14 +25,20 @@ trait HandlesRevisions
     }
 
     /**
-     * Replaces the content (not the title or meta fields) with the revision's.
+     * Replaces the content (not the title or meta fields) with the revision's:
+     * `content`, and for pages also `blocks`. A revision of a legacy page has
+     * blocks = null, so restoring it turns the page back into a legacy page.
      * The current content is saved as a revision first, so a restore can itself
      * be undone by restoring that revision.
      */
     protected function restore(Model $model, Revision $revision, string $editRoute): RedirectResponse
     {
         $model->saveRevision();
-        $model->update(['content' => $revision->content]);
+        $model->update([
+            // Older revisions may hold HTML from before content was sanitised on save.
+            'content' => $revision->content === null ? null : app(ContentSanitizer::class)->sanitize($revision->content),
+            ...($model->isFillable('blocks') ? ['blocks' => $revision->blocks] : []),
+        ]);
 
         return redirect()
             ->route($editRoute, $model)

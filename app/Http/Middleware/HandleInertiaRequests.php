@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Submission;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -34,6 +35,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Unread contact form submissions, for the badge in the nav (logged-in users only).
+            'unreadSubmissions' => fn () => $request->user() ? Submission::where('read', false)->count() : 0,
             // Whether public registration is open (off in production, see config/auth.php).
             'canRegister' => config('auth.registration'),
             // One-off messages after a redirect, e.g. "Restored the version from ...".

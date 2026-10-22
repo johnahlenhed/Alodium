@@ -1,0 +1,30 @@
+---
+import { hasColumnContent, htmlText, safeImage } from '../../lib/blocks.js';
+
+interface Props {
+    id: string;
+    data: { columns: Array<{ html?: string | null; image?: string | null; alt?: string | null }> };
+}
+
+const { id, data } = Astro.props;
+
+// A column with neither text nor image is left out. (A block where both are empty
+// never gets here: BlockRenderer skips it with a warning.)
+const columns = data.columns.filter(hasColumnContent).map((column) => ({
+    image: safeImage(column.image),
+    alt: column.alt ?? '',
+    html: htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? '') ? column.html : null,
+}));
+---
+
+<section class={columns.length === 1 ? 'block block-columns block-columns--single' : 'block block-columns'} data-block-id={id}>
+    {
+        columns.map((column) => (
+            <div class="column">
+                {column.image && <img src={column.image} alt={column.alt} loading="lazy" decoding="async" />}
+                {/* Sanitised by the server (App\Services\ContentSanitizer). */}
+                {column.html && <div class="prose" set:html={column.html} />}
+            </div>
+        ))
+    }
+</section>
