@@ -113,6 +113,44 @@ class OffsiteBackup
         return count($old);
     }
 
+    /**
+     * Records a verified upload in storage/app/backups/.offsite-last-upload.json.
+     * A small file next to the backups: it survives deploys (storage/app is not in
+     * git) and `php artisan cache:clear`, and needs no migration. Written to a
+     * temporary file first and renamed, so a crash never leaves it half-written.
+     */
+    public function recordUpload(string $remotePath): void
+    {
+        $file = $this->lastUploadFile();
+        $directory = dirname($file);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0700, true);
+        }
+
+        $temporary = $file.'.tmp';
+        file_put_contents($temporary, json_encode(['at' => now()->toIso8601String(), 'file' => $remotePath]));
+        chmod($temporary, 0600);
+        rename($temporary, $file);
+    }
+
+    /** @return array{at: string, file: string}|null The last verified upload, or null if none is recorded. */
+    public function lastUpload(): ?array
+    {
+        $file = $this->lastUploadFile();
+        if (! is_file($file)) {
+            return null;
+        }
+
+        $data = json_decode((string) file_get_contents($file), true);
+
+        return is_array($data) && is_string($data['at'] ?? null) ? ['at' => $data['at'], 'file' => (string) ($data['file'] ?? '')] : null;
+    }
+
+    private function lastUploadFile(): string
+    {
+        return rtrim((string) config('database.backups.path'), '/').'/.offsite-last-upload.json';
+    }
+
     public function disk(): Filesystem
     {
         return Storage::disk('backups');

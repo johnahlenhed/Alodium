@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Event;
+use App\Models\Page;
+use App\Models\Post;
 use App\Models\Visit;
 use Illuminate\Database\Seeder;
 
@@ -18,7 +20,16 @@ class VisitSeeder extends Seeder
             return;
         }
 
-        $urls = ['/', '/blog', '/about', '/contact', '/blog/first-post'];
+        // Real published content when there is any, as the public site links to it
+        // (trailing slashes, like the Astro build), so the dashboard shows real titles.
+        $urls = [
+            '/', '/blog/', '/contact/',
+            ...Post::where('status', 'published')->pluck('slug')->map(fn ($slug) => "/blog/{$slug}/"),
+            ...Page::where('status', 'published')->pluck('slug')->map(fn ($slug) => "/{$slug}/"),
+        ];
+        if (count($urls) === 3) {
+            $urls = [...$urls, '/about/', '/blog/first-post/'];
+        }
         $referrers = ['google.com', 'twitter.com', 'instagram.com', null];
         $sources = ['google', 'instagram', 'newsletter', null];
         $devices = ['mobile', 'desktop'];

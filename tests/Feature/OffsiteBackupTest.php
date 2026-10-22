@@ -197,6 +197,56 @@ class OffsiteBackupTest extends TestCase
         $this->assertContains('backups/README.txt', $this->remoteFiles()); // other files left alone
     }
 
+    public function test_a_verified_upload_records_its_time(): void
+    {
+        $this->fakeDump();
+
+        $this->artisan('db:backup')->assertSuccessful();
+
+        $record = app(OffsiteBackup::class)->lastUpload();
+        $this->assertSame('2026-10-21T02:00:00+00:00', $record['at']);
+        $this->assertSame('backups/alodium-backup-2026-10-21-0200.sql.gz.enc', $record['file']);
+        // Stored next to the backups, owner-only, and not mistaken for a backup by pruning.
+        $file = $this->directory.'/.offsite-last-upload.json';
+        $this->assertFileExists($file);
+        $this->assertSame('0600', substr(sprintf('%o', fileperms($file)), -4));
+        $this->assertSame(['alodium-backup-2026-10-21-0200.sql.gz'], $this->localFiles()); // glob skips dotfiles
+    }
+
+    public function test_a_failed_upload_keeps_the_previous_upload_time(): void
+    {
+        $this->fakeDump();
+        $this->artisan('db:backup')->assertSuccessful();
+        $before = app(OffsiteBackup::class)->lastUpload();
+
+        $this->travel(1)->day();
+        $this->app->instance(OffsiteBackup::class, new class extends OffsiteBackup
+        {
+            public function upload(string $encryptedFile, string $fileName): void
+            {
+                throw new RuntimeException('Network down');
+            }
+        });
+        $this->artisan('db:backup')->assertFailed();
+
+        $this->assertSame($before, app(OffsiteBackup::class)->lastUpload());
+        $this->assertSame('2026-10-21T02:00:00+00:00', app(OffsiteBackup::class)->lastUpload()['at']);
+    }
+
+    public function test_no_upload_time_is_recorded_without_a_passphrase_or_with_no_upload(): void
+    {
+        $this->fakeDump();
+
+        config(['database.backups.passphrase' => null]);
+        $this->artisan('db:backup')->assertFailed();
+        $this->assertNull(app(OffsiteBackup::class)->lastUpload());
+
+        config(['database.backups.passphrase' => self::PASSPHRASE]);
+        $this->travel(1)->minute();
+        $this->artisan('db:backup', ['--no-upload' => true])->assertSuccessful();
+        $this->assertNull(app(OffsiteBackup::class)->lastUpload());
+    }
+
     public function test_the_passphrase_never_appears_in_process_arguments(): void
     {
         $passwordFiles = [];

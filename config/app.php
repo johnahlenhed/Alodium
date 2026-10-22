@@ -55,6 +55,12 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     /*
+    | The public (Astro) site, for the dashboard's "View site" link. Null when unset.
+    */
+
+    'public_site_url' => env('PUBLIC_SITE_URL') ?: null,
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

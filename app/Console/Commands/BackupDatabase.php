@@ -102,6 +102,8 @@ class BackupDatabase extends Command
             $offsite->encrypt($path, $encrypted);
             $offsite->upload($encrypted, basename($encrypted));
             $size = Number::fileSize(filesize($encrypted), precision: 1);
+            // Only reached when the upload is verified; a failure keeps the previous record.
+            $offsite->recordUpload($offsite->remotePath(basename($encrypted)));
         } catch (Throwable $e) {
             return $this->failed('Off-server backup failed: '.$e->getMessage().' The local backup '.basename($path).' was created and is unchanged.');
         } finally {
