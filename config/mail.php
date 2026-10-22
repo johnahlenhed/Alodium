@@ -110,6 +110,12 @@ return [
     |
     */
 
+    /*
+    | Where contact form submissions are emailed. Falls back to the "from" address.
+    */
+
+    'contact_recipient' => env('CONTACT_NOTIFY_EMAIL') ?: null,
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),

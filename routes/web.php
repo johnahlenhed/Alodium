@@ -6,6 +6,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +51,11 @@ Route::middleware('auth')->group(function () {
     // JSON for the OG image picker. In web.php (not api.php) so it uses the admin session login.
     Route::get('/api/media', [MediaController::class, 'list'])->name('media.list');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+
+    // Contact form submissions: admins and editors read them, only admins delete (below).
+    Route::get('/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
+    Route::get('/submissions/{submission}', [SubmissionController::class, 'show'])->name('submissions.show');
+    Route::patch('/submissions/{submission}/unread', [SubmissionController::class, 'markUnread'])->name('submissions.unread');
 });
 
 // Admin only: deleting content, analytics, import, user management.
@@ -57,6 +63,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
     Route::delete('/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
+    Route::delete('/submissions/{submission}', [SubmissionController::class, 'destroy'])->name('submissions.destroy');
 
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
 

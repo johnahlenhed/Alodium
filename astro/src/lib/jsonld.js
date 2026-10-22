@@ -46,12 +46,13 @@ export function blogPostingJsonLd({ post, excerpt, url, site }) {
     });
 }
 
-export function webPageJsonLd({ page, url, site }) {
+export function webPageJsonLd({ page, excerpt, url, site }) {
     return clean({
         '@context': 'https://schema.org',
         '@type': 'WebPage',
         name: page.title,
-        description: page.meta_description,
+        // The excerpt comes from the page list (the single-page API has none).
+        description: page.meta_description || excerpt,
         url,
         publisher: publisher(site),
     });

@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use SimpleXMLElement;
-use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
-use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
 use Throwable;
 
 /**
@@ -34,51 +32,12 @@ class WordPressImporter
 
     private const TYPES = ['post' => Post::class, 'page' => Page::class];
 
-    /** Elements kept as-is (with only the listed attributes). */
-    private const ALLOWED = [
-        'p' => [], 'h1' => [], 'h2' => [], 'h3' => [], 'h4' => [], 'h5' => [], 'h6' => [],
-        'ul' => [], 'ol' => [], 'li' => [], 'strong' => [], 'em' => [], 'blockquote' => [], 'br' => [],
-        'a' => ['href', 'title'],
-        'img' => ['src', 'alt', 'title', 'width', 'height'],
-    ];
-
-    /**
-     * Wrapper/inline elements that are removed but whose text is kept. Without this,
-     * the sanitizer would drop e.g. a whole <div> or <table> including its content.
-     * Elements in neither list (script, style, iframe, form, ...) are dropped entirely.
-     */
-    private const UNWRAP = [
-        'div', 'span', 'section', 'article', 'header', 'footer', 'aside', 'main', 'figure', 'figcaption',
-        'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'pre', 'code', 'b', 'i', 'u',
-        's', 'del', 'ins', 'small', 'sub', 'sup', 'mark', 'abbr', 'cite', 'q', 'dl', 'dt', 'dd',
-        'center', 'font', 'label', 'time',
-    ];
-
     private const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
     private array $results;
 
-    private HtmlSanitizer $sanitizer;
-
-    public function __construct()
-    {
-        $config = (new HtmlSanitizerConfig)
-            ->allowLinkSchemes(['http', 'https', 'mailto'])
-            ->allowMediaSchemes(['http', 'https'])
-            ->allowRelativeLinks()
-            ->allowRelativeMedias()
-            // Default is 20 000 bytes, which would silently truncate long posts.
-            ->withMaxInputLength(-1);
-
-        foreach (self::ALLOWED as $element => $attributes) {
-            $config = $config->allowElement($element, $attributes);
-        }
-        foreach (self::UNWRAP as $element) {
-            $config = $config->blockElement($element);
-        }
-
-        $this->sanitizer = new HtmlSanitizer($config);
-    }
+    /** HTML allowlist shared with page blocks (App\Services\ContentSanitizer). */
+    public function __construct(private ContentSanitizer $sanitizer) {}
 
     /**
      * `found` counts every item in the file by WordPress post type (post, page,

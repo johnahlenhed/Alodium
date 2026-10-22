@@ -2,21 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Blocks\BlockRegistry;
 use App\Models\Page;
 use App\Models\Revision;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
+use App\Traits\SanitizesContent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PageController extends Controller
 {
-    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions;
+    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions, SanitizesContent;
+
+    public function __construct(private BlockRegistry $blockRegistry) {}
 
     public function index(Request $request): Response
     {
@@ -34,7 +39,11 @@ class PageController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Pages/Create');
+        // New pages are block pages.
+        return Inertia::render('Pages/Create', [
+            'hasBlocks' => true,
+            'blocks' => [],
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -58,6 +67,9 @@ class PageController extends Controller
         return Inertia::render('Pages/Edit', [
             'page' => $page,
             'revisions' => $this->revisionList($page),
+            // For a legacy page: its content as one text block, used if it is converted.
+            'blocks' => $page->blocksOrLegacy(),
+            'hasBlocks' => $page->hasBlocks(),
         ]);
     }
 
@@ -99,9 +111,17 @@ class PageController extends Controller
         return redirect()->route('pages.index');
     }
 
+    /**
+     * `blocks` is optional. Without the key (as the current page form sends it) the
+     * stored blocks are left alone; null turns the page into a legacy page; a list
+     * is validated per block type and stored in the BlockRegistry shape.
+     */
     private function validatePage(Request $request): array
     {
-        return $request->validate([
+        $hasBlocks = $request->exists('blocks');
+        $blocks = $request->input('blocks');
+
+        $validator = Validator::make($request->all(), [
             'title' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
             ...$this->publishStatusRules(),
@@ -109,6 +129,20 @@ class PageController extends Controller
             'meta_description' => ['nullable', 'string', 'max:255'],
             // Full URL of the social sharing image, picked from the media library.
             'og_image' => ['nullable', 'string', 'max:2048', 'url:http,https'],
-        ]);
+            ...($hasBlocks ? $this->blockRegistry->rules($blocks) : []),
+        ], [], $hasBlocks ? $this->blockRegistry->attributes($blocks) : []);
+
+        if ($hasBlocks) {
+            $this->blockRegistry->validateUniqueIds($validator, $blocks);
+        }
+
+        $validated = $this->sanitizeContent($validator->validate());
+        unset($validated['blocks']);
+
+        if ($hasBlocks) {
+            $validated['blocks'] = $this->blockRegistry->normalize($blocks);
+        }
+
+        return $validated;
     }
 }

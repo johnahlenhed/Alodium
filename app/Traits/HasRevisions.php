@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  *
  * A revision is a snapshot of the version that is about to be replaced. It is
  * taken in the "updating" event, before the new values are written, and only
- * when the version being replaced was published and its title or content is
- * changing. Drafts are exploratory and not versioned, so the first publish of a
+ * when the version being replaced was published and its title, content or
+ * blocks (pages) are changing. Drafts are exploratory and not versioned, so the first publish of a
  * draft creates no revision; that first published version becomes a revision
  * the first time it is edited. The current version always lives on the model.
  */
@@ -25,8 +25,9 @@ trait HasRevisions
         static::updating(function (self $model) {
             $wasPublished = $model->getOriginal('status') === 'published';
 
-            if ($wasPublished && $model->isDirty(['title', 'content'])) {
-                $model->saveRevision($model->getOriginal('title'), $model->getOriginal('content'));
+            // isDirty() compares a cast array by value, so re-saving identical blocks is not a change.
+            if ($wasPublished && $model->isDirty(['title', 'content', 'blocks'])) {
+                $model->saveRevision();
             }
         });
 
@@ -40,20 +41,23 @@ trait HasRevisions
     }
 
     /**
-     * Stores a snapshot (the current saved values unless given), skipping it if it
-     * is identical to the newest revision, then prunes to the newest 20.
+     * Stores a snapshot of the saved (original) title, content and blocks, skipping
+     * it if it is identical to the newest revision, then prunes to the newest 20.
+     * Called before an update, the original values are the version being replaced.
      */
-    public function saveRevision(?string $title = null, ?string $content = null): ?Revision
+    public function saveRevision(): ?Revision
     {
-        $title ??= $this->getOriginal('title');
-        $content ??= $this->getOriginal('content');
+        $title = $this->getOriginal('title');
+        $content = $this->getOriginal('content');
+        // Posts have no blocks column, so this is null for them.
+        $blocks = $this->getOriginal('blocks');
 
         $latest = $this->revisions()->first();
-        if ($latest && $latest->title === $title && $latest->content === $content) {
+        if ($latest && $latest->title === $title && $latest->content === $content && $latest->blocks == $blocks) {
             return null;
         }
 
-        $revision = $this->revisions()->create(['title' => $title, 'content' => $content]);
+        $revision = $this->revisions()->create(['title' => $title, 'content' => $content, 'blocks' => $blocks]);
 
         $keep = $this->revisions()->limit(self::REVISIONS_TO_KEEP)->pluck('id');
         $this->revisions()->whereNotIn('id', $keep)->delete();

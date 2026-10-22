@@ -6,6 +6,7 @@ use App\Mail\ContactSubmissionReceived;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Submission;
+use App\Support\PlainText;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -65,7 +66,7 @@ class PublicContentController extends Controller
         // The submission is already saved (and visible in the admin), so a mail
         // outage must not turn into an error for the visitor.
         try {
-            Mail::to(config('mail.from.address'))->send(new ContactSubmissionReceived($submission));
+            Mail::to(config('mail.contact_recipient') ?: config('mail.from.address'))->send(new ContactSubmissionReceived($submission));
         } catch (Throwable $e) {
             Log::error('Contact notification email failed', ['submission_id' => $submission->id, 'error' => $e->getMessage()]);
         }
@@ -91,7 +92,8 @@ class PublicContentController extends Controller
                 'id' => $item->id,
                 'title' => $item->title,
                 'slug' => $item->slug,
-                'excerpt' => $this->excerpt($item->content),
+                'excerpt' => $this->excerpt($item),
+                ...$this->blocks($item),
                 'meta_title' => $item->meta_title,
                 'meta_description' => $item->meta_description,
                 'published_at' => $item->published_at?->toIso8601String(),
@@ -113,7 +115,9 @@ class PublicContentController extends Controller
             'id' => $item->id,
             'title' => $item->title,
             'slug' => $item->slug,
-            'content' => $item->content,
+            // A block page's old HTML content (from before a conversion) is never exposed.
+            'content' => $this->isBlockPage($item) ? '' : $item->content,
+            ...$this->blocks($item),
             'meta_title' => $item->meta_title,
             'meta_description' => $item->meta_description,
             ...$this->ogImage($item),
@@ -124,11 +128,23 @@ class PublicContentController extends Controller
         ]);
     }
 
+    private function isBlockPage(Model $item): bool
+    {
+        return $item instanceof Page && $item->hasBlocks();
+    }
+
+    /** Pages only: the block list, or null for a legacy page. Posts have no blocks. */
+    private function blocks(Model $item): array
+    {
+        return $item instanceof Page ? ['blocks' => $item->hasBlocks() ? $item->blockList() : null] : [];
+    }
+
     /**
      * Image for social sharing, in order of preference:
      * 1. the OG image chosen in the editor (the 1200x630 "og" conversion),
-     * 2. the featured image (e.g. from the WordPress import),
-     * 3. the first image in the content.
+     * 2. block pages only: the hero image, the first image block, the first column image,
+     * 3. the featured image (e.g. from the WordPress import),
+     * 4. the first image in the content (for block pages: in the text and column HTML).
      * Width/height are only given for 1, the only case where the size is known.
      */
     private function ogImage(Model $item): array
@@ -137,10 +153,18 @@ class PublicContentController extends Controller
             return ['og_image' => $item->og_image, 'og_image_width' => 1200, 'og_image_height' => 630];
         }
 
+        $blockPage = $this->isBlockPage($item);
+
+        foreach ($blockPage ? $item->blockImages() : [] as $image) {
+            if ($url = $this->absoluteUrl($image)) {
+                return ['og_image' => $url, 'og_image_width' => null, 'og_image_height' => null];
+            }
+        }
+
         $featured = $item->getFirstMedia('featured');
         $url = $featured
             ? $featured->getUrl($featured->hasGeneratedConversion('og') ? 'og' : '')
-            : $this->firstContentImage($item->content);
+            : $this->firstContentImage($blockPage ? $item->blockHtml() : $item->content);
 
         return ['og_image' => $url, 'og_image_width' => null, 'og_image_height' => null];
     }
@@ -152,8 +176,11 @@ class PublicContentController extends Controller
             return null;
         }
 
-        $src = html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5);
+        return $this->absoluteUrl(html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5));
+    }
 
+    private function absoluteUrl(string $src): ?string
+    {
         return match (true) {
             str_starts_with($src, 'http://'), str_starts_with($src, 'https://') => $src,
             str_starts_with($src, '//') => 'https:'.$src,
@@ -162,12 +189,13 @@ class PublicContentController extends Controller
         };
     }
 
-    /** First 160 characters of the content as plain text. */
-    private function excerpt(?string $html): string
+    /**
+     * First 160 characters as plain text, with spaces kept between paragraphs and
+     * blocks. Pages use plainText() (block text, or stripped content for legacy pages).
+     */
+    private function excerpt(Model $item): string
     {
-        // Add a space at block boundaries first, so "</p><p>" doesn't glue words together.
-        $text = strip_tags(preg_replace('/<(\/p|br\s*\/?|\/h[1-6]|\/li|\/blockquote)>/i', '$0 ', $html ?? '') ?? '');
-        $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode($text, ENT_QUOTES | ENT_HTML5)) ?? '');
+        $text = $item instanceof Page ? $item->plainText() : PlainText::fromHtml($item->content);
 
         return Str::limit($text, 160);
     }

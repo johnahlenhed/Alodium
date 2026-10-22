@@ -1,6 +1,8 @@
 ---
+import BlockRenderer from '../components/blocks/BlockRenderer.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getPage, getPages } from '../lib/api.js';
+import { firstRenderedBlock } from '../components/blocks/registry.js';
 import { absoluteUrl, webPageJsonLd } from '../lib/jsonld.js';
 
 export async function getStaticPaths() {
@@ -27,7 +29,16 @@ export async function getStaticPaths() {
 }
 
 const { page, excerpt } = Astro.props;
-const jsonLd = webPageJsonLd({ page, url: absoluteUrl(Astro.url.pathname, Astro.site), site: Astro.site });
+const jsonLd = webPageJsonLd({ page, excerpt, url: absoluteUrl(Astro.url.pathname, Astro.site), site: Astro.site });
+
+// Block page (blocks is a list) or legacy page (blocks is null, content is HTML).
+const isBlockPage = Array.isArray(page.blocks);
+if (isBlockPage && page.blocks.length === 0) {
+    console.warn(`[blocks] Page "${page.slug}" is published but has no blocks.`);
+}
+// A hero as the first rendered block provides the page's <h1>, so the title isn't
+// repeated as a second <h1> above it (the title stays in <title> and the metadata).
+const heroProvidesHeading = isBlockPage && firstRenderedBlock(page.blocks)?.type === 'hero';
 ---
 
 <BaseLayout
@@ -41,7 +52,13 @@ const jsonLd = webPageJsonLd({ page, url: absoluteUrl(Astro.url.pathname, Astro.
     jsonLd={jsonLd}
 >
     <article>
-        <h1>{page.title}</h1>
-        <div class="prose" set:html={page.content ?? ''} />
+        {!heroProvidesHeading && <h1>{page.title}</h1>}
+        {
+            isBlockPage ? (
+                <BlockRenderer blocks={page.blocks} slug={page.slug} />
+            ) : (
+                <div class="prose" set:html={page.content ?? ''} />
+            )
+        }
     </article>
 </BaseLayout>
