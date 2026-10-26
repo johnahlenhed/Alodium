@@ -189,8 +189,12 @@ const walkTree = (node) => [node, ...node.children.flatMap(walkTree)];
 const label = (node) => `${node.tag}${node.classes.map((c) => `.${c}`).join('')}`;
 
 const longPost = readdirSync(join(dist, 'blog')).find((name) => name.startsWith('taumata'));
+// "/" shows the latest posts, or the front page from the site settings. A front
+// page is a CMS page: its blocks set their own widths, and a hero as the first
+// block holds the <h1> (so no <h1> sits in the column), hence no content element.
+const homeHasPosts = readFileSync(join(dist, 'index.html'), 'utf8').includes('class="post-list"');
 const PAGES = [
-    ['/', 'index.html', 'ul.post-list'],
+    homeHasPosts ? ['/', 'index.html', 'ul.post-list'] : ['/ (front page)', 'index.html', null],
     ['/blog', 'blog/index.html', 'ul.post-list'],
     [`/blog/${longPost} (long title)`, `blog/${longPost}/index.html`, 'div.prose'],
     ['/page-markup-and-formatting (CMS page)', 'page-markup-and-formatting/index.html', 'div.prose'],
@@ -205,9 +209,10 @@ for (const [name, file, contentLabel] of PAGES) {
     const main = mainTree(readFileSync(join(dist, file), 'utf8'));
     const inColumn = walkTree(main).filter((node) => node !== main && container.selectors.some((s) => matches(node, s)));
     const h1 = inColumn.find((node) => node.tag === 'h1');
-    const content = inColumn.find((node) => label(node) === contentLabel);
-    check(h1, `${name}: the <h1> is not in the page column`);
-    check(content, `${name}: ${contentLabel} is not in the page column`);
+    const heroHeading = walkTree(main).some((node) => node.tag === 'h1' && node.classes.includes('block-hero__heading'));
+    const content = contentLabel && inColumn.find((node) => label(node) === contentLabel);
+    check(h1 || (!contentLabel && heroHeading), `${name}: the <h1> is not in the page column`);
+    check(!contentLabel || content, `${name}: ${contentLabel} is not in the page column`);
     check(!h1 || !content || h1.parent === content.parent, `${name}: the <h1> and ${contentLabel} are in different containers`);
     console.log(`  ${name}: ${inColumn.map(label).join(', ')}`);
 }

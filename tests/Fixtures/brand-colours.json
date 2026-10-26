@@ -1,0 +1,1688 @@
+{
+ "generated_by": "tests/Fixtures/generate-brand-colours.mjs from astro/src/lib/color.js and theme.js",
+ "minimum": 4.5,
+ "count": 336,
+ "accepted": 144,
+ "colours": [
+  {
+   "hex": "#9a6c5a",
+   "ratio": 4.499999851006519,
+   "accepted": false
+  },
+  {
+   "hex": "#5965FA",
+   "ratio": 4.49999960415014,
+   "accepted": false
+  },
+  {
+   "hex": "#6C7B67",
+   "ratio": 4.499999580906361,
+   "accepted": false
+  },
+  {
+   "hex": "#d8395e",
+   "ratio": 4.499999340273991,
+   "accepted": false
+  },
+  {
+   "hex": "#4E8349",
+   "ratio": 4.499998760428501,
+   "accepted": false
+  },
+  {
+   "hex": "#A76744",
+   "ratio": 4.499998578277044,
+   "accepted": false
+  },
+  {
+   "hex": "#d53974",
+   "ratio": 4.499998116689222,
+   "accepted": false
+  },
+  {
+   "hex": "#BB17FE",
+   "ratio": 4.499997757645922,
+   "accepted": false
+  },
+  {
+   "hex": "#358094",
+   "ratio": 4.499997704187401,
+   "accepted": false
+  },
+  {
+   "hex": "#727d1d",
+   "ratio": 4.499997341027707,
+   "accepted": false
+  },
+  {
+   "hex": "#BD2CE6",
+   "ratio": 4.4999963592857135,
+   "accepted": false
+  },
+  {
+   "hex": "#CE36A1",
+   "ratio": 4.499996004557271,
+   "accepted": false
+  },
+  {
+   "hex": "#d1454c",
+   "ratio": 4.499995617687777,
+   "accepted": false
+  },
+  {
+   "hex": "#4D825D",
+   "ratio": 4.499995334878086,
+   "accepted": false
+  },
+  {
+   "hex": "#E12665",
+   "ratio": 4.499994211849551,
+   "accepted": false
+  },
+  {
+   "hex": "#bc29ec",
+   "ratio": 4.499992696583155,
+   "accepted": false
+  },
+  {
+   "hex": "#2D882A",
+   "ratio": 4.499992047723046,
+   "accepted": false
+  },
+  {
+   "hex": "#DE343E",
+   "ratio": 4.499991214436494,
+   "accepted": false
+  },
+  {
+   "hex": "#c64a7b",
+   "ratio": 4.499989880336398,
+   "accepted": false
+  },
+  {
+   "hex": "#957125",
+   "ratio": 4.499989609646344,
+   "accepted": false
+  },
+  {
+   "hex": "#4569FB",
+   "ratio": 4.4999882584708395,
+   "accepted": false
+  },
+  {
+   "hex": "#c830c3",
+   "ratio": 4.499987996548315,
+   "accepted": false
+  },
+  {
+   "hex": "#857728",
+   "ratio": 4.499987482642748,
+   "accepted": false
+  },
+  {
+   "hex": "#DE257D",
+   "ratio": 4.499987228784106,
+   "accepted": false
+  },
+  {
+   "hex": "#297eab",
+   "ratio": 4.499987128733105,
+   "accepted": false
+  },
+  {
+   "hex": "#787B2B",
+   "ratio": 4.4999860898387825,
+   "accepted": false
+  },
+  {
+   "hex": "#457BAA",
+   "ratio": 4.499985941659303,
+   "accepted": false
+  },
+  {
+   "hex": "#e7155e",
+   "ratio": 4.49998577151421,
+   "accepted": false
+  },
+  {
+   "hex": "#3F75D0",
+   "ratio": 4.4999856717130955,
+   "accepted": false
+  },
+  {
+   "hex": "#9954DD",
+   "ratio": 4.499985201815142,
+   "accepted": false
+  },
+  {
+   "hex": "#3175d8",
+   "ratio": 4.4999841959213605,
+   "accepted": false
+  },
+  {
+   "hex": "#ED0C18",
+   "ratio": 4.499983939644975,
+   "accepted": false
+  },
+  {
+   "hex": "#57831A",
+   "ratio": 4.499983799488023,
+   "accepted": false
+  },
+  {
+   "hex": "#df342d",
+   "ratio": 4.499983305920914,
+   "accepted": false
+  },
+  {
+   "hex": "#B15795",
+   "ratio": 4.499981795969115,
+   "accepted": false
+  },
+  {
+   "hex": "#4D70DC",
+   "ratio": 4.499981649757289,
+   "accepted": false
+  },
+  {
+   "hex": "#046efe",
+   "ratio": 4.49998140346171,
+   "accepted": false
+  },
+  {
+   "hex": "#D42BA2",
+   "ratio": 4.499979922738813,
+   "accepted": false
+  },
+  {
+   "hex": "#C64D69",
+   "ratio": 4.499979046065913,
+   "accepted": false
+  },
+  {
+   "hex": "#188934",
+   "ratio": 4.499978653955096,
+   "accepted": false
+  },
+  {
+   "hex": "#925EC9",
+   "ratio": 4.499978343633601,
+   "accepted": false
+  },
+  {
+   "hex": "#328813",
+   "ratio": 4.499978301464793,
+   "accepted": false
+  },
+  {
+   "hex": "#a73afd",
+   "ratio": 4.499977341331322,
+   "accepted": false
+  },
+  {
+   "hex": "#C45435",
+   "ratio": 4.499977226122872,
+   "accepted": false
+  },
+  {
+   "hex": "#B25E61",
+   "ratio": 4.49997709812776,
+   "accepted": false
+  },
+  {
+   "hex": "#c83da5",
+   "ratio": 4.49997563590874,
+   "accepted": false
+  },
+  {
+   "hex": "#5272CF",
+   "ratio": 4.499975612660652,
+   "accepted": false
+  },
+  {
+   "hex": "#337CB2",
+   "ratio": 4.499974948045572,
+   "accepted": false
+  },
+  {
+   "hex": "#ed0238",
+   "ratio": 4.499974564795487,
+   "accepted": false
+  },
+  {
+   "hex": "#C25167",
+   "ratio": 4.499974454847348,
+   "accepted": false
+  },
+  {
+   "hex": "#5C6ED7",
+   "ratio": 4.499973935292234,
+   "accepted": false
+  },
+  {
+   "hex": "#ed0925",
+   "ratio": 4.4999735002994505,
+   "accepted": false
+  },
+  {
+   "hex": "#4C850A",
+   "ratio": 4.499973290111528,
+   "accepted": false
+  },
+  {
+   "hex": "#DA3562",
+   "ratio": 4.499972833434983,
+   "accepted": false
+  },
+  {
+   "hex": "#c204f8",
+   "ratio": 4.499972120361593,
+   "accepted": false
+  },
+  {
+   "hex": "#C23EB7",
+   "ratio": 4.499971674486045,
+   "accepted": false
+  },
+  {
+   "hex": "#EE0702",
+   "ratio": 4.499971034186422,
+   "accepted": false
+  },
+  {
+   "hex": "#d9346e",
+   "ratio": 4.499970615964233,
+   "accepted": false
+  },
+  {
+   "hex": "#D34620",
+   "ratio": 4.499970518580485,
+   "accepted": false
+  },
+  {
+   "hex": "#CD25C5",
+   "ratio": 4.499969941721201,
+   "accepted": false
+  },
+  {
+   "hex": "#7c7290",
+   "ratio": 4.500000635232021,
+   "accepted": true
+  },
+  {
+   "hex": "#636FCB",
+   "ratio": 4.500001669458253,
+   "accepted": true
+  },
+  {
+   "hex": "#D42AA4",
+   "ratio": 4.500003840925007,
+   "accepted": true
+  },
+  {
+   "hex": "#b15c77",
+   "ratio": 4.500003863351646,
+   "accepted": true
+  },
+  {
+   "hex": "#B92BF0",
+   "ratio": 4.500004075925409,
+   "accepted": true
+  },
+  {
+   "hex": "#668019",
+   "ratio": 4.5000043701280035,
+   "accepted": true
+  },
+  {
+   "hex": "#936c7a",
+   "ratio": 4.5000047086447825,
+   "accepted": true
+  },
+  {
+   "hex": "#5D78A1",
+   "ratio": 4.500005146689668,
+   "accepted": true
+  },
+  {
+   "hex": "#797488",
+   "ratio": 4.500005722076023,
+   "accepted": true
+  },
+  {
+   "hex": "#017acd",
+   "ratio": 4.500006768379592,
+   "accepted": true
+  },
+  {
+   "hex": "#2E73E2",
+   "ratio": 4.500007083445628,
+   "accepted": true
+  },
+  {
+   "hex": "#B447C7",
+   "ratio": 4.50000718379096,
+   "accepted": true
+  },
+  {
+   "hex": "#9456e0",
+   "ratio": 4.50000738267695,
+   "accepted": true
+  },
+  {
+   "hex": "#E1285E",
+   "ratio": 4.500008881783184,
+   "accepted": true
+  },
+  {
+   "hex": "#EC0640",
+   "ratio": 4.500009904216595,
+   "accepted": true
+  },
+  {
+   "hex": "#448615",
+   "ratio": 4.500010105171045,
+   "accepted": true
+  },
+  {
+   "hex": "#865DE1",
+   "ratio": 4.50001090688804,
+   "accepted": true
+  },
+  {
+   "hex": "#CB4C48",
+   "ratio": 4.500011757835972,
+   "accepted": true
+  },
+  {
+   "hex": "#d93f0c",
+   "ratio": 4.500011900513137,
+   "accepted": true
+  },
+  {
+   "hex": "#5A8059",
+   "ratio": 4.500012015377308,
+   "accepted": true
+  },
+  {
+   "hex": "#E02D52",
+   "ratio": 4.500013770280563,
+   "accepted": true
+  },
+  {
+   "hex": "#7f7927",
+   "ratio": 4.500015362246319,
+   "accepted": true
+  },
+  {
+   "hex": "#2C882D",
+   "ratio": 4.5000154651575865,
+   "accepted": true
+  },
+  {
+   "hex": "#0C7DBB",
+   "ratio": 4.500016072125451,
+   "accepted": true
+  },
+  {
+   "hex": "#c83ea2",
+   "ratio": 4.500017232055145,
+   "accepted": true
+  },
+  {
+   "hex": "#4F7E87",
+   "ratio": 4.500017374328918,
+   "accepted": true
+  },
+  {
+   "hex": "#AA6173",
+   "ratio": 4.500017861936982,
+   "accepted": true
+  },
+  {
+   "hex": "#b45e53",
+   "ratio": 4.500018206890813,
+   "accepted": true
+  },
+  {
+   "hex": "#767B3B",
+   "ratio": 4.500018679143944,
+   "accepted": true
+  },
+  {
+   "hex": "#C730C6",
+   "ratio": 4.50001882076206,
+   "accepted": true
+  },
+  {
+   "hex": "#8460da",
+   "ratio": 4.500019687687881,
+   "accepted": true
+  },
+  {
+   "hex": "#CB4579",
+   "ratio": 4.500019943429097,
+   "accepted": true
+  },
+  {
+   "hex": "#448084",
+   "ratio": 4.50002001267788,
+   "accepted": true
+  },
+  {
+   "hex": "#c03cc2",
+   "ratio": 4.500020541789586,
+   "accepted": true
+  },
+  {
+   "hex": "#C919DD",
+   "ratio": 4.500020573208293,
+   "accepted": true
+  },
+  {
+   "hex": "#87726F",
+   "ratio": 4.500021588341094,
+   "accepted": true
+  },
+  {
+   "hex": "#de2a6f",
+   "ratio": 4.500021604117924,
+   "accepted": true
+  },
+  {
+   "hex": "#517F7A",
+   "ratio": 4.500022848617626,
+   "accepted": true
+  },
+  {
+   "hex": "#5B799D",
+   "ratio": 4.5000233804409415,
+   "accepted": true
+  },
+  {
+   "hex": "#a851c7",
+   "ratio": 4.500023523624854,
+   "accepted": true
+  },
+  {
+   "hex": "#7E5FE6",
+   "ratio": 4.50002399324177,
+   "accepted": true
+  },
+  {
+   "hex": "#6B74A5",
+   "ratio": 4.500026770688704,
+   "accepted": true
+  },
+  {
+   "hex": "#3d8706",
+   "ratio": 4.500026793830828,
+   "accepted": true
+  },
+  {
+   "hex": "#338650",
+   "ratio": 4.500027851504024,
+   "accepted": true
+  },
+  {
+   "hex": "#3B8463",
+   "ratio": 4.500028122233754,
+   "accepted": true
+  },
+  {
+   "hex": "#7d7a15",
+   "ratio": 4.5000287654326145,
+   "accepted": true
+  },
+  {
+   "hex": "#B42BFA",
+   "ratio": 4.50002960325337,
+   "accepted": true
+  },
+  {
+   "hex": "#EC1400",
+   "ratio": 4.500029817287309,
+   "accepted": true
+  },
+  {
+   "hex": "#04857f",
+   "ratio": 4.500030412613607,
+   "accepted": true
+  },
+  {
+   "hex": "#5A7E73",
+   "ratio": 4.500030932145599,
+   "accepted": true
+  },
+  {
+   "hex": "#6972B4",
+   "ratio": 4.500030987488902,
+   "accepted": true
+  },
+  {
+   "hex": "#078673",
+   "ratio": 4.500031478613191,
+   "accepted": true
+  },
+  {
+   "hex": "#746CC2",
+   "ratio": 4.500031523433137,
+   "accepted": true
+  },
+  {
+   "hex": "#B45B6F",
+   "ratio": 4.500032170572345,
+   "accepted": true
+  },
+  {
+   "hex": "#cc4e13",
+   "ratio": 4.500032463916242,
+   "accepted": true
+  },
+  {
+   "hex": "#E23014",
+   "ratio": 4.5000329216093995,
+   "accepted": true
+  },
+  {
+   "hex": "#0A75E3",
+   "ratio": 4.500033307129215,
+   "accepted": true
+  },
+  {
+   "hex": "#897616",
+   "ratio": 4.5000335569823156,
+   "accepted": true
+  },
+  {
+   "hex": "#5D813A",
+   "ratio": 4.500033783592285,
+   "accepted": true
+  },
+  {
+   "hex": "#5279A9",
+   "ratio": 4.500034321204594,
+   "accepted": true
+  },
+  {
+   "hex": "#000000",
+   "ratio": 21,
+   "accepted": true
+  },
+  {
+   "hex": "#FFFFFF",
+   "ratio": 1,
+   "accepted": false
+  },
+  {
+   "hex": "#1B2A4A",
+   "ratio": 14.221181593792421,
+   "accepted": true
+  },
+  {
+   "hex": "#7a1f3d",
+   "ratio": 10.043550770161586,
+   "accepted": true
+  },
+  {
+   "hex": "#0B5D3B",
+   "ratio": 7.9451462162953685,
+   "accepted": true
+  },
+  {
+   "hex": "#767676",
+   "ratio": 4.542224959605253,
+   "accepted": true
+  },
+  {
+   "hex": "#777777",
+   "ratio": 4.478089453577214,
+   "accepted": false
+  },
+  {
+   "hex": "#FFFF00",
+   "ratio": 1.0738392309265699,
+   "accepted": false
+  },
+  {
+   "hex": "#2563EB",
+   "ratio": 5.168555560022562,
+   "accepted": true
+  },
+  {
+   "hex": "#2a9df4",
+   "ratio": 2.905541992673591,
+   "accepted": false
+  },
+  {
+   "hex": "#FF6600",
+   "ratio": 2.936016453947765,
+   "accepted": false
+  },
+  {
+   "hex": "#808080",
+   "ratio": 3.9494396480491156,
+   "accepted": false
+  },
+  {
+   "hex": "#595959",
+   "ratio": 7.004729208035935,
+   "accepted": true
+  },
+  {
+   "hex": "#0000FF",
+   "ratio": 8.592471358428805,
+   "accepted": true
+  },
+  {
+   "hex": "#FF0000",
+   "ratio": 3.9984767707539985,
+   "accepted": false
+  },
+  {
+   "hex": "#008000",
+   "ratio": 5.137402780824574,
+   "accepted": true
+  },
+  {
+   "hex": "#984C8A",
+   "ratio": 5.621207413044991,
+   "accepted": true
+  },
+  {
+   "hex": "#FCAC87",
+   "ratio": 1.8437301945119815,
+   "accepted": false
+  },
+  {
+   "hex": "#deea13",
+   "ratio": 1.3220476665570555,
+   "accepted": false
+  },
+  {
+   "hex": "#FF3531",
+   "ratio": 3.617202534274402,
+   "accepted": false
+  },
+  {
+   "hex": "#FE0F62",
+   "ratio": 3.846954205247231,
+   "accepted": false
+  },
+  {
+   "hex": "#0712ac",
+   "ratio": 12.416717685252843,
+   "accepted": true
+  },
+  {
+   "hex": "#ECCFBD",
+   "ratio": 1.4761156612247945,
+   "accepted": false
+  },
+  {
+   "hex": "#109E7E",
+   "ratio": 3.3794399534341135,
+   "accepted": false
+  },
+  {
+   "hex": "#34e411",
+   "ratio": 1.7140802968224984,
+   "accepted": false
+  },
+  {
+   "hex": "#CD2506",
+   "ratio": 5.436071180443138,
+   "accepted": true
+  },
+  {
+   "hex": "#B7BDDC",
+   "ratio": 1.8541481587773718,
+   "accepted": false
+  },
+  {
+   "hex": "#d1d5be",
+   "ratio": 1.5029734255490523,
+   "accepted": false
+  },
+  {
+   "hex": "#095626",
+   "ratio": 8.858072528606053,
+   "accepted": true
+  },
+  {
+   "hex": "#A8624C",
+   "ratio": 4.64972129908539,
+   "accepted": true
+  },
+  {
+   "hex": "#ca50df",
+   "ratio": 3.668559132609706,
+   "accepted": false
+  },
+  {
+   "hex": "#8E3376",
+   "ratio": 7.278301993012248,
+   "accepted": true
+  },
+  {
+   "hex": "#926A4C",
+   "ratio": 4.785591113973186,
+   "accepted": true
+  },
+  {
+   "hex": "#d7995a",
+   "ratio": 2.4436947257458383,
+   "accepted": false
+  },
+  {
+   "hex": "#B79666",
+   "ratio": 2.7748941201407327,
+   "accepted": false
+  },
+  {
+   "hex": "#923C16",
+   "ratio": 7.291344125404728,
+   "accepted": true
+  },
+  {
+   "hex": "#978674",
+   "ratio": 3.512826731717105,
+   "accepted": false
+  },
+  {
+   "hex": "#4B7314",
+   "ratio": 5.5827812079172805,
+   "accepted": true
+  },
+  {
+   "hex": "#C5331E",
+   "ratio": 5.431491360440711,
+   "accepted": true
+  },
+  {
+   "hex": "#d99a9e",
+   "ratio": 2.316268196069132,
+   "accepted": false
+  },
+  {
+   "hex": "#EE3F7A",
+   "ratio": 3.731701709460868,
+   "accepted": false
+  },
+  {
+   "hex": "#64A1AE",
+   "ratio": 2.896147783611895,
+   "accepted": false
+  },
+  {
+   "hex": "#3b319e",
+   "ratio": 9.910284211531874,
+   "accepted": true
+  },
+  {
+   "hex": "#0048C6",
+   "ratio": 7.657556017279824,
+   "accepted": true
+  },
+  {
+   "hex": "#C46E5D",
+   "ratio": 3.6613512801183075,
+   "accepted": false
+  },
+  {
+   "hex": "#82414a",
+   "ratio": 7.4888564564594695,
+   "accepted": true
+  },
+  {
+   "hex": "#D74898",
+   "ratio": 3.985001055848317,
+   "accepted": false
+  },
+  {
+   "hex": "#0FE0AF",
+   "ratio": 1.7070946655807593,
+   "accepted": false
+  },
+  {
+   "hex": "#722cd3",
+   "ratio": 6.961978153846875,
+   "accepted": true
+  },
+  {
+   "hex": "#493874",
+   "ratio": 9.994509247966482,
+   "accepted": true
+  },
+  {
+   "hex": "#C65D00",
+   "ratio": 4.2279947087054754,
+   "accepted": false
+  },
+  {
+   "hex": "#6b1bfd",
+   "ratio": 6.561878843325965,
+   "accepted": true
+  },
+  {
+   "hex": "#479397",
+   "ratio": 3.5664070372036827,
+   "accepted": false
+  },
+  {
+   "hex": "#E6B8F9",
+   "ratio": 1.6681620043850662,
+   "accepted": false
+  },
+  {
+   "hex": "#413a7e",
+   "ratio": 9.853337624736488,
+   "accepted": true
+  },
+  {
+   "hex": "#64C981",
+   "ratio": 2.0560984855053817,
+   "accepted": false
+  },
+  {
+   "hex": "#F1C781",
+   "ratio": 1.587719239710808,
+   "accepted": false
+  },
+  {
+   "hex": "#ea6395",
+   "ratio": 3.126299672919817,
+   "accepted": false
+  },
+  {
+   "hex": "#E37656",
+   "ratio": 3.0034629197206626,
+   "accepted": false
+  },
+  {
+   "hex": "#BEE6DF",
+   "ratio": 1.3484273047922435,
+   "accepted": false
+  },
+  {
+   "hex": "#2e3e57",
+   "ratio": 10.808906736025165,
+   "accepted": true
+  },
+  {
+   "hex": "#0C22A9",
+   "ratio": 11.55523540636051,
+   "accepted": true
+  },
+  {
+   "hex": "#D03C8D",
+   "ratio": 4.455817099879331,
+   "accepted": false
+  },
+  {
+   "hex": "#492f99",
+   "ratio": 9.767982017162339,
+   "accepted": true
+  },
+  {
+   "hex": "#A4EAE9",
+   "ratio": 1.352720741848429,
+   "accepted": false
+  },
+  {
+   "hex": "#3EAE1E",
+   "ratio": 2.8854101221638,
+   "accepted": false
+  },
+  {
+   "hex": "#d2554f",
+   "ratio": 4.075588518379979,
+   "accepted": false
+  },
+  {
+   "hex": "#B11CD8",
+   "ratio": 5.214673909427517,
+   "accepted": true
+  },
+  {
+   "hex": "#5A469C",
+   "ratio": 7.524574649963024,
+   "accepted": true
+  },
+  {
+   "hex": "#798eee",
+   "ratio": 3.0360863657264634,
+   "accepted": false
+  },
+  {
+   "hex": "#73FB13",
+   "ratio": 1.3515911318544207,
+   "accepted": false
+  },
+  {
+   "hex": "#95A629",
+   "ratio": 2.70464553242374,
+   "accepted": false
+  },
+  {
+   "hex": "#9bc495",
+   "ratio": 1.9582850228804085,
+   "accepted": false
+  },
+  {
+   "hex": "#0DE579",
+   "ratio": 1.6798746280495165,
+   "accepted": false
+  },
+  {
+   "hex": "#6ED3C1",
+   "ratio": 1.787118953806677,
+   "accepted": false
+  },
+  {
+   "hex": "#28e653",
+   "ratio": 1.6754620929762614,
+   "accepted": false
+  },
+  {
+   "hex": "#183810",
+   "ratio": 13.027380326042588,
+   "accepted": true
+  },
+  {
+   "hex": "#C3C494",
+   "ratio": 1.8035016024479609,
+   "accepted": false
+  },
+  {
+   "hex": "#0368d0",
+   "ratio": 5.39178934488979,
+   "accepted": true
+  },
+  {
+   "hex": "#712E38",
+   "ratio": 9.767237935228682,
+   "accepted": true
+  },
+  {
+   "hex": "#299994",
+   "ratio": 3.4548564641931008,
+   "accepted": false
+  },
+  {
+   "hex": "#4fa81f",
+   "ratio": 3.0201524212757014,
+   "accepted": false
+  },
+  {
+   "hex": "#DA1BFD",
+   "ratio": 3.7795423719029992,
+   "accepted": false
+  },
+  {
+   "hex": "#234216",
+   "ratio": 11.276158715264948,
+   "accepted": true
+  },
+  {
+   "hex": "#b06fad",
+   "ratio": 3.6692611273390585,
+   "accepted": false
+  },
+  {
+   "hex": "#080F00",
+   "ratio": 19.468702511583626,
+   "accepted": true
+  },
+  {
+   "hex": "#1E7E0F",
+   "ratio": 5.18974246475239,
+   "accepted": true
+  },
+  {
+   "hex": "#fc5027",
+   "ratio": 3.3249679411436093,
+   "accepted": false
+  },
+  {
+   "hex": "#365277",
+   "ratio": 7.984325885929342,
+   "accepted": true
+  },
+  {
+   "hex": "#83FAB5",
+   "ratio": 1.2878267742128144,
+   "accepted": false
+  },
+  {
+   "hex": "#982848",
+   "ratio": 7.686190692919148,
+   "accepted": true
+  },
+  {
+   "hex": "#CBC07F",
+   "ratio": 1.8444321638408652,
+   "accepted": false
+  },
+  {
+   "hex": "#16B9BE",
+   "ratio": 2.409019239200084,
+   "accepted": false
+  },
+  {
+   "hex": "#0f1c51",
+   "ratio": 16.089125907919087,
+   "accepted": true
+  },
+  {
+   "hex": "#3842A3",
+   "ratio": 8.48037627815756,
+   "accepted": true
+  },
+  {
+   "hex": "#8EDA8A",
+   "ratio": 1.6738784665842044,
+   "accepted": false
+  },
+  {
+   "hex": "#dc8121",
+   "ratio": 2.914564690745074,
+   "accepted": false
+  },
+  {
+   "hex": "#A48387",
+   "ratio": 3.400877782122471,
+   "accepted": false
+  },
+  {
+   "hex": "#C6FC9E",
+   "ratio": 1.1785147213139975,
+   "accepted": false
+  },
+  {
+   "hex": "#b0e153",
+   "ratio": 1.5282715614442735,
+   "accepted": false
+  },
+  {
+   "hex": "#EA7FE0",
+   "ratio": 2.4388551545666677,
+   "accepted": false
+  },
+  {
+   "hex": "#F5EFDD",
+   "ratio": 1.1492247639998876,
+   "accepted": false
+  },
+  {
+   "hex": "#8c09b4",
+   "ratio": 7.464749949675285,
+   "accepted": true
+  },
+  {
+   "hex": "#159A08",
+   "ratio": 3.7117998192044666,
+   "accepted": false
+  },
+  {
+   "hex": "#F403D9",
+   "ratio": 3.5826425553556733,
+   "accepted": false
+  },
+  {
+   "hex": "#d70b70",
+   "ratio": 5.034457448750055,
+   "accepted": true
+  },
+  {
+   "hex": "#1A840D",
+   "ratio": 4.827320146107183,
+   "accepted": true
+  },
+  {
+   "hex": "#57356C",
+   "ratio": 9.854387383560168,
+   "accepted": true
+  },
+  {
+   "hex": "#c8c7ec",
+   "ratio": 1.6359641169726633,
+   "accepted": false
+  },
+  {
+   "hex": "#5CD28A",
+   "ratio": 1.9020541337713848,
+   "accepted": false
+  },
+  {
+   "hex": "#832092",
+   "ratio": 8.11836356775268,
+   "accepted": true
+  },
+  {
+   "hex": "#861845",
+   "ratio": 9.415966653813417,
+   "accepted": true
+  },
+  {
+   "hex": "#022B51",
+   "ratio": 14.315433933805616,
+   "accepted": true
+  },
+  {
+   "hex": "#4E87FC",
+   "ratio": 3.389729600606598,
+   "accepted": false
+  },
+  {
+   "hex": "#8794e8",
+   "ratio": 2.825854603468544,
+   "accepted": false
+  },
+  {
+   "hex": "#EEEE8F",
+   "ratio": 1.2165536895036129,
+   "accepted": false
+  },
+  {
+   "hex": "#BE1626",
+   "ratio": 6.302177159828756,
+   "accepted": true
+  },
+  {
+   "hex": "#79eea6",
+   "ratio": 1.4390028698043025,
+   "accepted": false
+  },
+  {
+   "hex": "#0531C0",
+   "ratio": 9.515470759268242,
+   "accepted": true
+  },
+  {
+   "hex": "#C8B9CA",
+   "ratio": 1.8669470602832203,
+   "accepted": false
+  },
+  {
+   "hex": "#680a37",
+   "ratio": 12.446695253710825,
+   "accepted": true
+  },
+  {
+   "hex": "#ABB072",
+   "ratio": 2.2864110950414105,
+   "accepted": false
+  },
+  {
+   "hex": "#9E3B4A",
+   "ratio": 6.607329761029933,
+   "accepted": true
+  },
+  {
+   "hex": "#03e0f0",
+   "ratio": 1.6248351913544543,
+   "accepted": false
+  },
+  {
+   "hex": "#196455",
+   "ratio": 7.010799838149421,
+   "accepted": true
+  },
+  {
+   "hex": "#C5E11D",
+   "ratio": 1.482852872495573,
+   "accepted": false
+  },
+  {
+   "hex": "#351cad",
+   "ratio": 10.932350474575488,
+   "accepted": true
+  },
+  {
+   "hex": "#5182FB",
+   "ratio": 3.537780122482453,
+   "accepted": false
+  },
+  {
+   "hex": "#3FAEFC",
+   "ratio": 2.421746433456844,
+   "accepted": false
+  },
+  {
+   "hex": "#f7a5af",
+   "ratio": 1.916773012228356,
+   "accepted": false
+  },
+  {
+   "hex": "#95D5A4",
+   "ratio": 1.702931078773037,
+   "accepted": false
+  },
+  {
+   "hex": "#8CCB83",
+   "ratio": 1.9116624604153671,
+   "accepted": false
+  },
+  {
+   "hex": "#1b47ff",
+   "ratio": 6.191224618426865,
+   "accepted": true
+  },
+  {
+   "hex": "#DCFFA8",
+   "ratio": 1.110373246232605,
+   "accepted": false
+  },
+  {
+   "hex": "#25A945",
+   "ratio": 3.07027240166255,
+   "accepted": false
+  },
+  {
+   "hex": "#fea232",
+   "ratio": 2.0137401968528774,
+   "accepted": false
+  },
+  {
+   "hex": "#F3842C",
+   "ratio": 2.5773788123202745,
+   "accepted": false
+  },
+  {
+   "hex": "#C00A0A",
+   "ratio": 6.384739002020593,
+   "accepted": true
+  },
+  {
+   "hex": "#5cb0cf",
+   "ratio": 2.451496942910041,
+   "accepted": false
+  },
+  {
+   "hex": "#20949B",
+   "ratio": 3.6390804244244706,
+   "accepted": false
+  },
+  {
+   "hex": "#8C287E",
+   "ratio": 7.720934085667707,
+   "accepted": true
+  },
+  {
+   "hex": "#5f27aa",
+   "ratio": 8.908713445894511,
+   "accepted": true
+  },
+  {
+   "hex": "#4B241B",
+   "ratio": 13.398428260177317,
+   "accepted": true
+  },
+  {
+   "hex": "#D782D8",
+   "ratio": 2.600928126204395,
+   "accepted": false
+  },
+  {
+   "hex": "#e0f131",
+   "ratio": 1.25030307370324,
+   "accepted": false
+  },
+  {
+   "hex": "#F53175",
+   "ratio": 3.7643236283337735,
+   "accepted": false
+  },
+  {
+   "hex": "#4D9719",
+   "ratio": 3.6482167066292193,
+   "accepted": false
+  },
+  {
+   "hex": "#16712b",
+   "ratio": 6.120576853979284,
+   "accepted": true
+  },
+  {
+   "hex": "#F4A8AE",
+   "ratio": 1.898928096112389,
+   "accepted": false
+  },
+  {
+   "hex": "#0F9975",
+   "ratio": 3.599788789171763,
+   "accepted": false
+  },
+  {
+   "hex": "#3021a3",
+   "ratio": 11.217427404910335,
+   "accepted": true
+  },
+  {
+   "hex": "#109BDB",
+   "ratio": 3.1187511968750012,
+   "accepted": false
+  },
+  {
+   "hex": "#A89021",
+   "ratio": 3.1454874137734445,
+   "accepted": false
+  },
+  {
+   "hex": "#391a1b",
+   "ratio": 15.700282133125858,
+   "accepted": true
+  },
+  {
+   "hex": "#000891",
+   "ratio": 14.546966110376676,
+   "accepted": true
+  },
+  {
+   "hex": "#1C7409",
+   "ratio": 5.9130338600956724,
+   "accepted": true
+  },
+  {
+   "hex": "#e72755",
+   "ratio": 4.357598765491061,
+   "accepted": false
+  },
+  {
+   "hex": "#1CFEC1",
+   "ratio": 1.3128158314061427,
+   "accepted": false
+  },
+  {
+   "hex": "#0271D5",
+   "ratio": 4.854984657287073,
+   "accepted": true
+  },
+  {
+   "hex": "#2f33ec",
+   "ratio": 7.484966247591392,
+   "accepted": true
+  },
+  {
+   "hex": "#F77AC2",
+   "ratio": 2.4654678360814017,
+   "accepted": false
+  },
+  {
+   "hex": "#9BD4AA",
+   "ratio": 1.6947016351977582,
+   "accepted": false
+  },
+  {
+   "hex": "#ac5bca",
+   "ratio": 4.114888480139043,
+   "accepted": false
+  },
+  {
+   "hex": "#255DFB",
+   "ratio": 5.201354090213572,
+   "accepted": true
+  },
+  {
+   "hex": "#EE492A",
+   "ratio": 3.735405598985736,
+   "accepted": false
+  },
+  {
+   "hex": "#5190b2",
+   "ratio": 3.5105080386007175,
+   "accepted": false
+  },
+  {
+   "hex": "#62ACE5",
+   "ratio": 2.4556313677814114,
+   "accepted": false
+  },
+  {
+   "hex": "#9BE0AD",
+   "ratio": 1.5374027772049057,
+   "accepted": false
+  },
+  {
+   "hex": "#7822e7",
+   "ratio": 6.601014323936927,
+   "accepted": true
+  },
+  {
+   "hex": "#675120",
+   "ratio": 7.568817661772518,
+   "accepted": true
+  },
+  {
+   "hex": "#48C1E7",
+   "ratio": 2.088007834641024,
+   "accepted": false
+  },
+  {
+   "hex": "#97a5c8",
+   "ratio": 2.4613389800398355,
+   "accepted": false
+  },
+  {
+   "hex": "#43E28C",
+   "ratio": 1.6805524575496429,
+   "accepted": false
+  },
+  {
+   "hex": "#69003F",
+   "ratio": 12.556595902168205,
+   "accepted": true
+  },
+  {
+   "hex": "#825dad",
+   "ratio": 5.099152253378973,
+   "accepted": true
+  },
+  {
+   "hex": "#F24D05",
+   "ratio": 3.5963883357489355,
+   "accepted": false
+  },
+  {
+   "hex": "#650249",
+   "ratio": 12.66409459691235,
+   "accepted": true
+  },
+  {
+   "hex": "#0f25bc",
+   "ratio": 10.442011332619343,
+   "accepted": true
+  },
+  {
+   "hex": "#292899",
+   "ratio": 11.303804310978371,
+   "accepted": true
+  },
+  {
+   "hex": "#2AA0FB",
+   "ratio": 2.7926358720037636,
+   "accepted": false
+  },
+  {
+   "hex": "#eabb5e",
+   "ratio": 1.7844631866109388,
+   "accepted": false
+  },
+  {
+   "hex": "#9DB1A9",
+   "ratio": 2.2591842798520116,
+   "accepted": false
+  },
+  {
+   "hex": "#B0BA06",
+   "ratio": 2.1271825737063734,
+   "accepted": false
+  },
+  {
+   "hex": "#0c0763",
+   "ratio": 17.126156504813135,
+   "accepted": true
+  },
+  {
+   "hex": "#42F249",
+   "ratio": 1.496930195099767,
+   "accepted": false
+  },
+  {
+   "hex": "#EAE45E",
+   "ratio": 1.332700705444483,
+   "accepted": false
+  },
+  {
+   "hex": "#a93052",
+   "ratio": 6.498281845913259,
+   "accepted": true
+  },
+  {
+   "hex": "#E9B98E",
+   "ratio": 1.7804288377720459,
+   "accepted": false
+  },
+  {
+   "hex": "#9F8463",
+   "ratio": 3.526530200563512,
+   "accepted": false
+  },
+  {
+   "hex": "#4a59fe",
+   "ratio": 5.058690426167486,
+   "accepted": true
+  },
+  {
+   "hex": "#0A68C3",
+   "ratio": 5.554001153750936,
+   "accepted": true
+  },
+  {
+   "hex": "#07EDBB",
+   "ratio": 1.5173103296712402,
+   "accepted": false
+  },
+  {
+   "hex": "#bb6712",
+   "ratio": 4.148727734819036,
+   "accepted": false
+  },
+  {
+   "hex": "#9D7220",
+   "ratio": 4.319741416342733,
+   "accepted": false
+  },
+  {
+   "hex": "#7C2643",
+   "ratio": 9.479477289186327,
+   "accepted": true
+  },
+  {
+   "hex": "#d6ec4c",
+   "ratio": 1.3156435724631086,
+   "accepted": false
+  },
+  {
+   "hex": "#293811",
+   "ratio": 12.589574122620737,
+   "accepted": true
+  },
+  {
+   "hex": "#B696AC",
+   "ratio": 2.6424179020913043,
+   "accepted": false
+  },
+  {
+   "hex": "#558d09",
+   "ratio": 4.038341814261944,
+   "accepted": false
+  },
+  {
+   "hex": "#7B8E59",
+   "ratio": 3.586283033205681,
+   "accepted": false
+  },
+  {
+   "hex": "#01BB67",
+   "ratio": 2.5285136005349713,
+   "accepted": false
+  },
+  {
+   "hex": "#26617f",
+   "ratio": 6.776920304706627,
+   "accepted": true
+  },
+  {
+   "hex": "#532B55",
+   "ratio": 11.385037708185035,
+   "accepted": true
+  },
+  {
+   "hex": "#5EBBE0",
+   "ratio": 2.1738162967061747,
+   "accepted": false
+  },
+  {
+   "hex": "#aa734f",
+   "ratio": 3.9814912516174727,
+   "accepted": false
+  },
+  {
+   "hex": "#EF1D29",
+   "ratio": 4.305122930225047,
+   "accepted": false
+  },
+  {
+   "hex": "#C38DAF",
+   "ratio": 2.70988719680801,
+   "accepted": false
+  },
+  {
+   "hex": "#023bab",
+   "ratio": 9.475585377958573,
+   "accepted": true
+  },
+  {
+   "hex": "#4EC69C",
+   "ratio": 2.1251546828182803,
+   "accepted": false
+  },
+  {
+   "hex": "#CF3F82",
+   "ratio": 4.481029106591705,
+   "accepted": false
+  },
+  {
+   "hex": "#55ebcf",
+   "ratio": 1.4819425220158111,
+   "accepted": false
+  },
+  {
+   "hex": "#ADEF5E",
+   "ratio": 1.3738889179491187,
+   "accepted": false
+  },
+  {
+   "hex": "#9F6F0E",
+   "ratio": 4.417051550386345,
+   "accepted": false
+  },
+  {
+   "hex": "#290968",
+   "ratio": 15.7509435602446,
+   "accepted": true
+  },
+  {
+   "hex": "#BCA94F",
+   "ratio": 2.352581982160469,
+   "accepted": false
+  },
+  {
+   "hex": "#EDC8CE",
+   "ratio": 1.526843892187369,
+   "accepted": false
+  }
+ ]
+}

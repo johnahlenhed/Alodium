@@ -8,7 +8,7 @@ import { useState } from 'react';
 export default function AuthenticatedLayout({ header, children }) {
     const { auth, flash, unreadSubmissions = 0 } = usePage().props;
     const user = auth.user;
-    // Analytics, Import and Users are admin-only (the routes enforce it; this only hides the links).
+    // Analytics, Import, Users and Settings are admin-only (the routes enforce it; this only hides the links).
     const isAdmin = user.role === 'admin';
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
@@ -84,6 +84,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                             active={route().current('users.*')}
                                         >
                                             Users
+                                        </NavLink>
+                                        <NavLink
+                                            href={route('settings.edit')}
+                                            active={route().current('settings.*')}
+                                        >
+                                            Settings
                                         </NavLink>
                                     </>
                                 )}
@@ -238,6 +244,12 @@ export default function AuthenticatedLayout({ header, children }) {
                                     active={route().current('users.*')}
                                 >
                                     Users
+                                </ResponsiveNavLink>
+                                <ResponsiveNavLink
+                                    href={route('settings.edit')}
+                                    active={route().current('settings.*')}
+                                >
+                                    Settings
                                 </ResponsiveNavLink>
                             </>
                         )}

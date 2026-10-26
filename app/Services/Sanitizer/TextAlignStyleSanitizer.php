@@ -28,7 +28,7 @@ class TextAlignStyleSanitizer implements AttributeSanitizerInterface
     public function sanitizeAttribute(string $element, string $attribute, string $value, HtmlSanitizerConfig $config): ?string
     {
         foreach (explode(';', $value) as $declaration) {
-            if (preg_match('/^\s*text-align\s*:\s*(left|center|right)\s*$/i', $declaration, $match)) {
+            if (preg_match('/^\s*text-align\s*:\s*(left|center|right)\s*\z/i', $declaration, $match)) {
                 return 'text-align: '.strtolower($match[1]);
             }
         }

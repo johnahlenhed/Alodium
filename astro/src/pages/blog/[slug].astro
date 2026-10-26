@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { formatDate, getPost, getPosts } from '../../lib/api.js';
+import { formatDate, getPost, getPosts, getSite } from '../../lib/api.js';
 import { absoluteUrl, blogPostingJsonLd } from '../../lib/jsonld.js';
 
 // Runs once at build time: one HTML file is generated per published post.
@@ -16,7 +16,8 @@ export async function getStaticPaths() {
 }
 
 const { post, excerpt } = Astro.props;
-const jsonLd = blogPostingJsonLd({ post, excerpt, url: absoluteUrl(Astro.url.pathname, Astro.site), site: Astro.site });
+const settings = await getSite();
+const jsonLd = blogPostingJsonLd({ post, excerpt, url: absoluteUrl(Astro.url.pathname, Astro.site), site: Astro.site, siteName: settings.name });
 ---
 
 <BaseLayout

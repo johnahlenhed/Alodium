@@ -41,9 +41,9 @@ class UrlToContent
             if (isset(self::FIXED[$path])) {
                 continue;
             }
-            if (preg_match('#^/blog/([^/]+)$#', $path, $m)) {
+            if (preg_match('#^/blog/([^/]+)\z#', $path, $m)) {
                 $postSlugs[] = rawurldecode($m[1]);
-            } elseif (preg_match('#^/([^/]+)$#', $path, $m)) {
+            } elseif (preg_match('#^/([^/]+)\z#', $path, $m)) {
                 $pageSlugs[] = rawurldecode($m[1]);
             }
         }
@@ -59,8 +59,8 @@ class UrlToContent
                 continue;
             }
 
-            $key = preg_match('#^/blog/([^/]+)$#', $path, $m) ? 'post:'.rawurldecode($m[1])
-                : (preg_match('#^/([^/]+)$#', $path, $m) ? 'page:'.rawurldecode($m[1]) : null);
+            $key = preg_match('#^/blog/([^/]+)\z#', $path, $m) ? 'post:'.rawurldecode($m[1])
+                : (preg_match('#^/([^/]+)\z#', $path, $m) ? 'page:'.rawurldecode($m[1]) : null);
             $match = $key ? ($found[$key] ?? null) : null;
 
             $result[$path] = $match

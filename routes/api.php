@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\PublicSiteController;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,8 @@ Route::prefix('public')->group(function () {
     Route::get('/posts/{slug}', [PublicContentController::class, 'post']);
     Route::get('/pages', [PublicContentController::class, 'pages']);
     Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
+    // Site name, theme, logo, navigation and front page (Settings page).
+    Route::get('/site', PublicSiteController::class);
 
     // Each message sends an email, so this is limited much harder than the tracker.
     Route::post('/contact', [PublicContentController::class, 'contact'])->middleware('throttle:5,1');

@@ -33,7 +33,7 @@ class SiteStatus
         }
 
         foreach (array_reverse(preg_split('/\R/', $tail)) as $line) {
-            if (preg_match('/^Rebuild (complete|FAILED) at (.+)$/', trim($line), $m)) {
+            if (preg_match('/^Rebuild (complete|FAILED) at (.+)\z/', trim($line), $m)) {
                 return [
                     'status' => $m[1] === 'complete' ? 'complete' : 'failed',
                     'at' => $this->parseDate($m[2]),

@@ -1,10 +1,12 @@
 ---
 import ContactForm from '../components/ContactForm.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { SITE } from '../lib/site.js';
+import { getSite } from '../lib/api.js';
+
+const settings = await getSite();
 ---
 
-<BaseLayout title="Contact" description={`Send a message to ${SITE.name}.`}>
+<BaseLayout title="Contact" description={`Send a message to ${settings.name}.`}>
     <h1>Contact</h1>
 
     <ContactForm />

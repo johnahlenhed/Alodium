@@ -67,4 +67,12 @@ class ContentSanitizerTest extends TestCase
 
         $this->assertSame($once, $this->clean($once));
     }
+
+    public function test_text_align_with_a_trailing_newline_is_normalised_and_other_lines_are_not(): void
+    {
+        // Whitespace around the declaration is allowed (\s*); the output is rebuilt from the match.
+        $this->assertSame('<p style="text-align: left">x</p>', $this->clean("<p style=\"text-align: left\n\">x</p>"));
+        // A second line after the value is not part of an allowed declaration.
+        $this->assertSame('<p>x</p>', $this->clean("<p style=\"text-align: left\nposition: fixed\">x</p>"));
+    }
 }

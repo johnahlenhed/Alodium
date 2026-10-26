@@ -1,22 +1,50 @@
 ---
+/**
+ * The site's header: the logo or the built-in mark, the site name, and the main
+ * navigation from the site settings. The link to "/" always has an accessible
+ * name: the visible name text, or the logo's alt text when the name is hidden.
+ */
 import BrandMark from './BrandMark.astro';
-import { currentState, SITE } from '../lib/site.js';
+import { currentState } from '../lib/settings.js';
 
+interface Props {
+    /** From getSite() (src/lib/api.js). */
+    settings: {
+        name: string;
+        showSiteName: boolean;
+        logo: { url: string; width: number; height: number } | null;
+    };
+    /** navigationFor(settings): the navigation without the front page's own address. */
+    navigation: Array<{ label: string; href: string }>;
+}
+
+const { settings, navigation } = Astro.props;
+const { name, logo } = settings;
+// Without a logo the name is always shown, otherwise the link would have no visible content.
+const showName = !logo || settings.showSiteName;
 const { pathname } = Astro.url;
+// The logo: decorative next to the name (alt=""), otherwise its alt text is the name.
+// Its width/height attributes reserve the space; CSS sets the height (no layout shift).
 ---
 
 <header class="site-header">
     <div class="site-header__inner">
         <a class="site-brand" href="/">
-            <BrandMark class="site-brand__mark" />
-            <span class="site-brand__name">{SITE.name}</span>
+            {
+                logo ? (
+                    <img class="site-brand__logo" src={logo.url} width={logo.width} height={logo.height} alt={showName ? '' : name} />
+                ) : (
+                    <BrandMark class="site-brand__mark" />
+                )
+            }
+            {showName && <span class="site-brand__name">{name}</span>}
         </a>
 
         <nav class="site-nav" aria-label="Main">
             {/* role="list": Safari drops list semantics when list-style is none. */}
             <ul role="list">
                 {
-                    SITE.navigation.map((item) => (
+                    navigation.map((item) => (
                         <li>
                             <a href={item.href} aria-current={currentState(item.href, pathname)}>
                                 {item.label}

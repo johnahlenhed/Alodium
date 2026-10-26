@@ -101,7 +101,7 @@ class OffsiteBackup
 
         $backups = array_values(array_filter(
             $this->disk()->files($prefix),
-            fn (string $path) => preg_match('#/alodium-backup-[^/]+\.sql\.gz\.enc$#', $path),
+            fn (string $path) => preg_match('#/alodium-backup-[^/]+\.sql\.gz\.enc\z#', $path),
         ));
         rsort($backups);
 

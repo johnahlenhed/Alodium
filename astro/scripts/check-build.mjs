@@ -2,7 +2,9 @@
 //   - exactly one <h1> per page from the templates (rich text from the CMS
 //     can contain its own <h1>s; those are counted and reported separately)
 //   - the skip link is the first thing in <body> and points at <main id="main">
-//   - aria-current is on the right navigation links, and only there
+//   - the header and footer navigation are the same on every page, and
+//     aria-current is on the right links, and only there (check-site.mjs
+//     compares the navigation itself with the site settings)
 //   - the favicon links are present
 //   - no resource is loaded from a host other than the site and the API origin
 //     (URLs that come from CMS data, in <main> or the og:image tags, are reported)
@@ -15,7 +17,8 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { FONTS } from '../src/lib/fonts.js';
-import { currentState, SITE } from '../src/lib/site.js';
+import { currentState } from '../src/lib/settings.js';
+import { countH1 } from './lib/html.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, 'dist');
@@ -35,29 +38,11 @@ const pathOf = (file) => {
     return path.endsWith('/index.html') ? path.slice(0, -'index.html'.length) : path.replace(/\.html$/, '');
 };
 
-const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
-
-/** <h1>s outside and inside rich text (elements with the class "prose"), by tag depth. */
-function countH1(html) {
-    const counts = { template: 0, content: 0 };
-    const stack = []; // true for each open element that is (or is inside) .prose
-    for (const [, closing, name, attrs] of html.matchAll(/<(\/?)([a-zA-Z][\w-]*)([^>]*)>/g)) {
-        const tag = name.toLowerCase();
-        if (closing) {
-            stack.pop();
-            continue;
-        }
-        const inProse = stack.at(-1) === true || /\sclass="[^"]*\bprose\b/.test(attrs);
-        if (tag === 'h1') counts[inProse ? 'content' : 'template']++;
-        if (!VOID.has(tag) && !attrs.endsWith('/')) stack.push(inProse);
-    }
-    return counts;
-}
-
 const errors = [];
 const contentHosts = new Map(); // third-party URLs from CMS data, reported, not failed
 const contentH1 = [];
 const fontsLoaded = new Set();
+let referenceNav = null; // the first page's navigation; every page must have the same
 
 for (const file of pages) {
     const html = readFileSync(file, 'utf8');
@@ -79,7 +64,9 @@ for (const file of pages) {
             continue;
         }
         const links = [...nav.matchAll(/<a href="([^"]+)"(?: aria-current="([^"]+)")?>/g)].map(([, href, current]) => ({ href, current }));
-        if (links.length !== SITE.navigation.length) fail(`${label} navigation has ${links.length} links`);
+        const hrefs = JSON.stringify(links.map((link) => link.href));
+        referenceNav ??= hrefs;
+        if (hrefs !== referenceNav) fail(`${label} navigation ${hrefs} differs from the other pages' ${referenceNav}`);
         for (const { href, current } of links) {
             const expected = currentState(href, path);
             if (current !== expected) fail(`${label} navigation: ${href} has aria-current=${current ?? 'none'}, expected ${expected ?? 'none'}`);

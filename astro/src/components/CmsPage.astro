@@ -1,0 +1,35 @@
+---
+/**
+ * A CMS page's content: its blocks, or for a legacy page its HTML. Used by
+ * /[slug] and by "/" when the page is the front page. A hero as the first
+ * rendered block provides the page's <h1>, so the title isn't repeated as a
+ * second <h1> above it (the title stays in <title> and the metadata).
+ */
+import BlockRenderer from './blocks/BlockRenderer.astro';
+import { firstRenderedBlock } from './blocks/registry.js';
+
+interface Props {
+    /** A page from GET /api/public/pages/{slug}. */
+    page: { slug: string; title: string; content?: string | null; blocks: unknown[] | null };
+}
+
+const { page } = Astro.props;
+
+// Block page (blocks is a list) or legacy page (blocks is null, content is HTML).
+const isBlockPage = Array.isArray(page.blocks);
+if (isBlockPage && page.blocks.length === 0) {
+    console.warn(`[blocks] Page "${page.slug}" is published but has no blocks.`);
+}
+const heroProvidesHeading = isBlockPage && firstRenderedBlock(page.blocks)?.type === 'hero';
+---
+
+<article>
+    {!heroProvidesHeading && <h1>{page.title}</h1>}
+    {
+        isBlockPage ? (
+            <BlockRenderer blocks={page.blocks} slug={page.slug} />
+        ) : (
+            <div class="prose" set:html={page.content ?? ''} />
+        )
+    }
+</article>

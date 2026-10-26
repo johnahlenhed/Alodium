@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\Submission;
 use App\Models\User;
 use App\Models\Visit;
+use App\Services\OffsiteBackup;
 use App\Services\SiteStatus;
 use App\Support\TrafficSource;
 use App\Support\UrlToContent;
@@ -391,14 +392,17 @@ class DashboardTest extends TestCase
     private function recordUploadHoursAgo(float $hours): void
     {
         $this->travelTo(now()->subMinutes((int) ($hours * 60)));
-        app(\App\Services\OffsiteBackup::class)->recordUpload('backups/x.sql.gz.enc');
+        app(OffsiteBackup::class)->recordUpload('backups/x.sql.gz.enc');
         $this->travelBack();
         $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'UTC'));
     }
 
     private function freshBackup(): void
     {
-        file_put_contents(config('database.backups.path').'/alodium-backup-2026-10-22-0200.sql.gz', 'x');
+        $file = config('database.backups.path').'/alodium-backup-2026-10-22-0200.sql.gz';
+        file_put_contents($file, 'x');
+        // The test's clock (travelTo), not the real time the file was written.
+        touch($file, now()->subHours(10)->getTimestamp());
     }
 
     public function test_offsite_not_configured_gives_no_warning(): void
@@ -481,5 +485,26 @@ class DashboardTest extends TestCase
         foreach (['KEY-123', 'SECRET-456', 'PASS-789'] as $secret) {
             $this->assertStringNotContainsString($secret, $response->getContent());
         }
+    }
+
+    public function test_a_rebuild_line_with_a_trailing_newline_is_read(): void
+    {
+        $this->log("Rebuild complete at Thu Oct 22 02:00:05 UTC 2026\n\n");
+
+        $this->assertSame('complete', app(SiteStatus::class)->lastRebuild()['status']);
+    }
+
+    public function test_a_path_with_a_trailing_newline_is_not_matched_to_content(): void
+    {
+        $this->content(Post::class, ['slug' => 'hello', 'title' => 'Hello post']);
+        $this->content(Page::class, ['slug' => 'about', 'title' => 'About us']);
+
+        $resolved = app(UrlToContent::class)->resolve(["/blog/hello\n", "/about\n", '/blog/hello']);
+
+        // parse_url() turns the newline into "_" before the patterns see the path.
+        $this->assertSame('/blog/hello_', UrlToContent::normalize("/blog/hello\n"));
+        $this->assertSame('other', $resolved['/blog/hello_']['type']);
+        $this->assertSame('other', $resolved['/about_']['type']);
+        $this->assertSame('post', $resolved['/blog/hello']['type']);
     }
 }

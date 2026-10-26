@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Services\OffsiteBackup;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -307,5 +309,32 @@ class OffsiteBackupTest extends TestCase
 
         config(['filesystems.disks.backups.key' => 'key', 'database.backups.passphrase' => '']);
         $this->artisan('db:backup-test-remote')->expectsOutputToContain('BACKUP_ENCRYPTION_PASSPHRASE is not set')->assertFailed();
+    }
+
+    /**
+     * A remote key that ends in a newline is not a backup. ($ would match it, and
+     * it would sort as the newest, so the real backup would be pruned instead.)
+     * Flysystem can't write such a key, but another tool could create one in the bucket.
+     */
+    public function test_pruning_ignores_a_key_with_a_trailing_newline(): void
+    {
+        $disk = Mockery::mock(Filesystem::class);
+        $disk->shouldReceive('files')->andReturn([
+            'backups/alodium-backup-2026-10-20-0200.sql.gz.enc',
+            "backups/alodium-backup-2026-10-21-0200.sql.gz.enc\n",
+        ]);
+        $disk->shouldNotReceive('delete');
+
+        $offsite = new class($disk) extends OffsiteBackup
+        {
+            public function __construct(private Filesystem $fake) {}
+
+            public function disk(): Filesystem
+            {
+                return $this->fake;
+            }
+        };
+
+        $this->assertSame(0, $offsite->prune(1));
     }
 }
