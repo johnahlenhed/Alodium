@@ -1,0 +1,30 @@
+---
+import BrandMark from './BrandMark.astro';
+import { currentState, SITE } from '../lib/site.js';
+
+const { pathname } = Astro.url;
+---
+
+<header class="site-header">
+    <div class="site-header__inner">
+        <a class="site-brand" href="/">
+            <BrandMark class="site-brand__mark" />
+            <span class="site-brand__name">{SITE.name}</span>
+        </a>
+
+        <nav class="site-nav" aria-label="Main">
+            {/* role="list": Safari drops list semantics when list-style is none. */}
+            <ul role="list">
+                {
+                    SITE.navigation.map((item) => (
+                        <li>
+                            <a href={item.href} aria-current={currentState(item.href, pathname)}>
+                                {item.label}
+                            </a>
+                        </li>
+                    ))
+                }
+            </ul>
+        </nav>
+    </div>
+</header>

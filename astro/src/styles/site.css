@@ -1,0 +1,359 @@
+/*
+ * Site layout: page base, skip link, header, footer, the page column and
+ * page-level elements (post list, post meta). Blocks, rich text, buttons, the
+ * contact form and all variables are in blocks.css, which loads first.
+ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-body);
+    /* Titles, excerpts, names and meta inherit this: a long unbroken word wraps instead of widening the page. */
+    overflow-wrap: anywhere;
+}
+
+::selection {
+    background: var(--color-brand);
+    color: var(--color-on-brand);
+}
+
+/* Off-screen until it gets keyboard focus. */
+.skip-link {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius);
+    background: var(--color-brand);
+    color: var(--color-on-brand);
+    font-weight: 600;
+    text-decoration: none;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.site-header {
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+}
+
+/* On narrow screens the navigation wraps onto a second row. */
+.site-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-6);
+    width: var(--wide-column-width);
+    margin-inline: auto;
+    padding-block: var(--space-3);
+}
+
+.site-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--target-min);
+    color: var(--color-text);
+    font-family: var(--font-heading);
+    font-size: 1.1875rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+}
+
+.site-brand__mark {
+    flex: none;
+    width: auto;
+    height: 1.875rem; /* 30px */
+    color: var(--color-brand);
+}
+
+.site-brand:hover .site-brand__name {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.2em;
+}
+
+.site-nav ul,
+.site-footer__nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Pulls the first link back by its padding, so its text lines up when the row wraps. */
+.site-nav ul {
+    margin-inline-start: calc(-1 * var(--space-3));
+}
+
+.site-nav a,
+.site-footer__nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius);
+    color: var(--color-text);
+    text-decoration: none;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.35em;
+}
+
+.site-nav a:hover,
+.site-footer__nav a:hover {
+    color: var(--color-brand);
+    text-decoration-line: underline;
+}
+
+/* The current page (and, for Blog, a post): brand colour, bold, thick underline. */
+.site-nav a[aria-current],
+.site-footer__nav a[aria-current] {
+    color: var(--color-brand);
+    font-weight: 600;
+    text-decoration-line: underline;
+    text-decoration-thickness: 2px;
+}
+
+/* ---------------------------------------------------------- page column */
+
+.site-main {
+    flex: 1;
+    padding-block: var(--space-7) var(--space-8);
+}
+
+/* A hero at the top of a page starts right below the header. */
+.site-main:has(> article > .block-hero:first-child) {
+    padding-top: 0;
+}
+
+/*
+ * The page column: the one rule that places page content. Everything in
+ * <main> that is not a block (headings, the post list, rich text, the contact
+ * form) sits centred in the reading column, with one space below it. Every
+ * page uses it; no page has its own copy. Blocks set their own width and
+ * spacing in blocks.css, from the same --column-width.
+ */
+.site-main > :not(article),
+.site-main > article > :not(.block) {
+    width: var(--column-width);
+    margin: 0 auto var(--space-6);
+}
+
+.site-main > :last-child,
+.site-main > article > :last-child {
+    margin-bottom: 0;
+}
+
+/* Space between an article and what follows it (the back link on a post). */
+.site-main > article:not(:last-child) {
+    margin-bottom: var(--space-7);
+}
+
+.site-main h1 {
+    font-family: var(--font-heading);
+    font-size: var(--text-h1);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+}
+
+/* Plain links outside rich text. :where() keeps this weaker than the post list's title links. */
+:where(.site-main) a:not([class]) {
+    color: var(--color-brand);
+    text-underline-offset: 0.18em;
+}
+
+:where(.site-main) a:not([class]):hover {
+    color: var(--color-brand-strong);
+    text-decoration-thickness: 2px;
+}
+
+.meta {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+/* The date and author under a title sit close to it. */
+.site-main h1:has(+ .meta) {
+    margin-bottom: var(--space-3);
+}
+
+/* On a post, a line separates the date and author from the text. */
+.site-main > article > h1 + .meta {
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min);
+    color: var(--color-brand);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: var(--color-brand-strong);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
+/* ---------------------------------------------------------------- post list */
+
+/*
+ * minmax(0, 1fr), not the implicit auto column: an auto track can't get
+ * narrower than its longest unbreakable word, so a one-word 85-letter title
+ * made the column wider than the list and pushed the cards out to the right.
+ */
+.post-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: 0;
+    list-style: none;
+}
+
+/* Each post is a card; the title link covers the whole card (::after). */
+.post-list li {
+    position: relative;
+    min-width: 0;
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+}
+
+.post-list li:hover {
+    border-color: var(--color-brand-border);
+    box-shadow: 0 2px 12px var(--color-brand-shadow);
+}
+
+.post-list h2 {
+    margin: 0 0 var(--space-1);
+    font-family: var(--font-heading);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: var(--leading-heading);
+    text-wrap: balance;
+}
+
+.post-list h2 a {
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.post-list h2 a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+.post-list li:hover h2 a {
+    color: var(--color-brand);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.18em;
+}
+
+.post-list p {
+    margin: var(--space-2) 0 0;
+    color: var(--color-text-muted);
+}
+
+/* The focus ring goes around the card (where :has() works) instead of the title. */
+@supports selector(:has(*)) {
+    .post-list h2 a:focus-visible {
+        outline: none;
+    }
+
+    .post-list li:has(a:focus-visible) {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 2px;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .post-list li {
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.site-footer {
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.site-footer__inner {
+    display: grid;
+    gap: var(--space-3);
+    width: var(--wide-column-width);
+    margin-inline: auto;
+    padding-block: var(--space-6);
+}
+
+.site-footer p {
+    margin: 0;
+}
+
+.site-footer__name {
+    color: var(--color-text);
+    font-family: var(--font-heading);
+    font-weight: 600;
+}
+
+.site-footer__nav ul {
+    margin-inline-start: calc(-1 * var(--space-3));
+}
+
+/* Name on the left and links on the right, from 640px. */
+@media (min-width: 640px) {
+    .site-footer__inner {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+    }
+
+    .site-footer__nav ul {
+        margin-inline: 0 calc(-1 * var(--space-3));
+    }
+
+    .site-footer__note {
+        grid-column: 1 / -1;
+    }
+}

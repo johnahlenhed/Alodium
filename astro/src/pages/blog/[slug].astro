@@ -39,5 +39,5 @@ const jsonLd = blogPostingJsonLd({ post, excerpt, url: absoluteUrl(Astro.url.pat
         <div class="prose" set:html={post.content ?? ''} />
     </article>
 
-    <p><a href="/blog">← Back to blog</a></p>
+    <p><a class="back-link" href="/blog">← Back to blog</a></p>
 </BaseLayout>
