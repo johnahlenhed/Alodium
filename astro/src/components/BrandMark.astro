@@ -1,0 +1,40 @@
+---
+/**
+ * The Alodium mark, inlined so it takes its colour from CSS (currentColor).
+ * Built from src/assets/alodium-mark.svg at build time: only its viewBox and
+ * path are used, which leaves out the file's metadata (an 8 KB content
+ * credential) and its <title>. The mark is decorative: the site name is
+ * always next to it as text, so screen readers would otherwise read it twice.
+ */
+import source from '../assets/alodium-mark.svg?raw';
+
+interface Props {
+    class?: string;
+}
+
+const { class: className } = Astro.props;
+
+const viewBox = source.match(/viewBox="([^"]+)"/)?.[1];
+const paths = [...source.matchAll(/<path\b[^>]*\sd="([^"]+)"/g)].map((match) => match[1]);
+const evenOdd = /fill-rule="evenodd"/.test(source);
+
+// Fail the build rather than render an empty logo if the file changes shape.
+if (!viewBox || paths.length === 0) {
+    throw new Error('src/assets/alodium-mark.svg: expected a viewBox and at least one <path d="…">.');
+}
+
+// Width and height attributes reserve the space before CSS loads (CSS sets the size).
+const [, , width, height] = viewBox.split(/\s+/).map(Number);
+---
+
+<svg
+    class={className}
+    viewBox={viewBox}
+    width={Math.round((30 * width) / height)}
+    height="30"
+    fill="currentColor"
+    aria-hidden="true"
+    focusable="false"
+>
+    {paths.map((d) => <path d={d} fill-rule={evenOdd ? 'evenodd' : undefined} />)}
+</svg>

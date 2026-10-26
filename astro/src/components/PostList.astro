@@ -6,13 +6,14 @@ interface Props {
 }
 
 const { posts } = Astro.props;
+// role="list" on the <ul>: Safari drops list semantics when list-style is none.
 ---
 
 {
     posts.length === 0 ? (
         <p>No posts yet.</p>
     ) : (
-        <ul class="post-list">
+        <ul class="post-list" role="list">
             {posts.map((post) => (
                 <li>
                     <h2>

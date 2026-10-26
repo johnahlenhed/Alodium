@@ -1,0 +1,41 @@
+---
+import { currentState } from '../lib/settings.js';
+
+interface Props {
+    /** From getSite() (src/lib/api.js). */
+    settings: { name: string; footerText: string | null };
+    /** The same navigation as the header. */
+    navigation: Array<{ label: string; href: string }>;
+}
+
+/** Not a setting: the site always uses the cookie-free tracker. */
+const ANALYTICS_NOTE = 'This site uses cookie-free analytics.';
+
+const { settings, navigation } = Astro.props;
+const { pathname } = Astro.url;
+// The year the site was built (the site is static).
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+    <div class="site-footer__inner">
+        <p class="site-footer__name">© {year} {settings.name}</p>
+
+        <nav class="site-footer__nav" aria-label="Footer">
+            <ul role="list">
+                {
+                    navigation.map((item) => (
+                        <li>
+                            <a href={item.href} aria-current={currentState(item.href, pathname)}>
+                                {item.label}
+                            </a>
+                        </li>
+                    ))
+                }
+            </ul>
+        </nav>
+
+        {settings.footerText && <p class="site-footer__text">{settings.footerText}</p>}
+        <p class="site-footer__note">{ANALYTICS_NOTE}</p>
+    </div>
+</footer>

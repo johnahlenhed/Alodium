@@ -1,14 +1,6 @@
+import VisitsChart from '@/Components/VisitsChart';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import {
-    CartesianGrid,
-    Line,
-    LineChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
 
 const RANGES = [7, 30, 90];
 
@@ -111,39 +103,8 @@ export default function Index({
                         {totalVisits === 0 ? (
                             <p className="mt-4 text-sm text-gray-500">No data yet.</p>
                         ) : (
-                            <div className="mt-4 h-72">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={visitsOverTime}>
-                                        <CartesianGrid stroke="#e5e7eb" vertical={false} />
-                                        <XAxis
-                                            dataKey="date"
-                                            tickFormatter={(d) => d.slice(5)}
-                                            tick={{ fontSize: 12, fill: '#6b7280' }}
-                                            tickLine={false}
-                                            axisLine={{ stroke: '#e5e7eb' }}
-                                            minTickGap={24}
-                                        />
-                                        <YAxis
-                                            allowDecimals={false}
-                                            tick={{ fontSize: 12, fill: '#6b7280' }}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            width={32}
-                                        />
-                                        <Tooltip
-                                            formatter={(value) => [value, 'Visits']}
-                                            labelFormatter={(label) => label}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="count"
-                                            stroke="#4f46e5"
-                                            strokeWidth={2}
-                                            dot={false}
-                                            activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                            <div className="mt-4">
+                                <VisitsChart data={visitsOverTime} label="Visits per day" unit="Visits" />
                             </div>
                         )}
                     </div>
