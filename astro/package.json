@@ -10,7 +10,9 @@
     "build": "astro build",
     "build:local": "astro build --mode development",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "check": "node scripts/check-theme.mjs && node scripts/check-settings.mjs && node scripts/check-contrast.mjs --quiet",
+    "check:build": "node scripts/check-build.mjs && node scripts/check-layout.mjs && node scripts/check-site.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

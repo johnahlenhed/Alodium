@@ -66,7 +66,7 @@ class BlockRegistry
         $rules = [
             $attribute => ['nullable', 'array', 'max:'.self::MAX_BLOCKS],
             "{$attribute}.*" => ['array'],
-            "{$attribute}.*.id" => ['nullable', 'string', 'max:36', 'regex:/^[A-Za-z0-9_-]+$/'],
+            "{$attribute}.*.id" => ['nullable', 'string', 'max:36', 'regex:/^[A-Za-z0-9_-]+\z/'],
             "{$attribute}.*.type" => ['bail', 'required', 'string', function (string $key, mixed $value, \Closure $fail) {
                 if (! $this->get($value)) {
                     $fail("Unknown block type \"{$value}\".");

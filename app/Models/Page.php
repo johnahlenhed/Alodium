@@ -8,6 +8,7 @@ use App\Observers\PublicContentObserver;
 use App\Support\PlainText;
 use App\Traits\HasRevisions;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -17,6 +18,13 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 #[ObservedBy(PublicContentObserver::class)]
 class Page extends Model implements HasMedia
 {
+    /**
+     * Slugs the public site uses for its own routes; a CMS page with one of them
+     * is never built (RESERVED in astro/src/pages/[slug].astro, checked by
+     * SiteSettingsTest). Such a page can't be in the navigation or the front page.
+     */
+    public const RESERVED_SLUGS = ['blog', 'contact', '404', 'index'];
+
     use HasRevisions, InteractsWithMedia, RegistersImageConversions {
         // Both traits define registerMediaConversions(); ours holds the real conversions.
         RegistersImageConversions::registerMediaConversions insteadof InteractsWithMedia;
@@ -41,7 +49,22 @@ class Page extends Model implements HasMedia
         'publish_at' => 'datetime',
         // { version, blocks: [...] } or null for a legacy (HTML content) page.
         'blocks' => 'array',
+        // Set on the Settings page only (not fillable, not part of revisions).
+        'show_in_nav' => 'boolean',
+        'nav_order' => 'integer',
     ];
+
+    /**
+     * Pages the public site shows: published and not scheduled for the future
+     * (the same rule as PublicContentController::published()), with a slug the
+     * site can build.
+     */
+    public function scopeOnPublicSite(Builder $query): void
+    {
+        $query->where('status', 'published')
+            ->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))
+            ->whereNotIn('slug', self::RESERVED_SLUGS);
+    }
 
     public function author(): BelongsTo
     {

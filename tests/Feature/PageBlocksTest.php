@@ -2,14 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Blocks\BlockRegistry;
 use App\Jobs\RebuildAstroJob;
 use App\Models\Page;
+use App\Models\Post;
 use App\Models\Revision;
 use App\Models\User;
 use App\Services\WordPressImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -459,7 +462,7 @@ class PageBlocksTest extends TestCase
 
     public function test_posts_api_is_unchanged_and_has_no_blocks(): void
     {
-        \App\Models\Post::create(['author_id' => $this->admin->id, 'title' => 'P', 'slug' => 'p', 'content' => '<p>Post</p>', 'status' => 'published', 'published_at' => now()->subMinute()]);
+        Post::create(['author_id' => $this->admin->id, 'title' => 'P', 'slug' => 'p', 'content' => '<p>Post</p>', 'status' => 'published', 'published_at' => now()->subMinute()]);
 
         $this->getJson('/api/public/posts/p')->assertJsonMissingPath('blocks')->assertJsonPath('content', '<p>Post</p>');
         $this->getJson('/api/public/posts')->assertJsonMissingPath('0.blocks')->assertJsonPath('0.excerpt', 'Post');
@@ -531,5 +534,22 @@ XML);
         $page = Page::where('slug', 'imported-page')->firstOrFail();
         $this->assertFalse($page->hasBlocks());
         $this->assertSame('<p>From WordPress</p>', $page->content);
+    }
+
+    /**
+     * In PHP, $ also matches before a trailing newline. Over HTTP the TrimStrings
+     * middleware removes it first, so the rule itself is tested here.
+     */
+    public function test_a_block_id_with_a_trailing_newline_is_rejected(): void
+    {
+        $registry = app(BlockRegistry::class);
+        $validate = fn (string $id) => Validator::make(
+            ['blocks' => [['id' => $id, 'type' => 'text', 'data' => ['html' => '<p>x</p>']]]],
+            $registry->rules([['id' => $id, 'type' => 'text', 'data' => ['html' => '<p>x</p>']]]),
+        );
+
+        $this->assertTrue($validate('abc-123_X')->passes());
+        $this->assertTrue($validate("abc\n")->fails());
+        $this->assertArrayHasKey('blocks.0.id', $validate("abc\n")->errors()->toArray());
     }
 }

@@ -1,42 +1,111 @@
 /*
- * Styles for page blocks and for rich text (.prose: block text and legacy page
- * content). Self-contained: it depends on nothing in BaseLayout, so the admin
- * editor preview can load this same file in an iframe. Change the look of every
- * block here, through the variables below (theme and logo work will hook in here).
+ * Styles for page blocks, rich text (.prose: block text, posts and legacy page
+ * content), buttons and the contact form, and every variable they use.
+ * Self-contained: it depends on nothing in BaseLayout or site.css, so the admin
+ * editor preview can load this same file in an iframe. Header, footer and page
+ * layout are in site.css.
+ *
+ * Theming. Four variables are chosen by the client: --color-brand,
+ * --font-body, --font-heading and --radius. Their defaults are below;
+ * BaseLayout overrides them with a :root rule from src/lib/theme.js. The
+ * defaults use :where(:root), which has no specificity, so that :root rule
+ * wins whichever order the styles load in. Every other brand colour is
+ * derived from --color-brand with color-mix(), so it follows the choice.
+ * The derived colours are mixed on :root: override --color-brand there (as
+ * theme.js does), not on an element further down.
+ *
+ * Light theme only, but every colour is a variable here, so a dark scheme only
+ * has to redefine them.
  */
 
-:root {
-    /* Colours */
-    --block-color-text: #1f2937;
-    --block-color-muted: #4b5563;
-    --block-color-subtle: #6b7280;
-    --block-color-border: #e5e7eb;
-    --block-color-border-strong: #d1d5db;
-    --block-color-surface: #f3f4f6;
-    --block-color-accent: #2563eb;
-    --block-color-accent-contrast: #ffffff;
-    --block-color-success: #15803d;
-    --block-color-error: #b91c1c;
-    --block-color-focus: #2563eb;
-    --block-hero-bg: #1e293b;
-    --block-hero-text: #ffffff;
-    /* Darkens the hero image so white text stays readable on any photo. */
-    --block-hero-overlay: rgba(15, 23, 42, 0.55);
+:where(:root) {
+    /* Brand. theme.js only accepts a colour with at least 4.5:1 against white. */
+    --color-brand: #1B2A4A;
+    --color-on-brand: #ffffff; /* Not client-controlled. */
+    /*
+     * Derived from the brand. Text that sits on a tint uses the darker
+     * --color-brand-strong, and the hero's darker surfaces are shades, not
+     * tints: both only increase contrast, so every pair stays at 4.5:1 or
+     * more for any brand colour theme.js accepts (scripts/check-contrast.mjs).
+     */
+    --color-brand-strong: color-mix(in srgb, var(--color-brand) 75%, #000);
+    --color-brand-deep: color-mix(in srgb, var(--color-brand) 55%, #000);
+    --color-brand-tint: color-mix(in srgb, var(--color-brand) 7%, var(--color-bg));
+    --color-brand-tint-strong: color-mix(in srgb, var(--color-brand) 14%, var(--color-bg));
+    --color-brand-border: color-mix(in srgb, var(--color-brand) 30%, var(--color-bg));
+    --color-brand-shadow: color-mix(in srgb, var(--color-brand) 10%, transparent);
+    /* Over hero images: a dark shade of the brand at 85%, so white text stays readable on light photos. */
+    --color-hero-overlay: color-mix(in srgb, var(--color-brand-strong) 85%, transparent);
+    /* The focus ring. The hero switches it to --color-on-brand. */
+    --color-focus: var(--color-brand);
 
-    /* Fonts */
-    --block-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --block-font-heading: var(--block-font-body);
-    --block-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Neutrals */
+    --color-bg: #ffffff;
+    --color-surface: #f5f6f8;
+    --color-border: #dfe3e8; /* Decorative lines. */
+    --color-border-strong: #7c8494; /* Form field borders: 3:1 or more, so the field is visible. */
+    --color-text: #1c2026;
+    --color-text-muted: #59606c;
+    --color-success: #1d7a3e;
+    --color-error: #b3261e;
 
-    /* Spacing and shape */
-    --block-gap: 2.5rem;
-    --block-space-s: 0.5rem;
-    --block-space-m: 1rem;
-    --block-space-l: 2rem;
-    --block-hero-padding: 3.5rem 2rem;
-    --block-hero-min-height: 18rem;
-    --block-radius: 8px;
-    --block-radius-small: 4px;
+    /* Fonts: the stacks come from src/lib/fonts.js ('inter' is the default). */
+    --font-body: 'Inter', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-heading: 'Inter', 'Inter Fallback', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    /* Type scale. Body text is 17px on small screens and 18px from about 1000px. */
+    --text-sm: 0.9375rem;
+    --text-base: clamp(1.0625rem, 1rem + 0.2vw, 1.125rem);
+    --text-lg: 1.25rem;
+    --text-h4: 1.125rem;
+    --text-h3: clamp(1.25rem, 1.15rem + 0.45vw, 1.4375rem);
+    --text-h2: clamp(1.5rem, 1.3rem + 0.9vw, 1.875rem);
+    --text-h1: clamp(2rem, 1.6rem + 1.8vw, 2.75rem);
+    --text-hero: clamp(2.25rem, 1.6rem + 3vw, 3.5rem);
+    --leading-body: 1.65;
+    --leading-heading: 1.2;
+    --leading-tight: 1.1;
+
+    /* Spacing scale */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+    --space-8: 4.5rem;
+    --space-block: var(--space-7); /* Between blocks. */
+    --gutter: clamp(1rem, 4vw, 2rem); /* Space beside the content on narrow screens. */
+
+    /*
+     * Widths. The reading column is about 70 characters of body text. It is
+     * in rem, not ch, because ch would change with each element's font size.
+     */
+    --content-width: 40rem;
+    --wide-width: 68.75rem; /* 1100px */
+    /*
+     * The two columns, with the gutter on narrow screens. The 100% is
+     * resolved where the variable is used (the parent's width), so every
+     * page and block uses these, never its own copy of the formula.
+     */
+    --column-width: min(100% - 2 * var(--gutter), var(--content-width));
+    --wide-column-width: min(100% - 2 * var(--gutter), var(--wide-width));
+
+    /* Shape: --radius is the corner style (sharp 0, soft 6px, round 14px); the rest derive from it. */
+    --radius: 6px;
+    --radius-sm: calc(var(--radius) / 2);
+    --radius-lg: calc(var(--radius) * 1.5);
+
+    /* Minimum size of anything you click or tap. */
+    --target-min: 2.75rem; /* 44px */
+}
+
+/* A visible focus ring everywhere; --color-focus changes on brand backgrounds. */
+:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
 }
 
 /* ------------------------------------------------------------------ blocks */
@@ -48,26 +117,44 @@
     box-sizing: border-box;
 }
 
+/*
+ * Text, button and contact form blocks: the reading column. Others widen below.
+ * overflow-wrap: anywhere lets a long unbroken word or URL wrap instead of
+ * widening the page (break-word would still let it widen a grid or flex item).
+ */
 .block {
-    margin: 0 0 var(--block-gap);
-    font-family: var(--block-font-body);
-    color: var(--block-color-text);
-    line-height: 1.6;
+    width: var(--column-width);
+    margin: 0 auto var(--space-block);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-body);
+    color: var(--color-text);
+    overflow-wrap: anywhere;
 }
 
-/* hero */
+.block:last-child {
+    margin-bottom: 0;
+}
+
+/* A button block usually belongs to the text above it, so it sits closer. */
+.block:has(+ .block-button) {
+    margin-bottom: var(--space-5);
+}
+
+/* hero: full width */
 
 .block-hero {
+    --color-focus: var(--color-on-brand);
     position: relative;
     display: flex;
     align-items: center;
-    min-height: var(--block-hero-min-height);
-    padding: var(--block-hero-padding);
+    width: 100%;
+    min-height: clamp(20rem, 55vh, 34rem);
+    padding: var(--space-8) var(--gutter);
     overflow: hidden;
-    border-radius: var(--block-radius);
     /* Shown when there is no image, or the image fails to load. */
-    background: var(--block-hero-bg);
-    color: var(--block-hero-text);
+    background: var(--color-brand);
+    color: var(--color-on-brand);
 }
 
 .block-hero__image {
@@ -82,74 +169,150 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: var(--block-hero-overlay);
+    background: var(--color-hero-overlay);
 }
 
+/* The text lines up with the reading column below the hero. */
 .block-hero__content {
     position: relative;
     z-index: 1;
-    max-width: 40rem;
+    width: min(100%, var(--content-width));
+    margin-inline: auto;
 }
 
 .block-hero__heading {
     margin: 0;
-    font-family: var(--block-font-heading);
-    font-size: clamp(1.75rem, 4vw, 2.5rem);
-    line-height: 1.2;
+    font-family: var(--font-heading);
+    font-size: var(--text-hero);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
     color: inherit;
 }
 
 .block-hero__subheading {
-    margin: var(--block-space-m) 0 0;
-    font-size: 1.15rem;
+    margin: var(--space-4) 0 0;
+    font-size: var(--text-lg);
+    line-height: 1.5;
     color: inherit;
-    opacity: 0.9;
 }
 
 .block-hero .button {
-    margin-top: var(--block-space-l);
+    margin-top: var(--space-6);
 }
 
-/* buttons: the hero's button and the button block share these */
+/*
+ * Buttons: the hero's button, the button block and the contact form's submit
+ * button share these. Each variant only sets the --button-* colours. The
+ * style is chosen with data-button on <html>: "solid" (also when the attribute
+ * is missing, as in the editor preview) or "outline".
+ */
 
-.button {
-    display: inline-block;
-    padding: 0.65rem 1.25rem;
-    border: 2px solid var(--block-color-accent);
-    border-radius: var(--block-radius-small);
+.button,
+.contact-form button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    min-height: var(--target-min);
+    padding: var(--space-2) var(--space-5);
+    border: 2px solid var(--button-border);
+    border-radius: var(--radius);
+    background: var(--button-bg);
+    color: var(--button-text);
+    font: inherit;
+    font-family: var(--font-body);
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.25;
+    text-align: center;
     text-decoration: none;
+    overflow-wrap: anywhere;
+    cursor: pointer;
 }
 
-/* White on the accent colour: 5.2:1 contrast with the default accent. */
-.button-primary {
-    background: var(--block-color-accent);
-    color: var(--block-color-accent-contrast);
+.button:hover,
+.contact-form button:hover:not(:disabled) {
+    border-color: var(--button-border-hover);
+    background: var(--button-bg-hover);
+    color: var(--button-text-hover);
 }
 
-/* Accent text on the page background: 5.2:1 contrast with the default colours. */
+@media (prefers-reduced-motion: no-preference) {
+    .button,
+    .contact-form button {
+        transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+}
+
+/* Solid: primary is white on the brand, secondary is brand text with a brand border. */
+.button-primary,
+.contact-form button {
+    --button-bg: var(--color-brand);
+    --button-text: var(--color-on-brand);
+    --button-border: var(--color-brand);
+    --button-bg-hover: var(--color-brand-strong);
+    --button-text-hover: var(--color-on-brand);
+    --button-border-hover: var(--color-brand-strong);
+}
+
 .button-secondary {
-    background: transparent;
-    color: var(--block-color-accent);
+    --button-bg: transparent;
+    --button-text: var(--color-brand);
+    --button-border: var(--color-brand);
+    --button-bg-hover: var(--color-brand-tint);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-strong);
 }
 
-.button-primary:hover {
-    filter: brightness(1.1);
+/* Outline: primary is brand text with a 2px brand border, secondary is on a light brand tint. */
+[data-button='outline'] .button-primary,
+[data-button='outline'] .contact-form button {
+    --button-bg: transparent;
+    --button-text: var(--color-brand);
+    --button-border: var(--color-brand);
+    --button-bg-hover: var(--color-brand-tint);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-strong);
 }
 
-.button-secondary:hover {
-    background: var(--block-color-surface);
+[data-button='outline'] .button-secondary {
+    --button-bg: var(--color-brand-tint);
+    --button-text: var(--color-brand-strong);
+    --button-border: var(--color-brand-tint);
+    --button-bg-hover: var(--color-brand-tint-strong);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-tint-strong);
 }
 
-.button:focus-visible {
-    outline: 3px solid var(--block-color-focus);
-    outline-offset: 2px;
+/* In the hero every variant is inverted: white where the page version has the brand, and the reverse. */
+.block-hero .button-primary {
+    --button-bg: var(--color-on-brand);
+    --button-text: var(--color-brand);
+    --button-border: var(--color-on-brand);
+    --button-bg-hover: var(--color-brand-tint);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-tint);
 }
 
-/* On the dark hero, a light focus ring stays visible. */
-.block-hero .button:focus-visible {
-    outline-color: var(--block-color-accent-contrast);
+.block-hero .button-secondary,
+[data-button='outline'] .block-hero .button-primary {
+    --button-bg: transparent;
+    --button-text: var(--color-on-brand);
+    --button-border: var(--color-on-brand);
+    --button-bg-hover: var(--color-brand-strong);
+    --button-text-hover: var(--color-on-brand);
+    --button-border-hover: var(--color-on-brand);
+}
+
+/* The page version sits on a tint lighter than the page; this one on a shade darker than the hero. */
+[data-button='outline'] .block-hero .button-secondary {
+    --button-bg: var(--color-brand-strong);
+    --button-text: var(--color-on-brand);
+    --button-border: var(--color-brand-strong);
+    --button-bg-hover: var(--color-brand-deep);
+    --button-text-hover: var(--color-on-brand);
+    --button-border-hover: var(--color-brand-deep);
 }
 
 /* button block */
@@ -158,22 +321,48 @@
     margin-top: 0;
 }
 
-/* columns */
+/* image: wider than the text */
+
+.block-image {
+    width: var(--wide-column-width);
+}
+
+.block-image img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+    border-radius: var(--radius);
+}
+
+.block-image figcaption {
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+/* columns: wider than the text when there are two */
 
 .block-columns {
     display: grid;
-    gap: var(--block-space-l);
-    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    grid-template-columns: minmax(0, 1fr);
+    width: var(--wide-column-width);
 }
 
-/* Side by side from 36rem (576px); stacked below. Media queries can't use var(). */
-@media (min-width: 36rem) {
+.block-columns--single {
+    width: var(--column-width);
+}
+
+/* Side by side from 720px; stacked below. Media queries can't use var(). */
+@media (min-width: 720px) {
     .block-columns {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .block-columns--single {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -185,101 +374,73 @@
     display: block;
     max-width: 100%;
     height: auto;
-    margin-bottom: var(--block-space-m);
-    border-radius: var(--block-radius);
-}
-
-.block-columns .column .prose > :first-child {
-    margin-top: 0;
+    margin-bottom: var(--space-4);
+    border-radius: var(--radius);
 }
 
 /* contact form block */
 
 .block-contact-form__heading {
-    margin: 0 0 var(--block-space-s);
-    font-family: var(--block-font-heading);
-    font-size: 1.5rem;
-    line-height: 1.3;
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-heading);
+    font-size: var(--text-h2);
+    font-weight: 600;
+    line-height: var(--leading-heading);
+    text-wrap: balance;
 }
 
 .block-contact-form__intro {
-    margin: 0 0 var(--block-space-m);
-    color: var(--block-color-muted);
+    margin: 0 0 var(--space-5);
+    color: var(--color-text-muted);
 }
 
 /* text: styled by .prose below */
-
-.block-text > :first-child {
-    margin-top: 0;
-}
-
-.block-text > :last-child {
-    margin-bottom: 0;
-}
-
-/* image */
-
-.block-image {
-    margin-left: 0;
-    margin-right: 0;
-}
-
-.block-image img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--block-radius);
-}
-
-.block-image figcaption {
-    margin-top: var(--block-space-s);
-    font-size: 0.9rem;
-    color: var(--block-color-subtle);
-}
 
 /* ------------------------------------- contact form (/contact and the block) */
 
 .contact-form {
     display: grid;
-    gap: 1rem;
+    gap: var(--space-5);
+    font-family: var(--font-body);
+    color: var(--color-text);
 }
 
 .contact-form label {
     display: grid;
-    gap: 0.25rem;
+    gap: var(--space-2);
     font-weight: 600;
 }
 
 .contact-form input,
 .contact-form textarea {
+    width: 100%;
+    min-height: var(--target-min);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    color: var(--color-text);
     font: inherit;
     font-weight: 400;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--block-color-border-strong);
-    border-radius: 6px;
 }
 
-.contact-form input:focus,
-.contact-form textarea:focus {
-    outline: 2px solid var(--block-color-focus);
+.contact-form textarea {
+    resize: vertical;
+}
+
+.contact-form input:hover,
+.contact-form textarea:hover {
+    border-color: var(--color-text-muted);
+}
+
+.contact-form input:focus-visible,
+.contact-form textarea:focus-visible {
+    border-color: var(--color-brand);
     outline-offset: 1px;
 }
 
 .contact-form button {
     justify-self: start;
-    font: inherit;
-    font-weight: 600;
-    padding: 0.5rem 1.25rem;
-    border: 0;
-    border-radius: 6px;
-    background: var(--block-color-accent);
-    color: var(--block-color-accent-contrast);
-    cursor: pointer;
-}
-
-.contact-form button:focus-visible {
-    outline: 3px solid var(--block-color-focus);
-    outline-offset: 2px;
 }
 
 .contact-form button:disabled {
@@ -296,65 +457,181 @@
     overflow: hidden;
 }
 
+.contact-form .status {
+    margin: 0;
+    font-weight: 600;
+}
+
 .contact-form .status:empty {
     display: none;
 }
 
 .contact-form .status.success {
-    color: var(--block-color-success);
+    color: var(--color-success);
 }
 
 .contact-form .status.error {
-    color: var(--block-color-error);
+    color: var(--color-error);
 }
 
 /* --------------------------------------------- rich text (TipTap / WordPress) */
 
-.prose a {
-    color: var(--block-color-accent);
+.prose {
+    font-family: var(--font-body);
+    line-height: var(--leading-body);
+    color: var(--color-text);
+    overflow-wrap: anywhere;
 }
 
-.prose h1 { font-size: 2rem; line-height: 1.25; }
-.prose h2 { font-size: 1.5rem; line-height: 1.3; margin-top: 2rem; }
-.prose h3 { font-size: 1.25rem; margin-top: 1.5rem; }
-.prose h4 { font-size: 1.1rem; }
+/* Vertical rhythm: one space between top-level elements, more above headings. */
+.prose > * {
+    margin-block: 0;
+}
+
+.prose > * + * {
+    margin-top: var(--space-4);
+}
+
+.prose > :is(h1, h2, h3, h4, h5, h6):not(:first-child) {
+    margin-top: var(--space-6);
+}
+
+.prose > :is(h1, h2, h3, h4, h5, h6) + * {
+    margin-top: var(--space-3);
+}
+
+.prose :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    line-height: var(--leading-heading);
+    text-wrap: balance;
+}
+
+.prose h1 { font-size: var(--text-h1); }
+.prose h2 { font-size: var(--text-h2); }
+.prose h3 { font-size: var(--text-h3); }
+.prose h4 { font-size: var(--text-h4); }
 .prose h5,
-.prose h6 { font-size: 1rem; }
-.prose p { margin: 1rem 0; }
-.prose ul,
-.prose ol { padding-left: 1.5rem; }
-.prose li > p { margin: 0.25rem 0; }
+.prose h6 { font-size: 1em; }
+
+.prose :is(strong, b) {
+    font-weight: 600;
+}
+
+/* Underlined: the default brand colour is nearly black, so colour alone wouldn't mark a link. */
+.prose a[href] {
+    color: var(--color-brand);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+}
+
+.prose a[href]:hover {
+    color: var(--color-brand-strong);
+    text-decoration-thickness: 2px;
+}
+
+.prose :is(ul, ol) {
+    padding-left: 1.5em;
+}
+
+.prose li + li {
+    margin-top: var(--space-2);
+}
+
+.prose li > p {
+    margin: 0;
+}
+
+.prose li > :is(ul, ol) {
+    margin-top: var(--space-2);
+}
+
+.prose li::marker {
+    color: var(--color-text-muted);
+}
+
 .prose blockquote {
-    margin: 1.5rem 0;
-    padding-left: 1rem;
-    border-left: 4px solid var(--block-color-border-strong);
-    color: var(--block-color-muted);
+    margin-inline: 0;
+    padding-left: var(--space-5);
+    border-left: 3px solid var(--color-brand-border);
+    color: var(--color-text-muted);
     font-style: italic;
 }
+
+.prose blockquote > * {
+    margin-block: 0;
+}
+
+.prose blockquote > * + * {
+    margin-top: var(--space-3);
+}
+
 .prose code {
     padding: 0.1em 0.35em;
-    border-radius: var(--block-radius-small);
-    background: var(--block-color-surface);
-    font-family: var(--block-font-mono);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    font-family: var(--font-mono);
     font-size: 0.9em;
 }
+
+/* Code blocks keep their lines and scroll sideways inside their own box. */
 .prose pre {
+    max-width: 100%;
     overflow-x: auto;
-    padding: 1rem;
-    border-radius: 6px;
-    background: var(--block-color-surface);
+    white-space: pre;
+    overflow-wrap: normal;
+    padding: var(--space-4);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    line-height: 1.5;
 }
+
 .prose pre code {
     padding: 0;
     background: none;
 }
-.prose img {
+
+/* Images and embeds never get wider than the column. */
+.prose :is(img, video, iframe, embed, object, svg, canvas) {
     max-width: 100%;
+}
+
+.prose :is(img, video) {
     height: auto;
 }
-.prose hr {
-    margin: 2rem 0;
-    border: 0;
-    border-top: 1px solid var(--block-color-border);
+
+.prose img {
+    border-radius: var(--radius);
 }
+
+.prose figure {
+    margin-inline: 0;
+}
+
+.prose figcaption {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}
+
+.prose hr {
+    margin-block: var(--space-7);
+    border: 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.prose table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+}
+
+.prose :is(th, td) {
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    vertical-align: top;
+}
+
 /* text-align from the editor arrives as an inline style (left, center or right only). */

@@ -1,8 +1,6 @@
 // JSON-LD structured data (https://schema.org) for search engines and AI assistants.
 // Each builder returns a plain object; BaseLayout serialises it with serializeJsonLd().
-
-// ?. so this module can also be imported outside Astro/Vite (e.g. a quick Node check).
-const SITE_NAME = import.meta.env?.SITE_NAME || 'Alodium';
+// siteName is the name from the site settings (getSite() in api.js).
 
 /** Absolute URL for a path on this site (site = Astro.site, from SITE_URL). */
 export const absoluteUrl = (path, site) => new URL(path, site).href;
@@ -10,9 +8,9 @@ export const absoluteUrl = (path, site) => new URL(path, site).href;
 /** "2026-10-20T14:00:00.000Z", or undefined (and then omitted) when missing. */
 const isoDate = (value) => (value ? new Date(value).toISOString() : undefined);
 
-const publisher = (site) => ({
+const publisher = (site, siteName) => ({
     '@type': 'Organization',
-    name: SITE_NAME,
+    name: siteName,
     url: absoluteUrl('/', site),
 });
 
@@ -29,7 +27,7 @@ function clean(value) {
     return value;
 }
 
-export function blogPostingJsonLd({ post, excerpt, url, site }) {
+export function blogPostingJsonLd({ post, excerpt, url, site, siteName }) {
     return clean({
         '@context': 'https://schema.org',
         '@type': 'BlogPosting',
@@ -40,13 +38,13 @@ export function blogPostingJsonLd({ post, excerpt, url, site }) {
         dateModified: isoDate(post.updated_at ?? post.published_at),
         // The API returns the author's name as a string.
         author: post.author ? { '@type': 'Person', name: post.author } : undefined,
-        publisher: publisher(site),
+        publisher: publisher(site, siteName),
         image: post.og_image,
         mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     });
 }
 
-export function webPageJsonLd({ page, excerpt, url, site }) {
+export function webPageJsonLd({ page, excerpt, url, site, siteName }) {
     return clean({
         '@context': 'https://schema.org',
         '@type': 'WebPage',
@@ -54,27 +52,28 @@ export function webPageJsonLd({ page, excerpt, url, site }) {
         // The excerpt comes from the page list (the single-page API has none).
         description: page.meta_description || excerpt,
         url,
-        publisher: publisher(site),
+        publisher: publisher(site, siteName),
     });
 }
 
-export function webSiteJsonLd({ site }) {
+/** The site itself, at "/". description is the site description from the settings, left out when null. */
+export function webSiteJsonLd({ site, siteName, description }) {
     return clean({
         '@context': 'https://schema.org',
         '@type': 'WebSite',
-        name: SITE_NAME,
+        name: siteName,
         url: absoluteUrl('/', site),
-        description: 'A self-hosted content platform',
+        description,
     });
 }
 
-export function blogJsonLd({ url, site }) {
+export function blogJsonLd({ url, site, siteName }) {
     return clean({
         '@context': 'https://schema.org',
         '@type': 'Blog',
         name: 'Blog',
         url,
-        publisher: publisher(site),
+        publisher: publisher(site, siteName),
     });
 }
 

@@ -1,13 +1,61 @@
 ---
+/**
+ * The home page. With a front page chosen on the Settings page, "/" shows that
+ * CMS page. Without one (or if it can't be found among the published pages),
+ * it shows the latest posts, with a link to the full list on /blog/.
+ */
+import CmsPage from '../components/CmsPage.astro';
 import PostList from '../components/PostList.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { getPosts } from '../lib/api.js';
+import { getPage, getPages, getPosts, getSite } from '../lib/api.js';
 import { webSiteJsonLd } from '../lib/jsonld.js';
 
-const posts = await getPosts();
+/** Posts on the home page; the rest are on /blog/. */
+const LATEST_POSTS = 6;
+
+const settings = await getSite();
+
+// The front page's summary from the page list (it has the excerpt) and the full page.
+let summary = null;
+let frontPage = null;
+if (settings.frontPage) {
+    summary = (await getPages()).find((page) => page.slug === settings.frontPage.slug) ?? null;
+    if (summary) {
+        frontPage = await getPage(summary.slug);
+    } else {
+        console.warn(`[site] The front page "${settings.frontPage.slug}" is not among the published pages; "/" shows the latest posts instead.`);
+    }
+}
+
+const posts = frontPage ? [] : (await getPosts()).slice(0, LATEST_POSTS);
+
+// "/" is described as the site, also when it shows a page (no WebPage JSON-LD there).
+const jsonLd = webSiteJsonLd({ site: Astro.site, siteName: settings.name, description: settings.description });
 ---
 
-<BaseLayout jsonLd={webSiteJsonLd({ site: Astro.site })}>
-    <h1>Alodium</h1>
-    <PostList posts={posts} />
-</BaseLayout>
+{
+    frontPage ? (
+        <BaseLayout
+            metaTitle={frontPage.meta_title}
+            description={frontPage.meta_description || summary.excerpt}
+            ogImage={frontPage.og_image}
+            ogImageWidth={frontPage.og_image_width}
+            ogImageHeight={frontPage.og_image_height}
+            jsonLd={jsonLd}
+        >
+            <CmsPage page={frontPage} />
+        </BaseLayout>
+    ) : (
+        <BaseLayout description={settings.description} jsonLd={jsonLd}>
+            <h1>{settings.name}</h1>
+            <PostList posts={posts} />
+            {posts.length > 0 && (
+                <p>
+                    <a class="more-link" href="/blog/">
+                        All posts →
+                    </a>
+                </p>
+            )}
+        </BaseLayout>
+    )
+}

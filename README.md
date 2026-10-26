@@ -287,10 +287,9 @@ mkdir -p /var/www/alodium/astro-public
 API_URL=https://ADMIN_DOMAIN/api/public
 SITE_URL=https://SITE_DOMAIN
 TRACKER_URL=https://ADMIN_DOMAIN/tracker.js
-SITE_NAME=Your site name
 ```
 
-`API_URL` has no trailing slash. Also set the `Sitemap:` line in `astro/public/robots.txt` to the real site URL:
+`API_URL` has no trailing slash. The site name, logo, colours, navigation and front page are not set here: they come from the admin panel's Settings page (`GET /api/public/site`). Also set the `Sitemap:` line in `astro/public/robots.txt` to the real site URL:
 
 ```
 Sitemap: https://SITE_DOMAIN/sitemap-index.xml

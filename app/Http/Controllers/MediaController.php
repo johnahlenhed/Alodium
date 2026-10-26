@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SiteSetting;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,7 @@ class MediaController extends Controller
     {
         return Inertia::render('Media/Index', [
             // Everything in the library: direct uploads and imported featured images.
-            'media' => Media::latest()->get()->map(fn (Media $media) => $this->present($media)),
+            'media' => $this->library()->get()->map(fn (Media $media) => $this->present($media)),
         ]);
     }
 
@@ -23,8 +25,17 @@ class MediaController extends Controller
     public function list(): JsonResponse
     {
         return response()->json(
-            Media::latest()->get()->map(fn (Media $media) => $this->present($media))
+            $this->library()->get()->map(fn (Media $media) => $this->present($media))
         );
+    }
+
+    /**
+     * All media except the site logo, which belongs to the Settings page: deleting
+     * it here would bypass the rebuild, and its 128px conversion isn't an OG image.
+     */
+    private function library(): Builder
+    {
+        return Media::query()->where('model_type', '!=', (new SiteSetting)->getMorphClass())->latest();
     }
 
     /**

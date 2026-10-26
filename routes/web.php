@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SiteSettingsController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
@@ -20,9 +22,7 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -58,7 +58,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/submissions/{submission}/unread', [SubmissionController::class, 'markUnread'])->name('submissions.unread');
 });
 
-// Admin only: deleting content, analytics, import, user management.
+// Admin only: deleting content, analytics, import, user management, site settings.
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
@@ -75,6 +75,11 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+    // The public site's identity and look. PUT: the form sends it as POST with _method=PUT,
+    // because a file upload needs multipart and browsers only send multipart with POST.
+    Route::get('/settings', [SiteSettingsController::class, 'edit'])->name('settings.edit');
+    Route::put('/settings', [SiteSettingsController::class, 'update'])->name('settings.update');
 });
 
 require __DIR__.'/auth.php';

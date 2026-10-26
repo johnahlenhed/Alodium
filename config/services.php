@@ -24,6 +24,8 @@ return [
         'webhook_secret' => env('WEBHOOK_SECRET'),
         // Absolute path to the rebuild script. Empty = rebuilds are skipped (local dev).
         'rebuild_script' => env('ASTRO_REBUILD_SCRIPT'),
+        // Written by deploy/rebuild-astro.sh; read (never written) by the dashboard.
+        'rebuild_log' => storage_path('logs/astro-rebuild.log'),
     ],
 
     'resend' => [
