@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\ImportRun;
+use App\Models\Page;
+use App\Models\Post;
 use App\Services\ImageDownload\ImageDownloadFailed;
 use App\Services\ImportedImageStore;
 use App\Support\ContentImages;
@@ -14,8 +16,8 @@ use Throwable;
 
 /**
  * Downloads the images in one imported post or page and points the content at
- * the local copies (/storage/...). Queued per item by the WordPress importer
- * when "download images" is on.
+ * the local copies (/storage/...), and downloads and attaches its featured
+ * image. Queued per item by the WordPress importer when "download images" is on.
  *
  * - An image that can't be downloaded is skipped and its reason recorded on the
  *   run; it never fails the job, and the content keeps its original URL.
@@ -25,7 +27,8 @@ use Throwable;
  *   (an edit in the admin meanwhile wins; the rewrite is redone once on it).
  * - After job_time_budget seconds the job queues itself for the rest, so it
  *   always ends well within the worker's --timeout=660.
- * - Running it again finds nothing left to do: rewritten images are local.
+ * - Running it again finds nothing left to do: rewritten images are local, and
+ *   a featured image already attached is not downloaded again.
  */
 class DownloadContentImages implements ShouldQueue
 {
@@ -39,10 +42,13 @@ class DownloadContentImages implements ShouldQueue
 
     private const TABLES = ['post' => 'posts', 'page' => 'pages'];
 
+    private const MODELS = ['post' => Post::class, 'page' => Page::class];
+
     /**
      * @param  'post'|'page'  $type
      * @param  list<string>  $skip  URLs that already failed in an earlier part of this item (not retried)
      * @param  int  $attempted  images already handled for this item (for max_images_per_item)
+     * @param  string|null  $featuredUrl  the featured image (from the export's attachments), done first
      */
     public function __construct(
         public int $runId,
@@ -50,6 +56,7 @@ class DownloadContentImages implements ShouldQueue
         public int $itemId,
         public array $skip = [],
         public int $attempted = 0,
+        public ?string $featuredUrl = null,
     ) {}
 
     public function handle(ImportedImageStore $store): void
@@ -79,6 +86,11 @@ class DownloadContentImages implements ShouldQueue
         $outOfTime = false;
         $budget = (int) config('import.job_time_budget');
         $perItem = (int) config('import.max_images_per_item');
+
+        if ($this->featuredUrl !== null) {
+            $attempted++;
+            $this->attachFeatured($store, $run, $label.' (featured image)');
+        }
 
         foreach ($candidates as $url) {
             if ($attempted >= $perItem) {
@@ -112,13 +124,35 @@ class DownloadContentImages implements ShouldQueue
         }
 
         if ($outOfTime) {
-            // The rest in a new job; images done so far are already written.
+            // The rest in a new job; images done so far (and the featured image) are already written.
             self::dispatch($this->runId, $this->type, $this->itemId, [...$this->skip, ...$failed], $attempted);
 
             return;
         }
 
         $run->finishItem();
+    }
+
+    /**
+     * The featured image goes into the item's 'featured' collection, the way the
+     * importer attached it before (see ImportedImageStore::attachFeatured). Loading
+     * the model and adding media saves nothing on it: no revision, no rebuild.
+     */
+    private function attachFeatured(ImportedImageStore $store, ImportRun $run, string $label): void
+    {
+        $record = (self::MODELS[$this->type])::find($this->itemId);
+        if (! $record) {
+            return;
+        }
+
+        try {
+            $store->attachFeatured($run, $record, $this->featuredUrl);
+        } catch (ImageDownloadFailed $e) {
+            $run->recordFailure($label, $this->featuredUrl, $e->reason());
+        } catch (Throwable $e) {
+            Log::warning('Import featured image failed unexpectedly', ['url' => $this->featuredUrl, 'error' => $e->getMessage()]);
+            $run->recordFailure($label, $this->featuredUrl, 'unexpected error');
+        }
     }
 
     /** A crash after the retry: the item is closed so the run can still finish. */

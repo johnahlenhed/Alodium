@@ -3,22 +3,29 @@
 namespace App\Services;
 
 use App\Models\ImportRun;
+use App\Models\Page;
+use App\Models\Post;
 use App\Models\User;
+use App\Services\ImageDownload\DownloadedImage;
 use App\Services\ImageDownload\ImageDownloadFailed;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\MediaCollections\FileAdder;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Turns an image URL from imported content into a file in the media library,
- * and returns the relative /storage/... path to put in the content.
+ * and returns the relative /storage/... path to put in the content; or
+ * attaches an imported featured image to its post or page.
  *
  * An image already downloaded (by this run, an earlier import, or another post
  * sharing it) is reused: the media item remembers its source URL as
  * custom_properties.source_hash. Otherwise the run's limits are checked and the
- * image is downloaded with SafeImageDownloader into the importing user's
- * 'library' collection, where the usual conversions run.
+ * image is downloaded with SafeImageDownloader: content images into the
+ * importing user's 'library' collection, featured images into the item's
+ * 'featured' collection. The usual conversions run on both.
  */
 class ImportedImageStore
 {
@@ -27,25 +34,78 @@ class ImportedImageStore
     /** @throws ImageDownloadFailed with the reason the image was skipped */
     public function localPath(ImportRun $run, string $url): string
     {
-        $hash = sha1(SafeImageDownloader::normaliseUrl($url));
+        $hash = self::hash($url);
 
+        return $this->locked($hash, function () use ($run, $url, $hash) {
+            $existing = $this->existing($hash, ['library']);
+            if ($existing) {
+                $run->addTo('images_reused');
+
+                return $this->path($existing);
+            }
+
+            $media = $this->download($run, $url, function (DownloadedImage $image) use ($run, $url, $hash) {
+                $user = User::find($run->user_id) ?? throw ImageDownloadFailed::because('the importing user no longer exists');
+
+                return $this->adder($user, $image, $url, $hash)->toMediaCollection('library');
+            });
+
+            return $this->path($media);
+        });
+    }
+
+    /**
+     * The featured image of an imported post or page. A copy is made when the
+     * same image is already in the library or featured on another item: a
+     * featured image belongs to its item and is deleted with it, so it is never
+     * shared. Already attached (a job run again) means nothing more to do.
+     *
+     * @throws ImageDownloadFailed with the reason the image was skipped
+     */
+    public function attachFeatured(ImportRun $run, HasMedia $record, string $url): void
+    {
+        $hash = self::hash($url);
+
+        $this->locked($hash, function () use ($run, $record, $url, $hash) {
+            if ($record->getMedia('featured')->contains(fn (Media $media) => $media->getCustomProperty('source_hash') === $hash)) {
+                return;
+            }
+
+            $existing = $this->existing($hash, ['library', 'featured']);
+            if ($existing) {
+                $existing->copy($record, 'featured');
+                $run->addTo('images_reused');
+
+                return;
+            }
+
+            $this->download($run, $url, fn (DownloadedImage $image) => $this->adder($record, $image, $url, $hash)->toMediaCollection('featured'));
+        });
+    }
+
+    private static function hash(string $url): string
+    {
+        return sha1(SafeImageDownloader::normaliseUrl($url));
+    }
+
+    /** One download per image at a time, so two jobs sharing an image don't both fetch it. */
+    private function locked(string $hash, callable $callback): mixed
+    {
         try {
-            // One download per image at a time, so two jobs sharing an image don't both fetch it.
-            return Cache::lock("import-image:{$hash}", 120)->block(60, fn () => $this->reuseOrDownload($run, $url, $hash));
+            return Cache::lock("import-image:{$hash}", 120)->block(60, $callback);
         } catch (LockTimeoutException) {
             throw ImageDownloadFailed::because('busy: the same image was still downloading elsewhere');
         }
     }
 
-    private function reuseOrDownload(ImportRun $run, string $url, string $hash): string
+    /**
+     * Checks the run's limits, downloads the image and hands it to $store, which
+     * adds it to the media library. Counts it on the run.
+     *
+     * @param  callable(DownloadedImage): Media  $store
+     */
+    private function download(ImportRun $run, string $url, callable $store): Media
     {
-        $existing = $this->existing($hash);
-        if ($existing) {
-            $run->addTo('images_reused');
-
-            return $this->path($existing);
-        }
-
         $this->checkDiskSpace();
         $remainingBytes = (int) config('import.max_total_bytes') - (int) $run->newQuery()->whereKey($run->id)->value('bytes_downloaded');
         if ($remainingBytes <= 0) {
@@ -67,12 +127,7 @@ class ImportedImageStore
                 throw $e;
             }
 
-            $user = User::find($run->user_id) ?? throw ImageDownloadFailed::because('the importing user no longer exists');
-            $media = $user->addMedia($image->path)
-                ->usingFileName($image->fileName)
-                ->usingName(pathinfo($image->fileName, PATHINFO_FILENAME))
-                ->withCustomProperties(['source_url' => $url, 'source_hash' => $hash])
-                ->toMediaCollection('library');
+            $media = $store($image);
         } catch (\Throwable $e) {
             $image?->delete();
             $run->releaseDownload();
@@ -81,19 +136,27 @@ class ImportedImageStore
 
         $run->addTo('bytes_downloaded', $image->bytes);
 
-        return $this->path($media);
+        return $media;
+    }
+
+    private function adder(HasMedia $model, DownloadedImage $image, string $url, string $hash): FileAdder
+    {
+        return $model->addMedia($image->path)
+            ->usingFileName($image->fileName)
+            ->usingName(pathinfo($image->fileName, PATHINFO_FILENAME))
+            ->withCustomProperties(['source_url' => $url, 'source_hash' => $hash]);
     }
 
     /**
-     * A library image downloaded from the same URL before. Featured images aren't
-     * reused here: they belong to their post and are deleted with it.
+     * An image downloaded from the same URL before, in one of the collections:
+     * 'library' (a user's, from content images) or 'featured' (a post's or page's).
      * custom_properties->source_hash compiles to JSON_EXTRACT on MySQL (and SQLite).
      */
-    private function existing(string $hash): ?Media
+    private function existing(string $hash, array $collections): ?Media
     {
         return Media::query()
-            ->where('collection_name', 'library')
-            ->where('model_type', (new User)->getMorphClass())
+            ->whereIn('collection_name', $collections)
+            ->whereIn('model_type', [(new User)->getMorphClass(), (new Post)->getMorphClass(), (new Page)->getMorphClass()])
             ->where('custom_properties->source_hash', $hash)
             ->oldest('id')
             ->first();

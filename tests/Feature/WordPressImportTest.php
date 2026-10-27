@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ImportRun;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\User;
@@ -58,13 +59,13 @@ XML;
         return $this->id++;
     }
 
-    private function importString(string $xml, User $user): array
+    private function importString(string $xml, User $user, bool $downloadImages = false): array
     {
         $path = tempnam(sys_get_temp_dir(), 'wxr');
         file_put_contents($path, $xml);
 
         try {
-            return app(WordPressImporter::class)->import($path, $user);
+            return app(WordPressImporter::class)->import($path, $user, $downloadImages);
         } finally {
             @unlink($path);
         }
@@ -232,9 +233,10 @@ HTML;
         $this->assertNotEmpty($result['errors']);
     }
 
-    public function test_featured_image_failures_are_silently_skipped(): void
+    public function test_featured_image_failures_are_recorded_and_the_post_is_still_imported(): void
     {
         Storage::fake('public');
+        config(['import.min_free_disk_bytes' => 0]);
         $this->fakeImageDownloads(); // every URL answers 404
         $user = User::factory()->create();
 
@@ -243,12 +245,15 @@ HTML;
             $this->item('With image', 'post', 'publish', 'Body', '<wp:postmeta><wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key><wp:meta_value><![CDATA[100]]></wp:meta_value></wp:postmeta>')
         );
 
-        $results = $this->importString($xml, $user);
+        $results = $this->importString($xml, $user, downloadImages: true);
 
         $this->assertSame(1, $results['imported_posts']);
         $this->assertSame([], $results['errors']);
         $this->assertCount(0, Post::firstOrFail()->getMedia('featured'));
         $this->assertSame('https://old.example/photo.jpg', $this->http->requests[0]['url']);
+        $run = ImportRun::findOrFail($results['run_id']);
+        $this->assertSame(['done', 1, 1], [$run->status, $run->images_found, $run->images_skipped]);
+        $this->assertSame(['item' => 'post "With image" (featured image)', 'url' => 'https://old.example/photo.jpg', 'reason' => 'HTTP 404'], $run->failures[0]);
     }
 
     public function test_featured_image_is_downloaded_and_converted(): void
@@ -258,6 +263,7 @@ HTML;
         }
 
         Storage::fake('public');
+        config(['import.min_free_disk_bytes' => 0]);
         $this->fakeImageDownloads(['https://old.example/photo.png' => $this->imageResponse('png', 800, 600)]);
         $user = User::factory()->create();
 
@@ -266,7 +272,8 @@ HTML;
             $this->item('With image', 'post', 'publish', 'Body', '<wp:postmeta><wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key><wp:meta_value><![CDATA[100]]></wp:meta_value></wp:postmeta>')
         );
 
-        $this->importString($xml, $user);
+        // The image job runs at once here (sync queue).
+        $this->importString($xml, $user, downloadImages: true);
 
         $media = Post::firstOrFail()->getFirstMedia('featured');
         $this->assertNotNull($media);
@@ -289,11 +296,15 @@ HTML;
         );
 
         $this->actingAs($user)->post('/import', ['file' => $file])
-            ->assertRedirect(route('import.result'));
+            ->assertRedirect(route('import.runs.show', ImportRun::latest('id')->value('id')));
 
+        // The old result address now leads to the latest run.
         $this->actingAs($user)->get('/import/result')
+            ->assertRedirect(route('import.runs.show', ImportRun::latest('id')->value('id')));
+
+        $this->actingAs($user)->get(route('import.runs.show', ImportRun::latest('id')->value('id')))
             ->assertInertia(fn ($page) => $page
-                ->component('Import/Result')
-                ->where('results.imported_posts', 1));
+                ->component('Import/Run')
+                ->where('run.imported_posts', 1));
     }
 }

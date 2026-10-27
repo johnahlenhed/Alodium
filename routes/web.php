@@ -64,6 +64,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/import', [ImportController::class, 'create'])->name('import.create');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');
     Route::get('/import/result', [ImportController::class, 'result'])->name('import.result');
+    Route::get('/import/runs/{run}', [ImportController::class, 'show'])->name('import.runs.show');
     Route::get('/import/runs/{run}/status', [ImportController::class, 'status'])->name('import.runs.status');
 
     Route::get('/users', [UserController::class, 'index'])->name('users.index');

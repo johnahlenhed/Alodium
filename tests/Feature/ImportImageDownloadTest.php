@@ -16,8 +16,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\Fakes\FakesImageDownloads;
 use Tests\TestCase;
@@ -67,7 +69,7 @@ class ImportImageDownloadTest extends TestCase
 XML;
     }
 
-    private function item(string $title, string $content, string $type = 'post', string $status = 'publish'): string
+    private function item(string $title, string $content, string $type = 'post', string $status = 'publish', string $extra = ''): string
     {
         $id = $this->id++;
 
@@ -79,8 +81,33 @@ XML;
     <wp:post_date_gmt><![CDATA[2024-05-01 08:00:00]]></wp:post_date_gmt>
     <wp:status><![CDATA[{$status}]]></wp:status>
     <wp:post_type><![CDATA[{$type}]]></wp:post_type>
+    {$extra}
 </item>
 XML;
+    }
+
+    /** An attachment item, to use as a featured image with featured($id). */
+    private function attachment(int $id, string $url): string
+    {
+        return <<<XML
+<item>
+    <title>Attachment {$id}</title>
+    <wp:post_id>{$id}</wp:post_id>
+    <wp:status>inherit</wp:status>
+    <wp:post_type>attachment</wp:post_type>
+    <wp:attachment_url><![CDATA[{$url}]]></wp:attachment_url>
+</item>
+XML;
+    }
+
+    private function featured(int $attachmentId): string
+    {
+        return "<wp:postmeta><wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key><wp:meta_value><![CDATA[{$attachmentId}]]></wp:meta_value></wp:postmeta>";
+    }
+
+    private function counters(ImportRun $run): array
+    {
+        return $run->fresh()->only(['status', 'images_found', 'images_downloaded', 'images_reused', 'images_skipped']);
     }
 
     private function import(string $items, bool $downloadImages = true): array
@@ -437,8 +464,9 @@ XML;
         Queue::fake([DownloadContentImages::class]);
         $file = UploadedFile::fake()->createWithContent('export.xml', $this->wxr($this->item('Post', '<p><img src="'.$this->serve('/a.png').'" /></p>')));
 
-        $this->actingAs($this->admin)->post('/import', ['file' => $file, 'download_images' => '1'])->assertRedirect(route('import.result'));
+        $this->actingAs($this->admin)->post('/import', ['file' => $file, 'download_images' => '1']);
         $run = ImportRun::latest('id')->first();
+        $this->assertTrue($run->download_images);
         $this->assertSame('downloading', $run->status);
         Queue::assertPushed(DownloadContentImages::class, 1);
 
@@ -551,5 +579,202 @@ XML;
         $this->assertStringContainsString('<img src="https://thirdparty.example/c.png" />', $content);
         $this->assertSame([1, 1], [$this->runOf($results)->images_found, $this->runOf($results)->images_downloaded]);
         $this->assertSame($content, app(ContentSanitizer::class)->sanitize($content));
+    }
+
+    // --- featured images ---------------------------------------------------------------
+
+    public function test_featured_images_are_not_downloaded_in_the_upload_request(): void
+    {
+        Queue::fake([DownloadContentImages::class]);
+        $url = $this->serve('/2020/01/featured.png');
+        $results = $this->import($this->attachment(50, $url).$this->item('Only featured', '<p>No images</p>', extra: $this->featured(50)));
+
+        $this->assertSame([], $this->http->requests);
+        $this->assertCount(0, Post::first()->getMedia('featured'));
+        // An item with only a featured image still gets a job, and the image is counted.
+        Queue::assertPushed(DownloadContentImages::class, 1);
+        Queue::assertPushed(DownloadContentImages::class, fn ($job) => $job->featuredUrl === $url && $job->itemId === Post::first()->id);
+        $this->assertSame(['downloading', 1, 1], [$this->runOf($results)->status, $this->runOf($results)->items_total, $this->runOf($results)->images_found]);
+    }
+
+    public function test_a_job_attaches_the_featured_image_without_saving_the_item_and_one_rebuild_follows(): void
+    {
+        Queue::fake();
+        $featured = $this->serve('/2020/01/featured.png', 'png', 800, 600);
+        $inline = $this->serve('/2020/01/inline.png');
+        $results = $this->import($this->attachment(50, $featured).$this->item('Post', "<p><img src=\"$inline\" /></p>", extra: $this->featured(50)));
+        $post = Post::first();
+        $updatedAt = $post->updated_at;
+        $rebuilds = Queue::pushed(RebuildAstroJob::class)->count(); // from publishing the post
+        $this->releaseRebuildLock();
+        $saved = 0;
+        Event::listen('eloquent.saved: '.Post::class, function () use (&$saved) {
+            $saved++;
+        });
+
+        $this->travel(1)->hours();
+        $this->runQueuedImageJobs();
+
+        $media = $post->fresh()->getFirstMedia('featured');
+        $this->assertNotNull($media);
+        $this->assertSame($featured, $media->getCustomProperty('source_url'));
+        $this->assertSame(sha1($featured), $media->getCustomProperty('source_hash'));
+        $this->assertSame(['status' => 'done', 'images_found' => 2, 'images_downloaded' => 2, 'images_reused' => 0, 'images_skipped' => 0], $this->counters($this->runOf($results)));
+
+        // No save (so no observer, no revision), updated_at kept, one rebuild for the run.
+        $this->assertSame(0, $saved);
+        $this->assertSame(0, $post->revisions()->count());
+        $this->assertTrue($post->fresh()->updated_at->equalTo($updatedAt));
+        Queue::assertPushed(RebuildAstroJob::class, $rebuilds + 1);
+
+        // The public API's og:image falls back to it.
+        $this->assertStringContainsString("/storage/{$media->id}/", $this->getJson('/api/public/posts/post')->assertOk()->json('og_image'));
+    }
+
+    public function test_a_featured_image_is_reused_from_the_library_and_from_another_item(): void
+    {
+        $url = $this->serve('/2020/01/shared.png');
+        $results = $this->import($this->attachment(50, $url)
+            .$this->item('Inline', "<p><img src=\"$url\" /></p>")
+            .$this->item('Featured one', '<p>A</p>', extra: $this->featured(50))
+            .$this->item('Featured two', '<p>B</p>', 'page', extra: $this->featured(50)));
+        $run = $this->runOf($results);
+
+        $this->assertCount(1, array_filter($this->http->requests, fn ($request) => $request['url'] === $url));
+        $this->assertSame(['status' => 'done', 'images_found' => 3, 'images_downloaded' => 1, 'images_reused' => 2, 'images_skipped' => 0], $this->counters($run));
+        // Each item has its own copy (it is deleted with the item); the library keeps its own.
+        $one = Post::where('slug', 'featured-one')->first()->getFirstMedia('featured');
+        $two = Page::where('slug', 'featured-two')->first()->getFirstMedia('featured');
+        $this->assertNotNull($one);
+        $this->assertNotNull($two);
+        $this->assertNotSame($one->getPath(), $two->getPath());
+        $this->assertSame(3, Media::count());
+
+        // Running a job again neither downloads nor counts the featured image twice.
+        (new DownloadContentImages($run->id, 'post', Post::where('slug', 'featured-one')->value('id'), featuredUrl: $url))->handle(app(ImportedImageStore::class));
+        $this->assertSame(3, Media::count());
+        $this->assertSame(['status' => 'done', 'images_found' => 3, 'images_downloaded' => 1, 'images_reused' => 2, 'images_skipped' => 0], $this->counters($run));
+        $this->assertCount(1, $this->http->requests);
+    }
+
+    public function test_a_featured_image_that_fails_is_recorded_and_never_fails_the_item_or_the_run(): void
+    {
+        $inline = $this->serve('/2020/01/inline.png');
+        $missing = self::MEDIA.'/2020/01/missing.png'; // 404
+        $slow = self::MEDIA.'/2020/01/slow.png';
+        $this->http->set($slow, ['error' => 'timeout']);
+        $results = $this->import($this->attachment(50, $missing).$this->attachment(51, $slow)
+            .$this->item('Post', "<p><img src=\"$inline\" /></p>", extra: $this->featured(50))
+            .$this->item('Other', '<p>Text</p>', extra: $this->featured(51)));
+        $run = $this->runOf($results);
+
+        $this->assertSame(['status' => 'done', 'images_found' => 3, 'images_downloaded' => 1, 'images_reused' => 0, 'images_skipped' => 2], $this->counters($run));
+        $this->assertSame(['HTTP 404' => 1, 'timeout' => 1], $run->skipped_reasons);
+        $this->assertSame(['item' => 'post "Post" (featured image)', 'url' => $missing, 'reason' => 'HTTP 404'], $run->failures[0]);
+        // The content images of the same item still work.
+        $this->assertStringContainsString('src="/storage/', $this->content('post'));
+        $this->assertSame(0, Media::where('collection_name', 'featured')->count());
+    }
+
+    public function test_featured_images_count_towards_the_run_limit(): void
+    {
+        config(['import.max_images_per_run' => 1]);
+        $featured = $this->serve('/2020/01/featured.png');
+        $inline = $this->serve('/2020/01/inline.png');
+        $results = $this->import($this->attachment(50, $featured).$this->item('Post', "<p><img src=\"$inline\" /></p>", extra: $this->featured(50)));
+
+        // The featured image goes first and takes the only slot.
+        $this->assertNotNull(Post::first()->getFirstMedia('featured'));
+        $this->assertSame(['status' => 'done', 'images_found' => 2, 'images_downloaded' => 1, 'images_reused' => 0, 'images_skipped' => 1], $this->counters($this->runOf($results)));
+        $this->assertSame('run limit: 1 images downloaded', $this->runOf($results)->failures[0]['reason']);
+    }
+
+    public function test_with_download_images_off_no_featured_image_is_downloaded(): void
+    {
+        Queue::fake([DownloadContentImages::class]);
+        $url = $this->serve('/2020/01/featured.png');
+        $results = $this->import($this->attachment(50, $url).$this->item('Post', '<p>Text</p>', extra: $this->featured(50)), downloadImages: false);
+
+        Queue::assertNotPushed(DownloadContentImages::class);
+        $this->assertSame([], $this->http->requests);
+        $this->assertSame(0, Media::count());
+        $this->assertSame(['done', false, 0], [$this->runOf($results)->status, $this->runOf($results)->download_images, $this->runOf($results)->images_found]);
+    }
+
+    // --- pages ---------------------------------------------------------------------------
+
+    public function test_the_run_page_shows_the_import_result_and_the_image_status(): void
+    {
+        Queue::fake([DownloadContentImages::class]);
+        $file = UploadedFile::fake()->createWithContent('export.xml', $this->wxr(
+            $this->item('Imported', '<p><img src="'.$this->serve('/a.png').'" /></p>')
+            .$this->item('Private', '<p>Hidden</p>', status: 'private')
+        ));
+
+        $response = $this->actingAs($this->admin)->post('/import', ['file' => $file, 'download_images' => '1']);
+        $run = ImportRun::latest('id')->first();
+        $response->assertRedirect(route('import.runs.show', $run));
+
+        $this->actingAs($this->admin)->get(route('import.runs.show', $run))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Import/Run')
+                ->where('run.id', $run->id)
+                ->where('run.user', $this->admin->name)
+                ->where('run.imported_posts', 1)
+                ->where('run.imported_pages', 0)
+                ->where('run.skipped.0.title', 'Private')
+                ->where('run.skipped.0.reason', 'Status "private" is not imported (only published and draft).')
+                ->where('run.errors', [])
+                ->where('run.found', ['attachment' => 1, 'post' => 2])
+                ->where('status.status', 'downloading')
+                ->where('status.download_images', true)
+                ->where('status.images_found', 1)
+                ->where('statusUrl', route('import.runs.status', $run)));
+
+        $this->actingAs(User::factory()->editor()->create())->get(route('import.runs.show', $run))->assertForbidden();
+        auth()->logout();
+        $this->get(route('import.runs.show', $run))->assertRedirect('/login');
+    }
+
+    public function test_the_upload_form_lists_the_last_five_runs_without_failures_and_passes_the_limits(): void
+    {
+        config(['import.max_image_bytes' => 5 * 1024 * 1024, 'import.max_megapixels' => 12, 'import.max_images_per_run' => 99]);
+        foreach (range(1, 6) as $i) {
+            $run = ImportRun::create(['user_id' => $this->admin->id, 'status' => 'done', 'download_images' => true, 'imported_posts' => $i, 'started_at' => now()]);
+            $run->recordFailure('post "X"', 'https://x/secret.png', 'HTTP 404');
+        }
+
+        $this->actingAs($this->admin)->get('/import')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Import/Create')
+                ->where('limits', ['max_upload_bytes' => 20 * 1024 * 1024, 'max_image_bytes' => 5 * 1024 * 1024, 'max_megapixels' => 12, 'max_images_per_run' => 99])
+                ->has('recentRuns', 5)
+                // Exactly these fields: no failures, no report.
+                ->has('recentRuns.0', fn (AssertableInertia $run) => $run
+                    ->where('id', ImportRun::latest('id')->value('id'))
+                    ->where('imported_posts', 6)
+                    ->where('images_skipped', 1)
+                    ->where('user', $this->admin->name)
+                    ->hasAll(['started_at', 'status', 'download_images', 'imported_pages', 'images_downloaded'])));
+        $this->assertStringNotContainsString('secret.png', $this->actingAs($this->admin)->get('/import')->getContent());
+    }
+
+    public function test_the_status_endpoint_shape(): void
+    {
+        $run = ImportRun::create(['user_id' => $this->admin->id, 'status' => 'downloading', 'download_images' => true, 'items_total' => 2]);
+        $run->recordFailure('post "X"', 'https://x/1.png', 'HTTP 404');
+        $run->recordFailure('post "X"', 'https://x/2.png', 'HTTP 404');
+        $run->recordFailure('post "X"', null, 'the item was deleted before its images were downloaded', countsAsSkipped: false);
+
+        $json = $this->actingAs($this->admin)->getJson(route('import.runs.status', $run))->assertOk()->json();
+
+        $this->assertSame(['id', 'status', 'download_images', 'items_total', 'items_done', 'images_found', 'images_downloaded', 'images_reused',
+            'images_skipped', 'bytes_downloaded', 'skipped_by_reason', 'failures', 'failures_recorded', 'started_at', 'finished_at'], array_keys($json));
+        $this->assertSame(['HTTP 404' => 2], $json['skipped_by_reason']); // item problems are not skipped images
+        $this->assertSame([2, 3, 3], [$json['images_skipped'], $json['failures_recorded'], count($json['failures'])]);
+
+        // An empty count is a JSON object, not a list.
+        $fresh = ImportRun::create(['user_id' => $this->admin->id, 'status' => 'done']);
+        $this->assertStringContainsString('"skipped_by_reason":{}', $this->actingAs($this->admin)->getJson(route('import.runs.status', $fresh))->getContent());
     }
 }

@@ -70,7 +70,8 @@ resources/js/
                      Analytics, Import, Users, Settings, Profile, Auth, Dashboard)
   Components/        shared UI; Blocks/ is the block editor
   Layouts/           AuthenticatedLayout (admin nav), GuestLayout
-  utils/             publishing.js (time zones), contrast.js (imports astro/src/lib/color.js)
+  utils/             publishing.js (time zones), contrast.js (imports astro/src/lib/color.js),
+                     importRun.js (import run page: polling state, reasons, formatting)
 astro/
   src/pages/         index, blog/index, blog/[slug], [slug] (CMS pages), contact, 404
   src/layouts/       BaseLayout (head, theme, header, footer, tracker)
@@ -86,6 +87,7 @@ tests/
   Fakes/             fake DNS and HTTP for the image downloader
   Fixtures/          brand-colours.json and the script that generates it
 deploy/              rebuild-astro.sh
+docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 ```
 
 ## 3. Database tables
@@ -101,7 +103,7 @@ deploy/              rebuild-astro.sh
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
-| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), item and image counters, `bytes_downloaded`, `failures` (JSON, max 200), `allowed_hosts` (JSON). |
+| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, errors, item types found), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
 | `cache`, `cache_locks` | Database cache (also used for job uniqueness and import image locks). |
 | `sessions`, `password_reset_tokens` | Laravel defaults. |
@@ -128,7 +130,10 @@ past. In `content` and block HTML, `img src="/storage/..."` is made absolute
 with `APP_URL` at response time. `og_image` falls back to: block images
 (hero, image block, first column image), the featured image, the first image
 in the content. Admin-only JSON in `routes/web.php`: `GET /api/media` (media
-picker, session auth) and `GET /import/runs/{run}/status`.
+picker, session auth) and `GET /import/runs/{run}/status` (`status`,
+`download_images`, counters, `bytes_downloaded`, `skipped_by_reason`, the first
+50 `failures` and `failures_recorded`), which the run page `/import/runs/{run}`
+polls. The old `/import/result` redirects to the latest run.
 
 ## 5. Blocks
 
@@ -191,7 +196,7 @@ mail; they cannot change their own role or delete themselves there.
 | Job / command | When | What |
 |---|---|---|
 | `RebuildAstroJob` | see section 1 | runs the rebuild script; timeout 600 s, retried once, gives up after an hour |
-| `DownloadContentImages` | per imported item, when the import runs with `download_images` | downloads content images, rewrites `src` to `/storage/...`, requeues itself after `import.job_time_budget`; the last item marks the run done and queues one rebuild |
+| `DownloadContentImages` | per imported item with images (in the content or as its featured image), when the import runs with `download_images` | attaches the featured image first (a copy when the same image is already in the media library), then downloads content images and rewrites `src` to `/storage/...`; never saves the model (no revision, no per-item rebuild); requeues itself after `import.job_time_budget`; the last item marks the run done and queues one rebuild |
 | Spatie conversions | on upload | `thumb` and `og` during the request; `medium` and `webp` queued |
 | `content:publish-scheduled` | every minute | publishes due drafts with `publish_at` |
 | `db:backup` | daily 02:00 | `mysqldump` to `storage/app/backups`, keeps 30; optional encrypted off-server copy |
@@ -216,6 +221,17 @@ The README requires the worker to run with `--timeout=660` and
   address, pins the connection with `CURLOPT_RESOLVE`, checks every redirect
   (max 3), caps bytes while streaming, and accepts only JPEG/PNG/WebP/GIF by
   content within a pixel limit. Limits in `config/import.php`.
+  The upload request itself downloads nothing; featured images go through the
+  same jobs and checks.
+- **SSRF smoke test after a deploy**: import `docs/testdata/ssrf-smoke.xml`
+  with "Download images from the old site" checked. Its attachments put
+  `169.254.169.254`, `127.0.0.1`, `::1` and `2130706433` on the allowlist, the
+  way a hostile export would. A correct result: 1 post imported (a draft
+  titled "SSRF smoke test (delete me)"), 5 images found (4 in the content, 1
+  featured), 0 downloaded, 0 reused, 5 skipped, all "Address not allowed
+  (private or internal)", 0 MB. Any download, or another reason, is a failure
+  of the guard. Delete the draft afterwards (a second import would skip it as
+  a duplicate and find no images). `SsrfSmokeTest` runs the same file.
 - **XML**: the importer parses with `LIBXML_NONET` and without entity substitution.
 - **Uploads**: the logo is checked by content type and dimensions; the media
   library accepts jpg, png, gif, webp and svg up to 10 MB.
@@ -238,6 +254,9 @@ The README requires the worker to run with `--timeout=660` and
   image downloader uses `tests/Fakes`.
 - `node resources/js/Components/Blocks/blocksReducer.check.mjs` checks the
   pure block-list functions of the editor.
+- `node resources/js/utils/importRun.check.mjs` checks the import run page's
+  state (poll timing and back-off, stall detection, milestones, reason
+  mapping and grouping, formatting).
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
 - In `astro/` (no test framework):
 
@@ -293,10 +312,17 @@ Astro (`astro/.env`, `astro/.env.production`):
 - **Sanitiser and relative images**: `allowRelativeMedias()` still keeps
   relative `<img src>` values other than `/storage/...` (e.g. `../x.jpg`);
   only protocol-relative `//host` sources are removed.
-- **Import progress UI**: `ImportRun` and the status endpoint exist, but the
-  React import pages don't use them yet, and `download_images` defaults to off.
-- **Featured images** are still downloaded during the import request, are not
-  reused by `source_hash`, and are not counted on the run.
+- **Import run page in a browser**: the polling, the focus move, the progress
+  bar, the stall hint and the layout are covered by the pure module's node
+  check and the PHP tests, not by browser tests.
+- **`download_images` on the server** still defaults to off when the field is
+  missing; only the upload form checks it by default.
+- **Runs from before the run page** (no `report`, `imported_*` or
+  `skipped_reasons` columns yet) show zero imported items and no grouping.
+- **Failure details**: 200 are kept per run and 50 shown; the counts per
+  reason cover every skipped image.
+- **Shared featured images** are copied per post or page, so the file is
+  stored once per item (a featured image is deleted with its item).
 - **Old links in imported content**: links to WordPress attachment pages and
   non-image files (PDF, MP3) keep pointing at the old site.
 - **Imported images** point at the original file; the block picker stores the

@@ -802,6 +802,27 @@ There are two roles:
 
 Admins create users on the **Users** page (name, email and role). The new user gets an invitation email with a link to set their password. The link is valid for 60 minutes. After that, "Forgot your password?" on the login page sends a new one. This needs working email (see [Email (Resend)](#email-resend) in step 3). Roles can be changed on the same page.
 
+### 13. WordPress import
+
+Admins import a WordPress export (**Tools > Export > All content**, an XML file of up to 20 MB) on the **Import** page. Published posts and pages stay published, drafts stay drafts, and items whose slug already exists are skipped, so an import can be run again.
+
+**Download images from the old site** (checked by default) copies the images used in posts and pages, and the featured images, into the media library, and points the content at the copies. Only images on the exported site's own addresses are copied (`base_site_url`, `base_blog_url` and the attachments' hosts); images hosted elsewhere stay where they are. Unchecked, only the text is imported, and featured images are not copied either. Links to attachment pages and other files on the old site are not changed.
+
+The images are downloaded after the upload, on the queue, so **the queue worker must be running** (`alodium-worker`, step 6). The import's page shows the progress and, when it is done, every skipped image with its reason. If nothing moves for a minute, check `supervisorctl status`. The limits are set in `config/import.php` and can be changed in `.env`:
+
+| Limit | Default | Variable |
+|---|---|---|
+| Per image | 10 MB, 25 megapixels | `IMPORT_MAX_IMAGE_BYTES`, `IMPORT_MAX_MEGAPIXELS` |
+| Per post or page | 50 images | `IMPORT_MAX_IMAGES_PER_ITEM` |
+| Per import | 1500 images, 1 GiB | `IMPORT_MAX_IMAGES_PER_RUN`, `IMPORT_MAX_TOTAL_BYTES` |
+| Free disk space | stops below 2 GiB | `IMPORT_MIN_FREE_DISK_BYTES` |
+
+Run `php artisan config:cache` after changing them.
+
+**After a deploy**, import `docs/testdata/ssrf-smoke.xml` (from the repository) with the box checked. It checks that the server refuses to download from internal addresses. A correct result: 1 post imported, 5 images found, 0 downloaded, 5 skipped, all "Address not allowed (private or internal)". Then delete the draft "SSRF smoke test (delete me)" under **Posts**. Any other result means the image downloads must not be used until it is fixed; see `docs/ARCHITECTURE.md`, section 9.
+
+Plugin content is not imported and shortcodes are removed. Known gaps are listed in `docs/ARCHITECTURE.md`, section 12.
+
 ### Updating the application
 
 **Code changes**

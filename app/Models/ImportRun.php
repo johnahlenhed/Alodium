@@ -30,6 +30,10 @@ class ImportRun extends Model
     protected $fillable = [
         'user_id',
         'status',
+        'download_images',
+        'imported_posts',
+        'imported_pages',
+        'report',
         'items_total',
         'images_found',
         'allowed_hosts',
@@ -38,7 +42,10 @@ class ImportRun extends Model
     ];
 
     protected $casts = [
+        'download_images' => 'boolean',
+        'report' => 'array',
         'failures' => 'array',
+        'skipped_reasons' => 'array',
         'allowed_hosts' => 'array',
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
@@ -75,13 +82,13 @@ class ImportRun extends Model
 
     /**
      * Records a skipped image (or, with $url null, a problem with a whole item):
-     * counts it, and keeps the first 200 reasons. The row is locked while the
-     * list is changed, so parallel jobs don't overwrite each other's entries.
+     * counts it per reason, and keeps the first 200 entries. The row is locked
+     * while the lists are changed, so parallel jobs don't overwrite each other's.
      */
     public function recordFailure(string $item, ?string $url, string $reason, bool $countsAsSkipped = true): void
     {
         DB::transaction(function () use ($item, $url, $reason, $countsAsSkipped) {
-            $row = DB::table($this->getTable())->where('id', $this->id)->lockForUpdate()->first(['failures']);
+            $row = DB::table($this->getTable())->where('id', $this->id)->lockForUpdate()->first(['failures', 'skipped_reasons']);
             if (! $row) {
                 return;
             }
@@ -93,6 +100,9 @@ class ImportRun extends Model
                 $changes['failures'] = json_encode($failures, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             }
             if ($countsAsSkipped) {
+                $reasons = json_decode($row->skipped_reasons ?? '[]', true) ?: [];
+                $reasons[$reason] = ($reasons[$reason] ?? 0) + 1;
+                $changes['skipped_reasons'] = json_encode($reasons, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
                 $changes['images_skipped'] = DB::raw('images_skipped + 1');
             }
             if ($changes) {
