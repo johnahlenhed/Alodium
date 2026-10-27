@@ -16,12 +16,15 @@ Route::middleware('throttle:120,1')->group(function () {
 
 // Read-only published content for the Astro public site (fetched at build time).
 Route::prefix('public')->group(function () {
-    Route::get('/posts', [PublicContentController::class, 'posts']);
-    Route::get('/posts/{slug}', [PublicContentController::class, 'post']);
-    Route::get('/pages', [PublicContentController::class, 'pages']);
-    Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
-    // Site name, theme, logo, navigation and front page (Settings page).
-    Route::get('/site', PublicSiteController::class);
+    // 60 a minute per IP; the build, from this server, is not limited (AppServiceProvider).
+    Route::middleware('throttle:public-content')->group(function () {
+        Route::get('/posts', [PublicContentController::class, 'posts']);
+        Route::get('/posts/{slug}', [PublicContentController::class, 'post']);
+        Route::get('/pages', [PublicContentController::class, 'pages']);
+        Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
+        // Site name, theme, logo, navigation and front page (Settings page).
+        Route::get('/site', PublicSiteController::class);
+    });
 
     // Each message sends an email, so this is limited much harder than the tracker.
     Route::post('/contact', [PublicContentController::class, 'contact'])->middleware('throttle:5,1');
