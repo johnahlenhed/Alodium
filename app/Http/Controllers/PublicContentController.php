@@ -6,6 +6,7 @@ use App\Mail\ContactSubmissionReceived;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Submission;
+use App\Support\ContentImages;
 use App\Support\PlainText;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -116,7 +117,7 @@ class PublicContentController extends Controller
             'title' => $item->title,
             'slug' => $item->slug,
             // A block page's old HTML content (from before a conversion) is never exposed.
-            'content' => $this->isBlockPage($item) ? '' : $item->content,
+            'content' => $this->isBlockPage($item) ? '' : $this->publicHtml($item->content),
             ...$this->blocks($item),
             'meta_title' => $item->meta_title,
             'meta_description' => $item->meta_description,
@@ -136,7 +137,38 @@ class PublicContentController extends Controller
     /** Pages only: the block list, or null for a legacy page. Posts have no blocks. */
     private function blocks(Model $item): array
     {
-        return $item instanceof Page ? ['blocks' => $item->hasBlocks() ? $item->blockList() : null] : [];
+        if (! $item instanceof Page) {
+            return [];
+        }
+        if (! $item->hasBlocks()) {
+            return ['blocks' => null];
+        }
+
+        // Images in block HTML too: a legacy page converted to blocks keeps its content as a text block.
+        return ['blocks' => array_map(function (array $block) {
+            if (($block['type'] ?? null) === 'text' && isset($block['data']['html'])) {
+                $block['data']['html'] = $this->publicHtml($block['data']['html']);
+            }
+            if (($block['type'] ?? null) === 'columns' && is_array($block['data']['columns'] ?? null)) {
+                foreach ($block['data']['columns'] as $i => $column) {
+                    if (isset($column['html'])) {
+                        $block['data']['columns'][$i]['html'] = $this->publicHtml($column['html']);
+                    }
+                }
+            }
+
+            return $block;
+        }, $item->blockList())];
+    }
+
+    /**
+     * Stored HTML refers to uploaded images by path (img src="/storage/..."), so a
+     * change of domain needs no data migration. The public site is on another
+     * origin, so the paths are made absolute here, with this app's URL.
+     */
+    private function publicHtml(?string $html): ?string
+    {
+        return ContentImages::absolutize($html, (string) config('app.url'));
     }
 
     /**

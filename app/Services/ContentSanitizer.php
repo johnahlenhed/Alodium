@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\Sanitizer\ImageSourceSanitizer;
 use App\Services\Sanitizer\TextAlignStyleSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
@@ -44,8 +45,10 @@ class ContentSanitizer
             ->allowLinkSchemes(['http', 'https', 'mailto', 'tel'])
             ->allowMediaSchemes(['http', 'https'])
             ->allowRelativeLinks()
+            // Relative media for uploads ("/storage/..."); protocol-relative "//host" is removed below.
             ->allowRelativeMedias()
             ->withAttributeSanitizer(new TextAlignStyleSanitizer)
+            ->withAttributeSanitizer(new ImageSourceSanitizer)
             // Default is 20 000 bytes, which would silently truncate long posts.
             ->withMaxInputLength(-1);
 

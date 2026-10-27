@@ -75,4 +75,24 @@ class ContentSanitizerTest extends TestCase
         // A second line after the value is not part of an allowed declaration.
         $this->assertSame('<p>x</p>', $this->clean("<p style=\"text-align: left\nposition: fixed\">x</p>"));
     }
+
+    public function test_protocol_relative_image_sources_are_removed_and_storage_paths_kept(): void
+    {
+        foreach (['//evil.example/x.jpg', ' //evil.example/x.jpg', '/\\evil.example/x.jpg', '\\\\evil.example/x.jpg', '\\/evil.example/x.jpg'] as $src) {
+            $this->assertSame('<img alt="x" />', $this->clean('<img src="'.$src.'" alt="x">'), $src);
+        }
+
+        foreach (['/storage/12/photo.jpg', 'https://example.com/a.jpg', 'http://example.com/a.jpg'] as $src) {
+            $this->assertSame('<img src="'.$src.'" alt="x" />', $this->clean('<img src="'.$src.'" alt="x">'), $src);
+        }
+    }
+
+    public function test_the_result_is_a_fixed_point(): void
+    {
+        $once = $this->clean('<p><img src="//evil.example/x.jpg" alt="a"> <img src="/storage/1/a.jpg?w=2&amp;h=3" alt="b"></p><p style="text-align: center">x</p>');
+
+        $this->assertSame($once, $this->clean($once));
+        $this->assertStringContainsString('src="/storage/1/a.jpg', $once);
+        $this->assertStringNotContainsString('evil.example', $once);
+    }
 }

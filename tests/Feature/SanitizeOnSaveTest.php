@@ -136,4 +136,14 @@ class SanitizeOnSaveTest extends TestCase
 
         $this->artisan('content:sanitize', ['--dry-run' => true])->expectsOutput('0 posts would change.')->assertSuccessful();
     }
+
+    #[DataProvider('kinds')]
+    public function test_a_protocol_relative_image_source_is_removed_on_save(string $model, string $route): void
+    {
+        $this->actingAs($this->admin)->post("/{$route}", ['title' => 'Item', 'status' => 'draft',
+            'content' => '<p><img src="//other.example/x.jpg" alt="Remote" /><img src="/storage/4/local.jpg" alt="Local" /></p>'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('<p><img alt="Remote" /><img src="/storage/4/local.jpg" alt="Local" /></p>', $model::firstOrFail()->content);
+    }
 }

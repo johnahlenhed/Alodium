@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+    SSRF smoke test for the WordPress importer's image downloads.
+    Every image address below is internal (cloud metadata, loopback, IPv6
+    loopback, and 127.0.0.1 written as one decimal number). The attachments put
+    those hosts on the run's allowlist, the way a hostile export would, so only
+    the address check stands between them and a download.
+
+    Expected result (import with "Download images from the old site" checked):
+    1 post imported (a draft), 5 images found (4 in the content, 1 featured),
+    0 downloaded, 0 reused, 5 skipped, every one "Address not allowed
+    (private or internal)". No request leaves the server. Delete the draft
+    afterwards: importing the file again would skip it as a duplicate.
+    See docs/ARCHITECTURE.md (security) and tests/Feature/SsrfSmokeTest.php.
+-->
+<rss version="2.0"
+    xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+    <title>SSRF smoke test</title>
+    <link>http://169.254.169.254</link>
+    <wp:wxr_version>1.2</wp:wxr_version>
+    <wp:base_site_url>http://169.254.169.254</wp:base_site_url>
+    <wp:base_blog_url>http://169.254.169.254</wp:base_blog_url>
+
+    <item>
+        <title><![CDATA[metadata]]></title>
+        <wp:post_id>2</wp:post_id>
+        <wp:status><![CDATA[inherit]]></wp:status>
+        <wp:post_type><![CDATA[attachment]]></wp:post_type>
+        <wp:attachment_url><![CDATA[http://169.254.169.254/latest/meta-data/iam/security-credentials/]]></wp:attachment_url>
+    </item>
+    <item>
+        <title><![CDATA[loopback]]></title>
+        <wp:post_id>3</wp:post_id>
+        <wp:status><![CDATA[inherit]]></wp:status>
+        <wp:post_type><![CDATA[attachment]]></wp:post_type>
+        <wp:attachment_url><![CDATA[http://127.0.0.1/x.png]]></wp:attachment_url>
+    </item>
+    <item>
+        <title><![CDATA[ipv6 loopback]]></title>
+        <wp:post_id>4</wp:post_id>
+        <wp:status><![CDATA[inherit]]></wp:status>
+        <wp:post_type><![CDATA[attachment]]></wp:post_type>
+        <wp:attachment_url><![CDATA[http://[::1]/x.png]]></wp:attachment_url>
+    </item>
+    <item>
+        <title><![CDATA[decimal loopback]]></title>
+        <wp:post_id>5</wp:post_id>
+        <wp:status><![CDATA[inherit]]></wp:status>
+        <wp:post_type><![CDATA[attachment]]></wp:post_type>
+        <wp:attachment_url><![CDATA[http://2130706433/x.png]]></wp:attachment_url>
+    </item>
+
+    <item>
+        <title><![CDATA[SSRF smoke test (delete me)]]></title>
+        <content:encoded><![CDATA[<p>Every image in this draft must be skipped with "address not allowed".</p>
+<p><img src="http://169.254.169.254/latest/meta-data/" alt="Cloud metadata" /></p>
+<p><img src="http://127.0.0.1/x.png" alt="Loopback" /></p>
+<p><img src="http://[::1]/x.png" alt="IPv6 loopback" /></p>
+<p><img src="http://2130706433/x.png" alt="Decimal loopback" /></p>]]></content:encoded>
+        <wp:post_id>10</wp:post_id>
+        <wp:post_date><![CDATA[2024-05-01 10:00:00]]></wp:post_date>
+        <wp:post_date_gmt><![CDATA[2024-05-01 08:00:00]]></wp:post_date_gmt>
+        <wp:status><![CDATA[draft]]></wp:status>
+        <wp:post_type><![CDATA[post]]></wp:post_type>
+        <wp:postmeta>
+            <wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key>
+            <wp:meta_value><![CDATA[2]]></wp:meta_value>
+        </wp:postmeta>
+    </item>
+</channel>
+</rss>
