@@ -32,7 +32,12 @@ trait HasRevisions
         });
 
         // revisions has no foreign key (it is polymorphic), so clean up by hand.
-        static::deleting(fn (self $model) => $model->revisions()->delete());
+        // A function body, not an arrow function: "deleting" listeners stop at the
+        // first one that returns a non-null value, and delete() returns a count, so
+        // Spatie's listener (which deletes the media rows and files) never ran.
+        static::deleting(function (self $model): void {
+            $model->revisions()->delete();
+        });
     }
 
     public function revisions(): MorphMany
