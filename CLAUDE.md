@@ -3,22 +3,33 @@
 ## Project overview
 Alodium is a self-hosted content platform built with Laravel + Inertia + React for the admin panel, and Astro for the public-facing website. It includes a privacy-first analytics pipeline, a WordPress XML importer, and a cookieless tracker script.
 
+**Start with `docs/ARCHITECTURE.md`**: the big picture, directory layout, every table, the public API shapes, the block system, theming and settings, roles, jobs, security measures, tests and env variables, plus a list of known gaps. Deployment is in `README.md`, the Astro site in `astro/README.md`.
+
 ## Tech stack
-- **Backend:** Laravel (PHP), MySQL
-- **Admin frontend:** React via Inertia.js
-- **Public site:** Astro (separate project, consumes Laravel API)
+- **Backend:** Laravel 13 (PHP ^8.4), MySQL; database queue and cache
+- **Admin frontend:** React 18 via Inertia.js v2, Tailwind
+- **Public site:** Astro 7, static output (separate project, consumes the Laravel API at build time)
 - **Rich text editor:** TipTap
 - **Email:** Resend
 - **Media:** Spatie Media Library
 - **Build tool:** Vite
+- **Tests:** PHPUnit (no Pest), plus plain Node check scripts
 
 ## Project structure
+Short version; the full layout is in `docs/ARCHITECTURE.md` section 2.
+
 app/
+├── Blocks/ ← Page block types and their registry
+├── Console/Commands/ ← Backups, scheduled publishing, content:sanitize
 ├── Http/
-│ ├── Controllers/ ← Request handling, Inertia responses
-│ └── Middleware/ ← Auth guards
+│ ├── Controllers/ ← Request handling, Inertia responses, public API
+│ ├── Middleware/ ← RequireAdmin ("admin"), Inertia shared props, registration switch
+│ └── Requests/ ← Form requests (site settings)
+├── Jobs/ ← Astro rebuild, import image downloads
 ├── Models/ ← Eloquent models
-└── Services/ ← Business logic
+├── Observers/ ← Queues a rebuild when published content changes
+├── Policies/ ← Who may edit and delete posts and pages
+└── Services/ ← Business logic (importer, sanitiser, backups, SSRF-safe downloader)
 
 database/
 ├── migrations/ ← Database schema
@@ -26,8 +37,9 @@ database/
 └── factories/ ← Fake model generation
 
 routes/
-├── web.php ← Admin panel routes (auth protected)
-└── api.php ← Tracker and public content API
+├── web.php ← Admin panel routes (auth protected; admin-only group)
+├── api.php ← Tracker, public content API, rebuild webhook
+└── console.php ← Scheduled commands
 
 resources/
 └── js/
@@ -38,14 +50,16 @@ resources/
 public/
 └── tracker.js ← Vanilla JS tracker script
 
-astro/ ← Separate Astro project (public site)
+astro/ ← Separate Astro project (public site); astro/scripts holds its checks
+
+tests/ ← Feature/, Unit/, Fakes/ (fake DNS and HTTP), Fixtures/
 
 ## Key conventions
 
 ### Laravel
 - Controllers return `Inertia::render()` for admin panel routes
 - API controllers return `response()->json()` for tracker and public endpoints
-- All admin routes are wrapped in `auth` middleware in `web.php`
+- All admin routes are wrapped in `auth` middleware in `web.php`; admin-only routes are also in the `admin` group
 - API routes for the tracker are in `api.php` with no auth middleware
 - Use `Str::slug()` for generating slugs from titles
 - Models use `$fillable` not `$guarded`
@@ -64,7 +78,7 @@ astro/ ← Separate Astro project (public site)
 
 ### Tracker script
 - `public/tracker.js` is vanilla JS with no dependencies
-- API endpoints are `/api/collect` (POST) and `/api/collect/{id}` (PATCH)
+- API endpoints are `/api/collect` (POST), `/api/collect/{id}` (PATCH, needs the visit's token) and `/api/events` (POST)
 - All errors are caught silently — the tracker must never break the host site
 - UTM parameters are captured then removed from the visible URL
 
@@ -73,16 +87,26 @@ astro/ ← Separate Astro project (public site)
 # Start local development
 php artisan serve          # Laravel on localhost:8000
 npm run dev                # Vite on localhost:5173
+npm run build              # Build the admin assets
 
 # Database
 php artisan migrate        # Run migrations
 php artisan migrate:fresh --seed  # Reset and seed
 
 # Testing
-php artisan test           # Run PHPUnit/Pest tests
+php artisan test           # Run the PHPUnit tests (in-memory SQLite, no network)
+node resources/js/Components/Blocks/blocksReducer.check.mjs   # Block editor list operations
+node resources/js/utils/importRun.check.mjs                    # Import run page state
 
-# Queue worker (for scheduled publishing)
-php artisan queue:work
+# Background work
+php artisan queue:work     # Astro rebuilds, import image downloads, media conversions
+php artisan schedule:work  # Locally: runs content:publish-scheduled, db:backup, media:backup-remote
+php artisan content:sanitize --dry-run   # How many stored posts/pages the sanitiser would change
+
+# Public site (in astro/, Laravel must be running)
+npm run build:local        # Build with astro/.env into astro/dist
+npm run check              # theme, settings and colour contrast checks (no server needed)
+npm run check:build        # Checks on the built HTML, incl. against the live /api/public/site
 ```
 
 ## GeoIP (visitor country lookup)
@@ -94,16 +118,20 @@ Country is derived from the visitor IP with `stevebauman/location` using the **o
 - Tracker conventions above are unchanged; geolocation happens server-side in `TrackingController`.
 
 ## npm install note
-Due to Vite 8 and @vitejs/plugin-react peer dependency conflict, always use:
+Due to Vite 8 and @vitejs/plugin-react peer dependency conflict, always use (in the root and in `astro/`):
 ```bash
 npm install --legacy-peer-deps
 ```
+`composer setup` passes the flag too.
 
 ## Environment
-Copy `.env.example` to `.env` and configure:
+Copy `.env.example` to `.env` (and `astro/.env.example` to `astro/.env`) and configure:
 - `DB_*` — MySQL connection
 - `RESEND_API_KEY` — transactional email
-- `VITE_*` — any frontend environment variables
+- `APP_URL` — the Laravel origin (also used to make `/storage/` image paths absolute in the API)
+- `VITE_APP_NAME` — admin page titles
+
+Every project-specific variable, with its purpose, is listed in `docs/ARCHITECTURE.md` section 11.
 
 ## What's been built (proof of concept reference)
 A proof of concept exists at a separate repo. The following patterns are established and can be reused:
