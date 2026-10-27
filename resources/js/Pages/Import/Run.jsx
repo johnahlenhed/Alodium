@@ -248,7 +248,7 @@ function ImagePanel({ initialStatus, statusUrl, errors }) {
 }
 
 export default function Run({ run, status, statusUrl }) {
-    const { imported_posts, imported_pages, skipped, errors, found = {} } = run;
+    const { imported_posts, imported_pages, skipped, warnings = [], errors, found = {} } = run;
     const foundSummary = Object.entries(found)
         .map(([type, count]) => `${count} × ${type}`)
         .join(', ');
@@ -298,6 +298,41 @@ export default function Run({ run, status, statusUrl }) {
                                     <li key={i}>{error}</li>
                                 ))}
                             </ul>
+                        </div>
+                    )}
+
+                    {warnings.length > 0 && (
+                        <div className="overflow-hidden rounded-md border border-yellow-200 bg-yellow-50">
+                            <h3 className="px-6 pt-6 text-sm font-semibold text-yellow-900">
+                                Imported with warnings ({warnings.length})
+                            </h3>
+                            <p className="mt-1 px-6 text-sm text-yellow-800">
+                                These posts and pages were imported, but something in them was converted, lost
+                                or repaired. Check them before publishing.
+                            </p>
+                            <div className="overflow-x-auto">
+                                <table className="mt-4 min-w-full divide-y divide-yellow-200 text-sm">
+                                    <thead className="bg-yellow-100/60">
+                                        <tr className="text-left text-xs font-medium uppercase tracking-wider text-yellow-900">
+                                            <th scope="col" className="px-6 py-3">Title</th>
+                                            <th scope="col" className="px-6 py-3">Type</th>
+                                            <th scope="col" className="px-6 py-3">Warning</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-yellow-200">
+                                        {warnings.map((warning, i) => (
+                                            <tr key={i}>
+                                                <td className="px-6 py-3 text-gray-900">
+                                                    {warning.title}
+                                                    <span className="block text-xs text-gray-600">{warning.slug}</span>
+                                                </td>
+                                                <td className="px-6 py-3 text-gray-700">{warning.type}</td>
+                                                <td className="px-6 py-3 text-gray-700">{warning.message}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
 

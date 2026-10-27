@@ -81,6 +81,7 @@ class ImportController extends Controller
                 'imported_posts' => $run->imported_posts,
                 'imported_pages' => $run->imported_pages,
                 'skipped' => $report['skipped'] ?? [],
+                'warnings' => $report['warnings'] ?? [],
                 'errors' => $report['errors'] ?? [],
                 'found' => (object) ($report['found'] ?? []),
             ],

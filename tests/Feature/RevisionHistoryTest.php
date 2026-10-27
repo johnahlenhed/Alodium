@@ -7,6 +7,10 @@ use App\Models\Post;
 use App\Models\Revision;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\TestCase;
 
 class RevisionHistoryTest extends TestCase
@@ -205,13 +209,53 @@ class RevisionHistoryTest extends TestCase
                 ->where('revisions.0.excerpt', 'Version 1'));
     }
 
-    public function test_deleting_a_post_deletes_its_revisions(): void
+    public static function deletableModels(): array
     {
-        $post = $this->makePost();
-        $post->update(['content' => '<p>Version 2</p>']);
+        return ['post' => [Post::class, 'posts.destroy'], 'page' => [Page::class, 'pages.destroy']];
+    }
 
-        $post->delete();
+    /**
+     * Revisions and the featured image (row and files) both go with the item.
+     * Both are checked together on purpose: the revision listener used to return a
+     * count, which stopped the "deleting" event before Spatie's media listener, so
+     * revisions were deleted but every featured image stayed on disk.
+     *
+     * @param  class-string<Post|Page>  $model
+     */
+    #[DataProvider('deletableModels')]
+    public function test_deleting_an_item_deletes_its_revisions_and_its_featured_image(string $model, string $route): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $make = function (string $slug) use ($model) {
+            $item = $model::create(['author_id' => $this->user->id, 'title' => 'Original title', 'slug' => $slug, 'content' => '<p>Version 1</p>', 'status' => 'published', 'published_at' => now()]);
+            $item->update(['content' => '<p>Version 2</p>']); // a revision
+            $media = $item->addMedia(UploadedFile::fake()->image('featured.jpg', 40, 30))->toMediaCollection('featured');
 
-        $this->assertSame(0, Revision::count());
+            return [$item, $media];
+        };
+        [$item, $media] = $make('to-delete');
+        [$other, $otherMedia] = $make('to-keep');
+
+        $files = Storage::disk('public')->allFiles((string) $media->id);
+        $this->assertNotEmpty($files, 'the original and its conversions are on disk before');
+        $this->assertSame(1, $item->revisions()->count());
+
+        $this->actingAs($admin)->delete(route($route, $item))->assertRedirect();
+
+        $this->assertModelMissing($item);
+        $this->assertSame(
+            ['revisions' => 0, 'media row' => false, 'files' => []],
+            [
+                'revisions' => Revision::where('model_type', $item->getMorphClass())->where('model_id', $item->id)->count(),
+                'media row' => Media::whereKey($media->id)->exists(),
+                'files' => Storage::disk('public')->allFiles((string) $media->id),
+            ],
+        );
+
+        // The other item keeps its revision and its featured image.
+        $this->assertSame(1, $other->revisions()->count());
+        $this->assertModelExists($otherMedia);
+        $this->assertNotEmpty(Storage::disk('public')->allFiles((string) $otherMedia->id));
     }
 }

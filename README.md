@@ -821,7 +821,7 @@ Run `php artisan config:cache` after changing them.
 
 **After a deploy**, import `docs/testdata/ssrf-smoke.xml` (from the repository) with the box checked. It checks that the server refuses to download from internal addresses. A correct result: 1 post imported, 5 images found, 0 downloaded, 5 skipped, all "Address not allowed (private or internal)". Then delete the draft "SSRF smoke test (delete me)" under **Posts**. Any other result means the image downloads must not be used until it is fixed; see `docs/ARCHITECTURE.md`, section 9.
 
-Plugin content is not imported and shortcodes are removed. Known gaps are listed in `docs/ARCHITECTURE.md`, section 12.
+Plugin content is not imported. WordPress's own shortcodes (galleries, captions, audio, video, playlists, embeds) become images and links; other shortcodes stay as text. The result page lists, per post or page, everything that was converted, lost or repaired (for example invalid characters in the file). Known gaps are listed in `docs/ARCHITECTURE.md`, section 12.
 
 ### Updating the application
 
