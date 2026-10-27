@@ -60,11 +60,11 @@ app/
   Models/            Eloquent models; Concerns/RegistersImageConversions
   Observers/         PublicContentObserver
   Policies/          ContentPolicy (shared), PostPolicy, PagePolicy
-  Rules/             BrandColor, MediaUrl, SafeLink
-  Services/          importer, sanitiser, backups, statistics, settings payload,
+  Rules/             BrandColor, ImageUpload, MediaUrl, SafeLink
+  Services/          importer, sanitisers (HTML, SVG), backups, statistics, settings payload,
                      SafeImageDownloader + ImageDownload/ (resolver, curl client)
   Support/           small pure helpers (ColorContrast, ContentImages, ThemeOptions, ...)
-  Traits/            slugs, publish status, revisions, sanitising on save
+  Traits/            slugs, publish status, revisions, sanitising on save, list rows
 resources/js/
   Pages/             one component per Inertia page (Posts, Pages, Media, Submissions,
                      Analytics, Import, Users, Settings, Profile, Auth, Dashboard)
@@ -181,7 +181,7 @@ from `color.js`.
 | Action | Admin | Editor |
 |---|---|---|
 | Create posts and pages, edit own items and anyone's published items | yes | yes |
-| Edit other authors' drafts and scheduled items | yes | no (`ContentPolicy::update`) |
+| Edit other authors' drafts and scheduled items | yes | no (`ContentPolicy::update`); the posts and pages lists show them by title, status, dates and author only (`PresentsIndexRows`) |
 | Delete posts, pages, media, submissions | yes | no (`admin` route group) |
 | Media library upload and list, read submissions | yes | yes |
 | Analytics, WordPress import, users, site settings | yes | no |
@@ -234,7 +234,14 @@ The README requires the worker to run with `--timeout=660` and
   a duplicate and find no images). `SsrfSmokeTest` runs the same file.
 - **XML**: the importer parses with `LIBXML_NONET` and without entity substitution.
 - **Uploads**: the logo is checked by content type and dimensions; the media
-  library accepts jpg, png, gif, webp and svg up to 10 MB.
+  library accepts jpg, png, gif, webp and svg up to 10 MB (`App\Rules\ImageUpload`).
+  The type comes from the file's bytes, and the uploaded name must end in an
+  extension of that type ("x.html" holding a GIF is refused). The stored name is
+  a slug of the uploaded one with the type's own extension, so a file in
+  `/storage` is always served with an image content type. SVGs are cleaned by
+  `App\Services\SvgSanitizer` (enshrined/svg-sanitize: an allowlist of elements
+  and attributes, no remote references, no DOCTYPE) before they are stored.
+  Files uploaded before this check keep their original names.
 - **Tracker tokens**: each visit gets a random 40-character token, returned
   only on creation and compared with `hash_equals`. IPs are never stored;
   the country comes from an offline MaxMind database.

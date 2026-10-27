@@ -114,6 +114,47 @@ class UserRolesTest extends TestCase
             ->where('posts.0.can.delete', true));
     }
 
+    // From the security review: the list sent every item's full data, so an editor
+    // could read another author's draft in the page data although the edit page refused it.
+    public function test_editors_never_receive_the_content_of_other_authors_drafts_or_scheduled_items(): void
+    {
+        foreach ([Post::class => '/posts', Page::class => '/pages'] as $model => $url) {
+            $draft = $this->content($model, $this->admin, 'draft');
+            $draft->update(['content' => '<p>SECRET-DRAFT-BODY</p>', 'meta_description' => 'SECRET-DRAFT-META']);
+            $scheduled = $this->content($model, $this->admin, 'draft');
+            $scheduled->update(['content' => '<p>SECRET-SCHEDULED-BODY</p>', 'publish_at' => now()->addDay()]);
+
+            $response = $this->actingAs($this->editor)->get($url)->assertOk();
+            foreach (['SECRET-DRAFT-BODY', 'SECRET-DRAFT-META', 'SECRET-SCHEDULED-BODY'] as $secret) {
+                $response->assertDontSee($secret, false);
+            }
+
+            // Still listed (title, status, dates, author) so the list works as before, just without an Edit button.
+            $rows = collect($response->inertiaProps(ltrim($url, '/')))->keyBy('id');
+            $this->assertSame(['id', 'title', 'status', 'publish_at', 'published_at', 'author', 'can'], array_keys($rows[$draft->id]));
+            $this->assertSame(['id' => $this->admin->id, 'name' => 'Ada Admin'], $rows[$draft->id]['author']);
+            $this->assertFalse($rows[$draft->id]['can']['update']);
+            $this->assertNotNull($rows[$scheduled->id]['publish_at']); // shown as "scheduled"
+
+            // The admin, who may edit them, still gets everything.
+            $this->actingAs($this->admin)->get($url)
+                ->assertSee('SECRET-DRAFT-BODY', false)
+                ->assertSee('SECRET-SCHEDULED-BODY', false);
+        }
+    }
+
+    public function test_editors_still_receive_full_data_for_their_own_drafts_and_published_items(): void
+    {
+        $own = $this->content(Post::class, $this->editor, 'draft');
+        $own->update(['content' => '<p>MY-OWN-DRAFT</p>']);
+        $published = $this->content(Post::class, $this->admin);
+        $published->update(['content' => '<p>PUBLISHED-BY-ADMIN</p>']);
+
+        $this->actingAs($this->editor)->get('/posts')
+            ->assertSee('MY-OWN-DRAFT', false)
+            ->assertSee('PUBLISHED-BY-ADMIN', false);
+    }
+
     public function test_admins_can_access_everything(): void
     {
         foreach (['/posts', '/pages', '/media', '/analytics', '/import', '/users'] as $url) {

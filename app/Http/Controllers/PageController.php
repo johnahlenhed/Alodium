@@ -8,6 +8,7 @@ use App\Models\Revision;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
+use App\Traits\PresentsIndexRows;
 use App\Traits\SanitizesContent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +20,7 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
-    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions, SanitizesContent;
+    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions, PresentsIndexRows, SanitizesContent;
 
     public function __construct(private BlockRegistry $blockRegistry) {}
 
@@ -27,13 +28,8 @@ class PageController extends Controller
     {
         return Inertia::render('Pages/Index', [
             // "can" tells the list which Edit/Delete buttons to show this user.
-            'pages' => Page::with('author:id,name')->latest()->get()->map(fn (Page $page) => [
-                ...$page->toArray(),
-                'can' => [
-                    'update' => $request->user()->can('update', $page),
-                    'delete' => $request->user()->can('delete', $page),
-                ],
-            ]),
+            'pages' => Page::with('author:id,name')->latest()->get()
+                ->map(fn (Page $page) => $this->indexRow($request->user(), $page)),
         ]);
     }
 

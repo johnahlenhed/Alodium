@@ -65,7 +65,7 @@ export default function MediaPicker({
         }
     };
 
-    // Not offered: social platforms can't display SVG, and SVG uploads aren't sanitised yet.
+    // Not offered: social platforms can't display SVG.
     const images = (media ?? []).filter((item) => item.mime_type !== 'image/svg+xml');
 
     return (
