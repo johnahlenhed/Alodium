@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\SiteSetting;
+use App\Rules\ImageUpload;
+use App\Services\SvgSanitizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -46,11 +50,22 @@ class MediaController extends Controller
     public function store(Request $request): JsonResponse|RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,svg'],
+            'file' => ['required', 'file', 'max:10240', new ImageUpload],
         ]);
 
-        $media = $request->user()
-            ->addMediaFromRequest('file')
+        $file = $request->file('file');
+        $type = ImageUpload::detectType($file);
+
+        // An SVG is stored as cleaned by the sanitiser, never as uploaded.
+        $adder = $type === 'image/svg+xml'
+            ? $request->user()->addMediaFromString($this->cleanSvg($file))
+            : $request->user()->addMedia($file);
+
+        // The stored name is chosen here, with the extension of the detected type,
+        // never the uploaded one: "x.html" holding a GIF can't be stored as x.html.
+        $media = $adder
+            ->usingName(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+            ->usingFileName(ImageUpload::fileName($file, $type))
             ->toMediaCollection('library');
 
         if ($request->wantsJson()) {
@@ -70,6 +85,17 @@ class MediaController extends Controller
         }
 
         return back();
+    }
+
+    private function cleanSvg(UploadedFile $file): string
+    {
+        $clean = app(SvgSanitizer::class)->sanitize((string) file_get_contents($file->getRealPath()));
+
+        if ($clean === null) {
+            throw ValidationException::withMessages(['file' => 'The file could not be read as an SVG image.']);
+        }
+
+        return $clean;
     }
 
     private function present(Media $media): array

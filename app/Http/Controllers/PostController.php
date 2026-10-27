@@ -7,6 +7,7 @@ use App\Models\Revision;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
+use App\Traits\PresentsIndexRows;
 use App\Traits\SanitizesContent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,19 +18,14 @@ use Inertia\Response;
 
 class PostController extends Controller
 {
-    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions, SanitizesContent;
+    use GeneratesUniqueSlug, HandlesPublishStatus, HandlesRevisions, PresentsIndexRows, SanitizesContent;
 
     public function index(Request $request): Response
     {
         return Inertia::render('Posts/Index', [
             // "can" tells the list which Edit/Delete buttons to show this user.
-            'posts' => Post::with('author:id,name')->latest()->get()->map(fn (Post $post) => [
-                ...$post->toArray(),
-                'can' => [
-                    'update' => $request->user()->can('update', $post),
-                    'delete' => $request->user()->can('delete', $post),
-                ],
-            ]),
+            'posts' => Post::with('author:id,name')->latest()->get()
+                ->map(fn (Post $post) => $this->indexRow($request->user(), $post)),
         ]);
     }
 
