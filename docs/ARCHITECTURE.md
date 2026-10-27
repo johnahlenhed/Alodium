@@ -63,7 +63,7 @@ app/
   Rules/             BrandColor, ImageUpload, MediaUrl, SafeLink
   Services/          importer, sanitisers (HTML, SVG), backups, statistics, settings payload,
                      SafeImageDownloader + ImageDownload/ (resolver, curl client)
-  Support/           small pure helpers (ColorContrast, ContentImages, ThemeOptions, ...)
+  Support/           small pure helpers (ColorContrast, ContentImages, Shortcodes, ThemeOptions, ...)
   Traits/            slugs, publish status, revisions, sanitising on save, list rows
 resources/js/
   Pages/             one component per Inertia page (Posts, Pages, Media, Submissions,
@@ -103,7 +103,7 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
-| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, errors, item types found), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
+| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, item types found), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
 | `cache`, `cache_locks` | Database cache (also used for job uniqueness and import image locks). |
 | `sessions`, `password_reset_tokens` | Laravel defaults. |
@@ -332,6 +332,21 @@ Astro (`astro/.env`, `astro/.env.production`):
   stored once per item (a featured image is deleted with its item).
 - **Old links in imported content**: links to WordPress attachment pages and
   non-image files (PDF, MP3) keep pointing at the old site.
+- **Shortcodes in imports**: only WordPress core's are converted
+  (`App\Support\Shortcodes`: gallery, caption, wp_caption, audio, video,
+  playlist, embed). A gallery becomes its images in one paragraph (no grid); a
+  caption becomes the image plus an emphasised caption paragraph (alignment as
+  `text-align` only, no text wrapping); audio, video, playlists and embeds
+  become links, and the files stay on the old site. Each of these, and every
+  plugin shortcode (left as text), is listed in the run's warnings. Bare URLs
+  on a line of their own (WordPress auto-embeds) stay plain text. As in
+  WordPress, an unclosed shortcode followed later by a closing tag of the same
+  name takes everything in between as its content.
+- **Encoding repair in imports**: before parsing, control characters XML does
+  not allow are removed and, in a UTF-8 file, invalid bytes are read as
+  Windows-1252 (each with a warning naming the item). A file in another
+  single-byte encoding but labelled UTF-8 gets the Windows-1252 guess. An item
+  libxml still reports a parse problem in is imported as a draft, with a warning.
 - **Imported images** point at the original file; the block picker stores the
   `medium` conversion instead.
 - **Editor preview**: `blocks.css` is written to work standalone for an editor

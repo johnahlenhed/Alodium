@@ -101,8 +101,11 @@ export default function Create({ limits, recentRuns = [] }) {
                     </div>
 
                     <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-                        Plugin functionality is not imported — content only. Shortcodes are
-                        removed and HTML is cleaned to basic formatting.
+                        Plugin functionality is not imported — content only. WordPress&apos;s own
+                        shortcodes (galleries, captions, audio, video, playlists, embeds) become
+                        images and links; other shortcodes stay as text. HTML is cleaned to basic
+                        formatting. The result page lists every post or page where something was
+                        converted or lost.
                     </div>
 
                     <form onSubmit={submit} className="space-y-6">
