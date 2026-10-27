@@ -2,15 +2,18 @@
 
 namespace App\Services;
 
+use App\Jobs\DownloadContentImages;
+use App\Models\ImportRun;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\ImageDownload\ImageDownloadFailed;
+use App\Support\ContentImages;
 use App\Traits\GeneratesUniqueSlug;
 use Carbon\Carbon;
 use DOMDocument;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -22,6 +25,11 @@ use Throwable;
  *
  * Design goals: reliable over fast. Every item is imported in isolation, so one
  * broken post is reported in `errors` instead of aborting the whole import.
+ *
+ * Every import is recorded as an ImportRun. With $downloadImages, the images in
+ * the imported content are downloaded afterwards on the queue (one
+ * DownloadContentImages job per post or page), only from the exported site's
+ * own hosts; the text import itself stays as fast as before.
  */
 class WordPressImporter
 {
@@ -32,32 +40,39 @@ class WordPressImporter
 
     private const TYPES = ['post' => Post::class, 'page' => Page::class];
 
-    private const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
     private array $results;
 
+    /** Hosts images may be downloaded from (see allowedHosts()). */
+    private array $allowedHosts = [];
+
+    /** Posts and pages created by this import: [type, model]. */
+    private array $created = [];
+
     /** HTML allowlist shared with page blocks (App\Services\ContentSanitizer). */
-    public function __construct(private ContentSanitizer $sanitizer) {}
+    public function __construct(private ContentSanitizer $sanitizer, private SafeImageDownloader $downloader) {}
 
     /**
      * `found` counts every item in the file by WordPress post type (post, page,
      * attachment, nav_menu_item, ...), so "0 pages imported" can be told apart
      * from "the file contains no pages".
      *
-     * @return array{imported_posts: int, imported_pages: int, skipped: list<array{title: string, type: string, reason: string}>, errors: list<string>, found: array<string, int>}
+     * @return array{imported_posts: int, imported_pages: int, skipped: list<array{title: string, type: string, reason: string}>, errors: list<string>, found: array<string, int>, run_id: int}
      */
-    public function import(string $path, User $author): array
+    public function import(string $path, User $author, bool $downloadImages = false): array
     {
-        $this->results = ['imported_posts' => 0, 'imported_pages' => 0, 'skipped' => [], 'errors' => [], 'found' => []];
+        $this->created = [];
+        $run = ImportRun::create(['user_id' => $author->id, 'status' => ImportRun::STATUS_IMPORTING, 'started_at' => now()]);
+        $this->results = ['imported_posts' => 0, 'imported_pages' => 0, 'skipped' => [], 'errors' => [], 'found' => [], 'run_id' => $run->id];
 
         $this->ensureMemoryLimit('256M');
-        // Downloading featured images can take up to 10 s each.
+        // Downloading featured images can take up to 15 s each.
         @set_time_limit(0);
 
         try {
             $xml = $this->load($path);
         } catch (Throwable $e) {
             $this->results['errors'][] = $e->getMessage();
+            $run->update(['status' => ImportRun::STATUS_FAILED, 'finished_at' => now()]);
 
             return $this->results;
         }
@@ -68,6 +83,7 @@ class WordPressImporter
 
         if (! $wp || ! isset($xml->channel)) {
             $this->results['errors'][] = 'This does not look like a WordPress export file (no WordPress data found).';
+            $run->update(['status' => ImportRun::STATUS_FAILED, 'finished_at' => now()]);
 
             return $this->results;
         }
@@ -86,6 +102,9 @@ class WordPressImporter
                 $attachments[trim((string) $meta->post_id)] = trim((string) $meta->attachment_url);
             }
         }
+
+        $this->allowedHosts = $this->allowedHosts($xml->channel->children($wp), $attachments);
+        $run->update(['allowed_hosts' => $this->allowedHosts]);
 
         foreach ($items as $item) {
             $title = trim((string) $item->title);
@@ -106,7 +125,60 @@ class WordPressImporter
             'wp_namespace' => $wp,
         ]);
 
+        $this->queueImageDownloads($run, $downloadImages);
+
         return $this->results;
+    }
+
+    /**
+     * The hosts images may be downloaded from: the exported site's own
+     * (wp:base_site_url, wp:base_blog_url) and every attachment's host, which for
+     * a wordpress.com site includes its *.files.wordpress.com media host. Images
+     * on any other host are third-party and stay where they are.
+     *
+     * @return list<string>
+     */
+    private function allowedHosts(SimpleXMLElement $channel, array $attachments): array
+    {
+        $urls = [(string) $channel->base_site_url, (string) $channel->base_blog_url, ...array_values($attachments)];
+        $hosts = [];
+        foreach ($urls as $url) {
+            $host = strtolower(trim((string) parse_url(trim($url), PHP_URL_HOST), '[]'));
+            if ($host !== '') {
+                $hosts[$host] = true;
+            }
+        }
+
+        return array_keys($hosts);
+    }
+
+    /**
+     * One DownloadContentImages job per created post or page with images from an
+     * allowed host. The run's totals are set before the first job is queued, so a
+     * fast (or synchronous) job can never finish the run early.
+     */
+    private function queueImageDownloads(ImportRun $run, bool $downloadImages): void
+    {
+        $items = [];
+        $found = 0;
+        foreach ($downloadImages ? $this->created : [] as [$type, $record]) {
+            $count = count(ContentImages::candidates($record->content, $this->allowedHosts));
+            if ($count > 0) {
+                $items[] = [$type, $record->id];
+                $found += $count;
+            }
+        }
+
+        if ($items === []) {
+            $run->update(['status' => ImportRun::STATUS_DONE, 'finished_at' => now()]);
+
+            return;
+        }
+
+        $run->update(['status' => ImportRun::STATUS_DOWNLOADING, 'items_total' => count($items), 'images_found' => $found]);
+        foreach ($items as [$type, $id]) {
+            DownloadContentImages::dispatch($run->id, $type, $id);
+        }
     }
 
     private function importItem(SimpleXMLElement $item, string $wp, string $contentNs, array $attachments, User $author): void
@@ -157,6 +229,7 @@ class WordPressImporter
         ]));
 
         $this->results[$type === 'post' ? 'imported_posts' : 'imported_pages']++;
+        $this->created[] = [$type, $record];
 
         $thumbnailId = $this->postMeta($meta, '_thumbnail_id');
         if ($thumbnailId !== null && isset($attachments[$thumbnailId])) {
@@ -175,6 +248,10 @@ class WordPressImporter
         // things like "[1]" footnotes, and with an unmatched "[" could remove whole
         // paragraphs up to the next "]".
         $html = preg_replace('/\[\/?[a-zA-Z][\w-]*(?:\s[^\[\]]*)?\/?\]/', '', $html) ?? $html;
+
+        // Protocol-relative images ("//host/x.jpg") become https, so they survive the
+        // sanitiser (which removes "//" sources) and the image download can find them.
+        $html = preg_replace('/(<img\b[^>]*?\ssrc\s*=\s*["\']?)\/\//i', '$1https://', $html) ?? $html;
 
         $html = $this->sanitizer->sanitize($this->autop($html));
         $html = trim(preg_replace('#<p>(\s|<br\s*/?>)*</p>#', '', $html) ?? $html);
@@ -238,40 +315,27 @@ class WordPressImporter
     }
 
     /**
-     * Best effort: any failure (404, timeout, not an image, too large) is silently
-     * skipped. The post itself is already imported at this point.
+     * Best effort: any failure (404, timeout, not an image, too large, a blocked
+     * address or a host outside the export) is silently skipped. The post itself
+     * is already imported at this point. Downloaded with the same checks as the
+     * content images (SafeImageDownloader), during the import request as before.
      */
     private function attachFeaturedImage(Model $record, string $url): void
     {
+        $image = null;
         try {
-            if (! in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true)) {
-                return;
-            }
+            $image = $this->downloader->download($url, $this->allowedHosts);
 
-            $response = Http::timeout(10)->get($url);
-            if (! $response->successful()) {
-                return;
-            }
-
-            $body = $response->body();
-            if (strlen($body) > 10 * 1024 * 1024) {
-                return;
-            }
-
-            // Check the actual bytes, not the remote server's Content-Type header.
-            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($body);
-            if (! in_array($mime, self::IMAGE_MIME_TYPES, true)) {
-                return;
-            }
-
-            $fileName = basename(urldecode((string) parse_url($url, PHP_URL_PATH))) ?: 'featured-image';
-
-            $record->addMediaFromString($body)
-                ->usingFileName(Str::limit($fileName, 200, ''))
-                ->usingName(pathinfo($fileName, PATHINFO_FILENAME))
+            $record->addMedia($image->path)
+                ->usingFileName($image->fileName)
+                ->usingName(pathinfo($image->fileName, PATHINFO_FILENAME))
                 ->toMediaCollection('featured');
+        } catch (ImageDownloadFailed $e) {
+            Log::debug('WordPress import: featured image skipped', ['url' => $url, 'reason' => $e->reason()]);
         } catch (Throwable) {
             // Silently skipped by design.
+        } finally {
+            $image?->delete(); // addMedia() moved it; only a failed store leaves the temporary file
         }
     }
 

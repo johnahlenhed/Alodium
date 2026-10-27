@@ -1,4 +1,4 @@
-// Client registry of page block types. To add a type in stage 4: one entry here
+// Client registry of page block types. To add a type: one entry here
 // and one editor component. Must match the server types (App\Blocks\Types).
 import { Columns2, Image, LayoutTemplate, Mail, MousePointerClick, Type } from 'lucide-react';
 import ButtonBlockEditor from './ButtonBlockEditor';

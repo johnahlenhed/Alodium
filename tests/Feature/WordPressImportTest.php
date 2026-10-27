@@ -8,14 +8,14 @@ use App\Models\User;
 use App\Services\WordPressImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Tests\Fakes\FakesImageDownloads;
 use Tests\TestCase;
 
 class WordPressImportTest extends TestCase
 {
-    use RefreshDatabase;
+    use FakesImageDownloads, RefreshDatabase;
 
     private function wxr(string $items): string
     {
@@ -235,7 +235,7 @@ HTML;
     public function test_featured_image_failures_are_silently_skipped(): void
     {
         Storage::fake('public');
-        Http::fake(['*' => Http::response('Not found', 404)]);
+        $this->fakeImageDownloads(); // every URL answers 404
         $user = User::factory()->create();
 
         $xml = $this->wxr(
@@ -248,7 +248,7 @@ HTML;
         $this->assertSame(1, $results['imported_posts']);
         $this->assertSame([], $results['errors']);
         $this->assertCount(0, Post::firstOrFail()->getMedia('featured'));
-        Http::assertSent(fn ($request) => $request->url() === 'https://old.example/photo.jpg');
+        $this->assertSame('https://old.example/photo.jpg', $this->http->requests[0]['url']);
     }
 
     public function test_featured_image_is_downloaded_and_converted(): void
@@ -258,8 +258,7 @@ HTML;
         }
 
         Storage::fake('public');
-        $png = UploadedFile::fake()->image('photo.png', 800, 600)->getContent();
-        Http::fake(['*' => Http::response($png, 200, ['Content-Type' => 'image/png'])]);
+        $this->fakeImageDownloads(['https://old.example/photo.png' => $this->imageResponse('png', 800, 600)]);
         $user = User::factory()->create();
 
         $xml = $this->wxr(

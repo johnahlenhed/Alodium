@@ -10,17 +10,11 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SiteSettingsController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\UserController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+// The admin domain has no public home page: "/" opens the dashboard, and the
+// auth middleware sends guests to the login page first.
+Route::get('/', fn () => redirect()->route('dashboard'))->middleware('auth');
 
 Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -70,6 +64,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/import', [ImportController::class, 'create'])->name('import.create');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');
     Route::get('/import/result', [ImportController::class, 'result'])->name('import.result');
+    Route::get('/import/runs/{run}/status', [ImportController::class, 'status'])->name('import.runs.status');
 
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');

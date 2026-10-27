@@ -61,14 +61,4 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
         $this->assertSame(0, User::count());
     }
-
-    public function test_can_register_is_shared_with_guest_pages(): void
-    {
-        config(['auth.registration' => false]);
-        $this->get('/')->assertInertia(fn ($page) => $page->where('canRegister', false));
-        $this->get('/login')->assertInertia(fn ($page) => $page->where('canRegister', false));
-
-        config(['auth.registration' => true]);
-        $this->get('/')->assertInertia(fn ($page) => $page->where('canRegister', true));
-    }
 }
