@@ -1,9 +1,9 @@
 ---
-import { safeImage, safeLink } from '../../lib/blocks.js';
+import { classes, HERO_VARIANTS, safeImage, safeLink, variantClass } from '../../lib/blocks.js';
 
 interface Props {
     id: string;
-    data: { heading: string; subheading?: string | null; image?: string | null; button_label?: string | null; button_url?: string | null };
+    data: { heading: string; subheading?: string | null; image?: string | null; button_label?: string | null; button_url?: string | null; variant?: string | null };
     /** 1 only for a hero that is the first block on the page (one <h1> per page). */
     headingLevel?: 1 | 2;
     /** The first block on the page loads its image eagerly. */
@@ -17,7 +17,7 @@ const image = safeImage(data.image);
 const link = data.button_label ? safeLink(data.button_url) : null;
 ---
 
-<section class={image ? 'block block-hero block-hero--has-image' : 'block block-hero'} data-block-id={id}>
+<section class={classes('block', 'block-hero', image && 'block-hero--has-image', variantClass(data.variant, HERO_VARIANTS))} data-block-id={id}>
     {
         image && (
             <img

@@ -72,6 +72,9 @@ const UI = 3; // WCAG 1.4.11, focus rings, borders that identify a control
  */
 function pairs(buttons) {
     const overWhite = { over: '--color-hero-overlay', pixel: [255, 255, 255] };
+    // The dark hero's overlay under white text, and the light hero's under dark text: the worst photo pixel for each.
+    const darkOverWhite = { over: '--color-hero-overlay-dark', pixel: [255, 255, 255] };
+    const lightOverBlack = { over: '--color-hero-overlay-light', pixel: [0, 0, 0] };
     const common = [
         ['Body text on page', '--color-text', '--color-bg', 12],
         ['Body text on surface (code, footer)', '--color-text', '--color-surface', TEXT],
@@ -89,6 +92,28 @@ function pairs(buttons) {
         ['Hero text over image (white pixel)', '--color-on-brand', overWhite, TEXT],
         ['Hero focus ring', '--color-on-brand', '--color-brand', UI],
         ['Hero focus ring over image (white pixel)', '--color-on-brand', overWhite, UI],
+
+        // Backgrounds (data.variant, .block--panel and the hero variants).
+        ['Light panel: text', '--color-text', '--color-brand-tint', TEXT],
+        ['Light panel: muted text (quotes, captions, markers)', '--color-text-muted', '--color-brand-tint', TEXT],
+        ['Light panel: link', '--color-brand-strong', '--color-brand-tint', TEXT],
+        ['Light panel: link hover', '--color-brand-deep', '--color-brand-tint', TEXT],
+        ['Light panel: code (on the page colour)', '--color-text', '--color-bg', TEXT],
+        ['Light panel: focus ring', '--color-focus', '--color-brand-tint', UI],
+        ['Brand panel: text, links, muted text', '--color-on-brand', '--color-brand', TEXT],
+        ['Brand panel: code (on the strong shade)', '--color-on-brand', '--color-brand-strong', TEXT],
+        ['Brand panel: focus ring', '--color-on-brand', '--color-brand', UI],
+        ['Dark panel: text, links, muted text', '--color-on-brand', '--color-brand-night', TEXT],
+        ['Dark panel: code (on the deep shade)', '--color-on-brand', '--color-brand-deep', TEXT],
+        ['Dark panel: focus ring', '--color-on-brand', '--color-brand-night', UI],
+        ['Selection on brand and dark backgrounds', '--color-brand', '--color-on-brand', TEXT],
+        ['Dark hero text', '--color-on-brand', '--color-brand-night', TEXT],
+        ['Dark hero text over image (white pixel)', '--color-on-brand', darkOverWhite, TEXT],
+        ['Dark hero focus ring over image (white pixel)', '--color-on-brand', darkOverWhite, UI],
+        ['Light hero text', '--color-text', '--color-brand-tint', TEXT],
+        ['Light hero text over image (black pixel)', '--color-text', lightOverBlack, TEXT],
+        ['Light hero focus ring', '--color-brand-strong', '--color-brand-tint', UI],
+        ['Light hero focus ring over image (black pixel)', '--color-brand-strong', lightOverBlack, UI],
     ];
 
     const solid = [
@@ -105,6 +130,20 @@ function pairs(buttons) {
         ['Hero secondary over image', '--color-on-brand', overWhite, TEXT],
         ['Hero secondary border', '--color-on-brand', '--color-brand', UI],
         ['Hero secondary hover', '--color-on-brand', '--color-brand-strong', TEXT],
+        // Dark hero: the default hero's inverted buttons on the near-black shade.
+        ['Dark hero primary edge', '--color-on-brand', '--color-brand-night', UI],
+        ['Dark hero secondary', '--color-on-brand', '--color-brand-night', TEXT],
+        ['Dark hero secondary over image', '--color-on-brand', darkOverWhite, TEXT],
+        ['Dark hero secondary border', '--color-on-brand', '--color-brand-night', UI],
+        // Light hero: the page's buttons, darker where text sits on the tint.
+        ['Light hero primary', '--color-on-brand', '--color-brand', TEXT],
+        ['Light hero primary edge', '--color-brand', '--color-brand-tint', UI],
+        ['Light hero primary edge over image', '--color-brand', lightOverBlack, UI],
+        ['Light hero primary hover', '--color-on-brand', '--color-brand-strong', TEXT],
+        ['Light hero secondary', '--color-brand-strong', '--color-brand-tint', TEXT],
+        ['Light hero secondary over image', '--color-brand-strong', lightOverBlack, TEXT],
+        ['Light hero secondary border', '--color-brand-strong', '--color-brand-tint', UI],
+        ['Light hero secondary hover', '--color-brand-strong', '--color-brand-tint-strong', TEXT],
     ];
 
     const outline = [
@@ -119,6 +158,16 @@ function pairs(buttons) {
         ['Hero primary hover', '--color-on-brand', '--color-brand-strong', TEXT],
         ['Hero secondary (on shade)', '--color-on-brand', '--color-brand-strong', TEXT],
         ['Hero secondary hover', '--color-on-brand', '--color-brand-deep', TEXT],
+        ['Dark hero primary', '--color-on-brand', '--color-brand-night', TEXT],
+        ['Dark hero primary over image', '--color-on-brand', darkOverWhite, TEXT],
+        ['Dark hero primary border', '--color-on-brand', '--color-brand-night', UI],
+        ['Dark hero secondary (on shade)', '--color-on-brand', '--color-brand-strong', TEXT],
+        ['Light hero primary', '--color-brand-strong', '--color-brand-tint', TEXT],
+        ['Light hero primary over image', '--color-brand-strong', lightOverBlack, TEXT],
+        ['Light hero primary border', '--color-brand-strong', '--color-brand-tint', UI],
+        ['Light hero primary hover', '--color-brand-strong', '--color-brand-tint-strong', TEXT],
+        ['Light hero secondary (on the page colour)', '--color-brand-strong', '--color-bg', TEXT],
+        ['Light hero secondary hover', '--color-brand-strong', '--color-brand-tint-strong', TEXT],
     ];
 
     // The contact form button uses the primary colours, so it is covered by "Primary".

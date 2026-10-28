@@ -5,10 +5,11 @@ namespace Tests\Feature;
 use Tests\TestCase;
 
 /**
- * robots.txt files are static: Nginx serves public/robots.txt for the admin
- * panel, and Astro copies astro/public/robots.txt into the built site. A
- * Laravel feature test never reaches the web server (GET /robots.txt would
- * be a 404 from Laravel's router), so these tests check the files themselves.
+ * Nginx serves public/robots.txt for the admin panel as a static file. A Laravel
+ * feature test never reaches the web server (GET /robots.txt would be a 404 from
+ * Laravel's router), so these tests check the file itself. The public site's
+ * robots.txt is built by Astro (astro/src/pages/robots.txt.ts) and checked in the
+ * build output by astro/scripts/check-build.mjs.
  */
 class RobotsTxtTest extends TestCase
 {
@@ -31,12 +32,11 @@ class RobotsTxtTest extends TestCase
         $this->get('/robots.txt')->assertNotFound();
     }
 
-    public function test_public_site_robots_txt_allows_crawling_and_points_to_the_sitemap(): void
+    public function test_public_site_robots_txt_is_built_not_a_static_file(): void
     {
-        $robots = file_get_contents(base_path('astro/public/robots.txt'));
-
-        $this->assertMatchesRegularExpression('/^Allow: \/$/m', $robots);
-        // An absolute URL to the sitemap Astro generates (sitemap-index.xml).
-        $this->assertMatchesRegularExpression('#^Sitemap: https?://[^/\s]+/sitemap-index\.xml$#m', $robots);
+        // A static copy (an old checkout or merge) would carry a fixed Sitemap URL
+        // instead of the one built from SITE_URL.
+        $this->assertFileExists(base_path('astro/src/pages/robots.txt.ts'));
+        $this->assertFileDoesNotExist(base_path('astro/public/robots.txt'));
     }
 }

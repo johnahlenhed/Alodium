@@ -34,8 +34,18 @@
     --color-brand-tint-strong: color-mix(in srgb, var(--color-brand) 14%, var(--color-bg));
     --color-brand-border: color-mix(in srgb, var(--color-brand) 30%, var(--color-bg));
     --color-brand-shadow: color-mix(in srgb, var(--color-brand) 10%, transparent);
+    /* The dark background (data.variant "dark"): a near-black shade, so white text only gains contrast. */
+    --color-brand-night: color-mix(in srgb, var(--color-brand) 25%, #000);
+    /* From the deep shade, so a bright brand gives a shadow, not a coloured glow. */
+    --color-brand-shadow-strong: color-mix(in srgb, var(--color-brand-deep) 24%, transparent);
     /* Over hero images: a dark shade of the brand at 85%, so white text stays readable on light photos. */
     --color-hero-overlay: color-mix(in srgb, var(--color-brand-strong) 85%, transparent);
+    --color-hero-overlay-dark: color-mix(in srgb, var(--color-brand-night) 85%, transparent);
+    /* The light hero over an image: the page colour at 88%, under dark text (a black pixel is the worst case). */
+    --color-hero-overlay-light: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    /* Links in rich text. The panels (.block--light, --brand, --dark) change them. */
+    --color-link: var(--color-brand);
+    --color-link-hover: var(--color-brand-strong);
     /* The focus ring. The hero switches it to --color-on-brand. */
     --color-focus: var(--color-brand);
 
@@ -76,7 +86,8 @@
     --space-6: 2rem;
     --space-7: 3rem;
     --space-8: 4.5rem;
-    --space-block: var(--space-7); /* Between blocks. */
+    --space-block: clamp(var(--space-7), 2rem + 2.5vw, var(--space-8)); /* Between blocks. */
+    --space-panel: clamp(var(--space-6), 1.5rem + 2vw, var(--space-7)); /* Above and below the text in a panel. */
     --gutter: clamp(1rem, 4vw, 2rem); /* Space beside the content on narrow screens. */
 
     /*
@@ -152,8 +163,12 @@
     min-height: clamp(20rem, 55vh, 34rem);
     padding: var(--space-8) var(--gutter);
     overflow: hidden;
-    /* Shown when there is no image, or the image fails to load. */
-    background: var(--color-brand);
+    /*
+     * Shown when there is no image, or the image fails to load. The gradient
+     * only darkens the brand (towards --color-brand-strong), so white text on
+     * it has at least the contrast it has on the brand itself.
+     */
+    background: linear-gradient(160deg, var(--color-brand), var(--color-brand-strong));
     color: var(--color-on-brand);
 }
 
@@ -180,21 +195,35 @@
     margin-inline: auto;
 }
 
+/* A short rule above the heading, in the text colour (decorative). */
+.block-hero__content::before {
+    content: '';
+    display: block;
+    width: 3rem;
+    height: 4px;
+    margin-bottom: var(--space-5);
+    border-radius: 2px;
+    background: currentColor;
+    opacity: 0.5;
+}
+
 .block-hero__heading {
     margin: 0;
     font-family: var(--font-heading);
     font-size: var(--text-hero);
-    font-weight: 600;
+    font-weight: 700;
     line-height: var(--leading-tight);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     text-wrap: balance;
     color: inherit;
 }
 
 .block-hero__subheading {
-    margin: var(--space-4) 0 0;
-    font-size: var(--text-lg);
+    max-width: 34em;
+    margin: var(--space-5) 0 0;
+    font-size: clamp(var(--text-lg), 1rem + 0.6vw, 1.4375rem);
     line-height: 1.5;
+    text-wrap: pretty;
     color: inherit;
 }
 
@@ -241,7 +270,12 @@
 @media (prefers-reduced-motion: no-preference) {
     .button,
     .contact-form button {
-        transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+        transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+    }
+
+    .button:active,
+    .contact-form button:active:not(:disabled) {
+        transform: translateY(1px);
     }
 }
 
@@ -315,6 +349,66 @@
     --button-border-hover: var(--color-brand-deep);
 }
 
+/*
+ * Hero backgrounds (data.variant). Dark: the near-black shade, with the same
+ * inverted buttons as the default hero. Light: the brand tint with dark text and
+ * the page's buttons, using the darker shades where text sits on the tint.
+ */
+.block-hero.block--dark {
+    background: var(--color-brand-night);
+}
+
+.block-hero.block--dark.block-hero--has-image::after {
+    background: var(--color-hero-overlay-dark);
+}
+
+.block-hero.block--light {
+    --color-focus: var(--color-brand-strong);
+    background: var(--color-brand-tint);
+    color: var(--color-text);
+}
+
+.block-hero.block--light.block-hero--has-image::after {
+    background: var(--color-hero-overlay-light);
+}
+
+.block-hero.block--light .button-primary {
+    --button-bg: var(--color-brand);
+    --button-text: var(--color-on-brand);
+    --button-border: var(--color-brand);
+    --button-bg-hover: var(--color-brand-strong);
+    --button-text-hover: var(--color-on-brand);
+    --button-border-hover: var(--color-brand-strong);
+}
+
+.block-hero.block--light .button-secondary,
+[data-button='outline'] .block-hero.block--light .button-primary {
+    --button-bg: transparent;
+    --button-text: var(--color-brand-strong);
+    --button-border: var(--color-brand-strong);
+    --button-bg-hover: var(--color-brand-tint-strong);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-strong);
+}
+
+/* On the page colour, so it stands out from the tint around it. */
+[data-button='outline'] .block-hero.block--light .button-secondary {
+    --button-bg: var(--color-bg);
+    --button-text: var(--color-brand-strong);
+    --button-border: var(--color-bg);
+    --button-bg-hover: var(--color-brand-tint-strong);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-tint-strong);
+}
+
+/* On the brand and dark backgrounds the selection is inverted (site.css uses the brand). */
+.block-hero:not(.block--light) ::selection,
+.block--brand ::selection,
+.block--dark ::selection {
+    background: var(--color-on-brand);
+    color: var(--color-brand);
+}
+
 /* button block */
 
 .block-button {
@@ -327,17 +421,25 @@
     width: var(--wide-column-width);
 }
 
-.block-image img {
+.block-image img,
+.block-columns .column img {
     display: block;
     max-width: 100%;
     height: auto;
+    border-radius: var(--radius-lg);
+    /* A soft lift, tinted with the brand. */
+    box-shadow: 0 1px 2px var(--color-brand-shadow), 0 16px 32px -20px var(--color-brand-shadow-strong);
+}
+
+.block-image img {
     margin-inline: auto;
-    border-radius: var(--radius);
 }
 
 .block-image figcaption {
-    margin-top: var(--space-3);
+    max-width: var(--content-width);
+    margin: var(--space-4) auto 0;
     font-size: var(--text-sm);
+    line-height: 1.5;
     text-align: center;
     color: var(--color-text-muted);
 }
@@ -346,7 +448,7 @@
 
 .block-columns {
     display: grid;
-    gap: var(--space-6);
+    gap: var(--space-6) clamp(var(--space-6), 4vw, var(--space-8));
     grid-template-columns: minmax(0, 1fr);
     width: var(--wide-column-width);
 }
@@ -371,14 +473,18 @@
 }
 
 .block-columns .column img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    margin-bottom: var(--space-4);
-    border-radius: var(--radius);
+    margin-bottom: var(--space-5);
 }
 
-/* contact form block */
+/* contact form block: a card */
+
+.block-contact-form {
+    padding: var(--space-6) clamp(var(--space-5), 4vw, var(--space-6));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+    box-shadow: 0 2px 12px var(--color-brand-shadow);
+}
 
 .block-contact-form__heading {
     margin: 0 0 var(--space-2);
@@ -390,8 +496,74 @@
 }
 
 .block-contact-form__intro {
-    margin: 0 0 var(--space-5);
+    margin: 0 0 var(--space-6);
     color: var(--color-text-muted);
+}
+
+/*
+ * Panels: a text or columns block with a background (data.variant). The block
+ * keeps its column width but becomes content-box with the gutter as side
+ * padding, so the background reaches into the gutter and the text inside stays
+ * in line with the blocks above and below, at every screen width. Where the
+ * column fills the screen the panel does too, so its corners go square there
+ * (44rem = the reading column plus two gutters; 72.75rem = the wide column).
+ * Each variant only sets colours. Text on a background uses the same pairs as
+ * the hero and the buttons; scripts/check-contrast.mjs checks them all.
+ */
+.block--panel {
+    box-sizing: content-box;
+    padding: var(--space-panel) var(--gutter);
+    border-radius: var(--radius-lg);
+    background: var(--panel-bg);
+    color: var(--color-text);
+}
+
+@media (max-width: 44rem) {
+    .block--panel {
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 72.75rem) {
+    .block-columns.block--panel:not(.block-columns--single) {
+        border-radius: 0;
+    }
+}
+
+/* Light: the brand tint. Links use the darker shades, as text on a tint does elsewhere. */
+.block--light {
+    --panel-bg: var(--color-brand-tint);
+    --color-link: var(--color-brand-strong);
+    --color-link-hover: var(--color-brand-deep);
+    --color-surface: var(--color-bg); /* code */
+    --color-border: var(--color-brand-border);
+}
+
+/*
+ * Brand and dark: everything in white, including what is muted or a link
+ * elsewhere (a lighter grey would fall below 4.5:1 on brands near the limit).
+ * Code sits on a darker shade, which only adds contrast.
+ */
+.block--brand,
+.block--dark {
+    --color-text: var(--color-on-brand);
+    --color-text-muted: var(--color-on-brand);
+    --color-link: var(--color-on-brand);
+    --color-link-hover: var(--color-on-brand);
+    --color-focus: var(--color-on-brand);
+    /* Decorative lines (rules, tables, quotes): white, partly see-through. */
+    --color-border: color-mix(in srgb, var(--color-on-brand) 35%, transparent);
+    --color-brand-border: color-mix(in srgb, var(--color-on-brand) 55%, transparent);
+}
+
+.block--brand {
+    --panel-bg: var(--color-brand);
+    --color-surface: var(--color-brand-strong);
+}
+
+.block--dark {
+    --panel-bg: var(--color-brand-night);
+    --color-surface: var(--color-brand-deep);
 }
 
 /* text: styled by .prose below */
@@ -496,6 +668,11 @@
     margin-top: var(--space-6);
 }
 
+/* A new section (h1, h2) gets more room than a sub-heading. */
+.prose > :is(h1, h2):not(:first-child) {
+    margin-top: var(--space-7);
+}
+
 .prose > :is(h1, h2, h3, h4, h5, h6) + * {
     margin-top: var(--space-3);
 }
@@ -505,6 +682,11 @@
     font-weight: 600;
     line-height: var(--leading-heading);
     text-wrap: balance;
+}
+
+.prose :is(h1, h2) {
+    font-weight: 700;
+    letter-spacing: -0.015em;
 }
 
 .prose h1 { font-size: var(--text-h1); }
@@ -520,14 +702,14 @@
 
 /* Underlined: the default brand colour is nearly black, so colour alone wouldn't mark a link. */
 .prose a[href] {
-    color: var(--color-brand);
+    color: var(--color-link);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.18em;
 }
 
 .prose a[href]:hover {
-    color: var(--color-brand-strong);
+    color: var(--color-link-hover);
     text-decoration-thickness: 2px;
 }
 
@@ -553,10 +735,12 @@
 
 .prose blockquote {
     margin-inline: 0;
-    padding-left: var(--space-5);
-    border-left: 3px solid var(--color-brand-border);
+    padding: var(--space-1) 0 var(--space-1) var(--space-5);
+    border-left: 4px solid var(--color-brand-border);
     color: var(--color-text-muted);
+    font-size: var(--text-lg);
     font-style: italic;
+    line-height: 1.55;
 }
 
 .prose blockquote > * {
@@ -569,6 +753,7 @@
 
 .prose code {
     padding: 0.1em 0.35em;
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background: var(--color-surface);
     font-family: var(--font-mono);
@@ -589,6 +774,7 @@
 
 .prose pre code {
     padding: 0;
+    border: 0;
     background: none;
 }
 
@@ -632,6 +818,11 @@
     border-bottom: 1px solid var(--color-border);
     text-align: left;
     vertical-align: top;
+}
+
+.prose th {
+    font-weight: 600;
+    border-bottom-width: 2px;
 }
 
 /* text-align from the editor arrives as an inline style (left, center or right only). */

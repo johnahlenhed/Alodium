@@ -275,6 +275,8 @@ For visitor countries in analytics, install the MaxMind database as described in
 
 ### 4. Astro public site
 
+`deploy/add-domain.sh` automates this section and the next one on a new server (`--help` explains it). Its `setup` step writes `.env.production` and creates `astro-public`, but doesn't run `npm install`.
+
 ```bash
 cd /var/www/alodium/astro
 npm install --legacy-peer-deps
@@ -289,13 +291,11 @@ SITE_URL=https://SITE_DOMAIN
 TRACKER_URL=https://ADMIN_DOMAIN/tracker.js
 ```
 
-`API_URL` has no trailing slash. The site name, logo, colours, navigation and front page are not set here: they come from the admin panel's Settings page (`GET /api/public/site`). Also set the `Sitemap:` line in `astro/public/robots.txt` to the real site URL:
-
-```
-Sitemap: https://SITE_DOMAIN/sitemap-index.xml
-```
+`API_URL` has no trailing slash. The site name, logo, colours, navigation and front page are not set here: they come from the admin panel's Settings page (`GET /api/public/site`). `robots.txt` needs nothing either: the build writes it (`astro/src/pages/robots.txt.ts`), with the sitemap URL taken from `SITE_URL`.
 
 ### 5. DNS, Nginx and HTTPS
+
+`deploy/add-domain.sh setup` does the Nginx steps below, and `deploy/add-domain.sh certbot` checks DNS and then gets the certificate. You can run the `certbot` step again once DNS has propagated. You still create the DNS records yourself.
 
 #### DNS
 

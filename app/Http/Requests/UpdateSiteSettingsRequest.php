@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Page;
 use App\Rules\BrandColor;
+use App\Rules\NavigationLink;
 use App\Support\ThemeOptions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -18,7 +19,8 @@ class UpdateSiteSettingsRequest extends FormRequest
     /** Plain text: no control characters (line breaks, tabs, NUL...). Invalid UTF-8 fails too. */
     private const PLAIN_TEXT = 'regex:/^[^\p{Cc}]*\z/u';
 
-    public const MAX_NAVIGATION_PAGES = 12;
+    /** Entries after Home: as many as before (12 pages plus Blog and Contact). */
+    public const MAX_NAVIGATION_ITEMS = 14;
 
     public function authorize(): bool
     {
@@ -44,12 +46,14 @@ class UpdateSiteSettingsRequest extends FormRequest
             'logo' => ['bail', 'nullable', 'file', 'mimetypes:image/png,image/jpeg,image/webp', 'max:2048', 'dimensions:min_width=64,min_height=64,max_width=4000,max_height=4000'],
             'remove_logo' => ['sometimes', 'boolean'],
 
-            'show_blog_in_nav' => ['required', 'boolean'],
-            'show_contact_in_nav' => ['required', 'boolean'],
-            // The pages in the navigation, in order. Missing means none (a multipart
-            // form can't send an empty list).
-            'navigation' => ['nullable', 'array', 'max:'.self::MAX_NAVIGATION_PAGES],
-            'navigation.*' => ['integer', 'distinct'],
+            // The entries after Home, in order. Missing means none (a multipart form
+            // can't send an empty list). Each is a page or a URL, never both.
+            'navigation' => ['nullable', 'array', 'max:'.self::MAX_NAVIGATION_ITEMS],
+            'navigation.*' => ['array'],
+            'navigation.*.page_id' => ['nullable', 'integer', 'distinct', 'required_without:navigation.*.url', 'prohibits:navigation.*.url'],
+            'navigation.*.url' => ['nullable', 'string', new NavigationLink],
+            // Optional for a page (its title is shown), required for a URL.
+            'navigation.*.label' => ['nullable', 'string', 'max:60', self::PLAIN_TEXT, 'required_with:navigation.*.url'],
 
             'front_page_id' => ['nullable', 'integer'],
         ];
@@ -59,14 +63,17 @@ class UpdateSiteSettingsRequest extends FormRequest
     public function after(): array
     {
         return [function (Validator $validator) {
-            $navigation = array_filter((array) $this->input('navigation', []), 'is_numeric');
+            $navigation = array_filter(array_map(
+                fn ($item) => is_array($item) ? ($item['page_id'] ?? null) : null,
+                (array) $this->input('navigation', []),
+            ), 'is_numeric');
             $frontPage = $this->input('front_page_id');
             $ids = array_unique(array_map('intval', [...$navigation, ...(is_numeric($frontPage) ? [$frontPage] : [])]));
             $public = $ids ? Page::onPublicSite()->whereIn('id', $ids)->pluck('id')->all() : [];
 
             foreach ($navigation as $index => $id) {
                 if (! in_array((int) $id, $public, true)) {
-                    $validator->errors()->add("navigation.$index", 'Only published pages can be in the navigation.');
+                    $validator->errors()->add("navigation.$index.page_id", 'Only published pages can be in the navigation.');
                 }
             }
             if (is_numeric($frontPage) && ! in_array((int) $frontPage, $public, true)) {
@@ -85,8 +92,12 @@ class UpdateSiteSettingsRequest extends FormRequest
             'logo.mimetypes' => 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.',
             'logo.max' => 'The logo can be at most 2 MB.',
             'logo.dimensions' => 'The logo must be between 64 and 4000 pixels wide and high.',
-            'navigation.max' => 'The navigation can hold at most :max pages.',
-            'navigation.*.distinct' => 'A page can only be in the navigation once.',
+            'navigation.max' => 'The navigation can hold at most :max links after Home.',
+            'navigation.*.page_id.distinct' => 'A page can only be in the navigation once.',
+            'navigation.*.page_id.required_without' => 'Choose a page or enter a link.',
+            'navigation.*.page_id.prohibits' => 'An entry links to a page or to a URL, not both.',
+            'navigation.*.label.required_with' => 'A link needs a label.',
+            'navigation.*.label.regex' => "The label can't contain line breaks, tabs or other control characters.",
         ];
     }
 
@@ -100,6 +111,9 @@ class UpdateSiteSettingsRequest extends FormRequest
             'font_body' => 'body font',
             'font_heading' => 'heading font',
             'front_page_id' => 'front page',
+            'navigation.*.page_id' => 'page',
+            'navigation.*.url' => 'link',
+            'navigation.*.label' => 'label',
         ];
     }
 }

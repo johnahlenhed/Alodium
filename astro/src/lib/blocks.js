@@ -49,6 +49,19 @@ export function safeImage(value) {
     }
 }
 
+/** The variants (data.variant) the hero and the panel blocks (text, columns) offer, besides "default". */
+export const HERO_VARIANTS = ['light', 'dark'];
+export const PANEL_VARIANTS = ['light', 'brand', 'dark'];
+
+/**
+ * "block--dark" for a variant in `allowed`, otherwise null ("default", a missing
+ * value, or one this block doesn't offer): only known class names reach the HTML.
+ */
+export const variantClass = (variant, allowed) => (allowed.includes(variant) ? `block--${variant}` : null);
+
+/** Class attribute from a list, leaving out empty entries. */
+export const classes = (...names) => names.filter(Boolean).join(' ');
+
 export const isText = (value) => typeof value === 'string' && value.trim() !== '';
 
 /** Visible text of sanitised HTML, for emptiness checks. */

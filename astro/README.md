@@ -16,7 +16,7 @@ npm install --legacy-peer-deps
 |---------------|------------------------------------------------------|
 | `API_URL`     | Laravel public API, no trailing slash                |
 | `TRACKER_URL` | URL of `tracker.js` served by Laravel (omit to disable) |
-| `SITE_URL`    | Public URL of this site (sitemap, canonical links)   |
+| `SITE_URL`    | Public URL of this site (sitemap, robots.txt, canonical links) |
 
 The site name, description, logo, theme, navigation, footer text and front
 page are not environment variables: they come from the admin panel's
@@ -46,6 +46,7 @@ intentional: a site built without content should never be deployed.
 | `/blog/[slug]`  | published posts                 |
 | `/[slug]`       | published CMS pages (About, …)  |
 | `/contact`      | contact form → `POST /api/public/contact` |
+| `/robots.txt`   | `src/pages/robots.txt.ts`: allows crawling, points to the sitemap (`SITE_URL`) |
 
 CMS pages whose slug collides with a built-in route (`blog`, `contact`,
 `404`, `index`) are skipped with a build warning.

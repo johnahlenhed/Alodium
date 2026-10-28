@@ -13,11 +13,17 @@ class TextBlock extends BlockType
         return 'text';
     }
 
+    public function variants(): array
+    {
+        return self::VARIANTS;
+    }
+
     public function rules(): array
     {
         return [
             // "present": an empty text block is allowed, a missing html key is not.
             'html' => ['present', 'nullable', 'string', 'max:100000'],
+            'variant' => $this->variantRule(),
         ];
     }
 
@@ -25,12 +31,13 @@ class TextBlock extends BlockType
     {
         return [
             'html' => 'text',
+            'variant' => 'text background',
         ];
     }
 
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
-        return ['html' => $this->html($data, 'html', $sanitizer)];
+        return ['html' => $this->html($data, 'html', $sanitizer), 'variant' => $this->variant($data)];
     }
 
     public function plainText(array $data): string
