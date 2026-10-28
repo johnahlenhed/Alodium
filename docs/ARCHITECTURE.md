@@ -73,7 +73,8 @@ resources/js/
   utils/             publishing.js (time zones), contrast.js (imports astro/src/lib/color.js),
                      importRun.js (import run page: polling state, reasons, formatting)
 astro/
-  src/pages/         index, blog/index, blog/[slug], [slug] (CMS pages), contact, 404
+  src/pages/         index, blog/index, blog/[slug], [slug] (CMS pages), contact, 404,
+                     robots.txt.ts (robots.txt with the sitemap URL from SITE_URL)
   src/layouts/       BaseLayout (head, theme, header, footer, tracker)
   src/components/    SiteHeader, SiteFooter, CmsPage, PostList, ContactForm, BrandMark, blocks/
   src/lib/           api.js (fetch + getSite), settings.js, site.js (defaults), theme.js,
@@ -83,10 +84,11 @@ astro/
   scripts/           node check scripts (section 10)
 tests/
   Feature/           HTTP and integration tests (Concerns/ holds shared helpers)
-  Unit/              pure tests (PublicAddressTest)
+  Unit/              pure tests (PublicAddressTest, AddDomainScriptTest)
   Fakes/             fake DNS and HTTP for the image downloader
   Fixtures/          brand-colours.json and the script that generates it
-deploy/              rebuild-astro.sh
+deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-5 on a
+                     new server) and check-add-domain.sh
 docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 ```
 
@@ -265,6 +267,8 @@ The README requires the worker to run with `--timeout=660` and
   state (poll timing and back-off, stall detection, milestones, reason
   mapping and grouping, formatting).
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
+- `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes exactly
+  the env block and plain-HTTP Nginx config of README sections 4 and 5. `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
 - In `astro/` (no test framework):
 
 | Script | npm command | Checks |
@@ -312,7 +316,7 @@ Astro (`astro/.env`, `astro/.env.production`):
 |---|---|
 | `API_URL` | Laravel public API, no trailing slash; required for the build |
 | `TRACKER_URL` | URL of `tracker.js`; omit to build without the tracker |
-| `SITE_URL` | public site address for the sitemap and canonical links |
+| `SITE_URL` | public site address for the sitemap, robots.txt and canonical links |
 
 ## 12. Known gaps
 

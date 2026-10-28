@@ -9,10 +9,12 @@
 //   - no resource is loaded from a host other than the site and the API origin
 //     (URLs that come from CMS data, in <main> or the og:image tags, are reported)
 //   - which font files the pages load (--fonts=inter,serif to require a set)
+//   - robots.txt (src/pages/robots.txt.ts) allows crawling and points to the
+//     sitemap at the URL built from SITE_URL, and that sitemap was written
 //
 //   node scripts/check-build.mjs [--fonts=inter]       (from astro/)
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
@@ -24,7 +26,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, 'dist');
 const mode = process.argv.includes('--production') ? 'production' : 'development';
 const env = loadEnv(mode, root, '');
-const allowedHosts = new Set([new URL(env.SITE_URL || 'http://localhost:4321').host, new URL(env.API_URL).host]);
+// The same value and fallback as `site` in astro.config.mjs.
+const site = new URL(env.SITE_URL || 'http://localhost:4321');
+const allowedHosts = new Set([site.host, new URL(env.API_URL).host]);
 const expectedFonts = process.argv.find((arg) => arg.startsWith('--fonts='))?.slice(8).split(',').filter(Boolean);
 
 const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
@@ -110,8 +114,22 @@ for (const file of stylesheets) {
     if (/@import/.test(css)) errors.push(`${relative(dist, file)}: uses @import`);
 }
 
+// No `base` is configured, so the sitemap is at the root, as @astrojs/sitemap writes it.
+const robotsFile = join(dist, 'robots.txt');
+const sitemapUrl = new URL('/sitemap-index.xml', site).href;
+if (!existsSync(robotsFile)) {
+    errors.push('robots.txt: not in the build (src/pages/robots.txt.ts)');
+} else {
+    const lines = readFileSync(robotsFile, 'utf8').split('\n');
+    if (!lines.includes('User-agent: *') || !lines.includes('Allow: /')) errors.push('robots.txt: no "User-agent: *" and "Allow: /"');
+    if (lines.some((line) => /^Disallow:\s*\/\s*$/.test(line))) errors.push('robots.txt: "Disallow: /" blocks the whole site');
+    const sitemaps = lines.filter((line) => line.startsWith('Sitemap:'));
+    if (sitemaps.length !== 1 || sitemaps[0] !== `Sitemap: ${sitemapUrl}`) errors.push(`robots.txt: expected "Sitemap: ${sitemapUrl}" (from SITE_URL), got ${JSON.stringify(sitemaps)}`);
+    if (!existsSync(join(dist, 'sitemap-index.xml'))) errors.push('robots.txt: points to sitemap-index.xml, which is not in the build');
+}
+
 const loaded = [...fontsLoaded].sort();
-console.log(`${pages.length} pages, ${stylesheets.length} stylesheets checked.`);
+console.log(`${pages.length} pages, ${stylesheets.length} stylesheets and robots.txt checked (sitemap: ${sitemapUrl}).`);
 console.log(`Font files the pages load: ${loaded.length ? loaded.join(', ') : 'none'}`);
 if (expectedFonts) {
     const expected = [...new Set(expectedFonts.map((key) => FONTS[key]?.file ?? `unknown font "${key}"`))].filter(Boolean).sort();
