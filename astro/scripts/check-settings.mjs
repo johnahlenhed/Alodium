@@ -111,13 +111,17 @@ test('theme values go through theme.js and each replaced value is reported', () 
     assert.equal(normalize({ theme: { ...VALID.theme, brand: '</style><script>' } }).site.theme.brand, '#1b2a4a');
 });
 
-test('navigation: entries need a text label and a path on this site', () => {
+test('navigation: entries need a text label and a path on this site or an http(s) address', () => {
     const navigation = [
         { label: 'Home', href: '/' },
         { label: 'Protocol-relative', href: '//evil.example' },
         { label: 'Backslash', href: '/\\evil.example' },
-        { label: 'Absolute', href: 'https://evil.example/' },
+        { label: 'Shop', href: 'https://shop.example/catalogue?a=1' },
         { label: 'Script', href: 'javascript:alert(1)' },
+        { label: 'Mail', href: 'mailto:a@example.com' },
+        { label: 'FTP', href: 'ftp://example.com/' },
+        { label: 'Spaced URL', href: 'https://exa mple.com/' },
+        { label: 'Tab in scheme', href: 'java\tscript:alert(1)' },
         { label: 'Space', href: '/a b' },
         { label: '', href: '/empty-label' },
         { label: 42, href: '/number-label' },
@@ -129,9 +133,10 @@ test('navigation: entries need a text label and a path on this site', () => {
     const { site, warnings } = normalize({ navigation });
     assert.deepEqual(site.navigation, [
         { label: 'Home', href: '/' },
+        { label: 'Shop', href: 'https://shop.example/catalogue?a=1' },
         { label: 'About', href: '/about/' },
     ]);
-    assert.equal(warnings.length, 10);
+    assert.equal(warnings.length, 13);
     assert.deepEqual(normalize({ navigation: [] }).site.navigation, []);
     assert.deepEqual(normalize({ navigation: 'x' }).site.navigation, SITE_DEFAULTS.navigation);
 });
@@ -185,6 +190,17 @@ test('aria-current: the page itself, or its section', () => {
     assert.equal(currentState('/blog', '/blog/a-post/'), 'true');
     assert.equal(currentState('/', '/blog/'), undefined);
     assert.equal(currentState('/about', '/about-us/'), undefined);
+    // Blog and Contact are navigation entries with paths, matched like any page.
+    assert.equal(currentState('/contact', '/contact/'), 'page');
+    assert.equal(currentState('/blog', '/blog'), 'page');
+    // A link to another site never is, even if its path looks like this page's.
+    assert.equal(currentState('https://shop.example/blog', '/blog/'), undefined);
+    assert.equal(currentState('https://shop.example/', '/'), undefined);
+});
+
+test('an external entry is never taken for the front page', () => {
+    const site = normalize({ navigation: [{ label: 'Home', href: '/' }, { label: 'About elsewhere', href: 'https://example.com/about' }], front_page: { slug: 'about' } }).site;
+    assert.deepEqual(navigationFor(site).map((item) => item.href), ['/', 'https://example.com/about']);
 });
 
 if (failures.length) {

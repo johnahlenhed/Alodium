@@ -98,10 +98,11 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 |---|---|
 | `users` | Admin accounts. `role` enum `admin`/`editor` (column default `admin`). |
 | `posts` | Blog posts. `author_id`, `title`, `slug` (unique), `content` (sanitised HTML), `meta_title`, `meta_description`, `og_image`, `status` (`draft`/`published`), `published_at`, `publish_at` (scheduled time). |
-| `pages` | CMS pages. Same as posts plus `blocks` (JSON `{version, blocks}`; null = legacy HTML page), `show_in_nav`, `nav_order`. |
+| `pages` | CMS pages. Same as posts plus `blocks` (JSON `{version, blocks}`; null = legacy HTML page). `show_in_nav` and `nav_order` are no longer used (copied to `navigation_items`). |
+| `navigation_items` | The main navigation after Home, in `sort_order`. Each entry has either `page_id` (cascade on delete; `label` null = the page's title, hidden while the page isn't on the public site) or `url` (a path on the site such as `/blog`, or an http(s) address; `label` required). |
 | `revisions` | Snapshots before a published post/page is edited. Polymorphic `model`, `title`, `content`, `blocks`. Newest 20 kept. |
 | `media` | Spatie Media Library. Polymorphic owner, `collection_name` (`library` on users, `featured` on posts/pages, `logo` on site settings), `custom_properties` (imported images: `source_url`, `source_hash`; logo: `logo_width`, `logo_height`). |
-| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `brand_color`, `font_body`, `font_heading`, `corners`, `buttons`, `show_blog_in_nav`, `show_contact_in_nav`, `front_page_id` (null on delete). No column defaults: defaults live in `SiteSetting::defaults()`. |
+| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `brand_color`, `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
@@ -120,7 +121,7 @@ All under `/api`. Responses are JSON; `/api/*` errors are rendered as JSON.
 | `GET /public/posts/{slug}` | One post: the list fields without `excerpt`, plus `content`, `og_image`, `og_image_width`, `og_image_height`. 404 `{message}` for drafts and unknown slugs. |
 | `GET /public/pages` | Like posts, plus `blocks` (array, or null for legacy pages). |
 | `GET /public/pages/{slug}` | Like a post, plus `blocks`. A block page returns `content: ""`. |
-| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. |
+| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
 | `POST /public/contact` | Body `name, email, message, website` (honeypot). `{success: true}` or 422 errors. Sends a notification mail. |
 | `POST /collect` | Starts a visit. Returns `{visit_id, token}`. |
 | `PATCH /collect/{visit}` | Duration/scroll depth; needs the visit's `token`. `{success: true}`. |
@@ -182,9 +183,13 @@ new type to offer them:
    `serif`, `system`; corners `sharp`, `soft`, `round`; buttons `solid`,
    `outline`). Brand colour: `#rrggbb` with at least 4.5:1 contrast against
    white (`App\Rules\BrandColor`, `App\Support\ColorContrast`).
-2. Navigation pages are saved to `pages.show_in_nav/nav_order` with the query
-   builder (no `updated_at` change, no revision). The logo is the `logo`
-   collection on `SiteSetting`, with a PNG conversion at most 128 px high.
+2. The navigation entries replace the `navigation_items` rows on each save
+   (at most 14, up and down buttons in `NavigationEditor.jsx`; the pages
+   themselves are not touched, so no `updated_at` change or revision). Astro
+   gives `aria-current` to paths on the site only (`currentState()`), so
+   `/blog` and `/contact` keep it and an http(s) link never gets it. The logo
+   is the `logo` collection on `SiteSetting`, with a PNG conversion at most
+   128 px high.
 3. A rebuild is queued only if `PublicSiteSettings::payload()` differs before
    and after the save.
 4. Astro: `getSite()` in `api.js` fetches `/public/site` once per build. A
@@ -378,6 +383,13 @@ Astro (`astro/.env`, `astro/.env.production`):
   preview in an iframe; that preview was not found.
 - **Favicon**: the public site always uses the Alodium favicon, whatever logo is uploaded.
 - **Front page in the navigation**: the server returns it; only Astro removes it.
+- **Old navigation columns**: `pages.show_in_nav`, `pages.nav_order`,
+  `site_settings.show_blog_in_nav` and `show_contact_in_nav` are still in the
+  database, unused, until a later migration drops them (after the
+  `navigation_items` backfill has been checked on production).
+- **Unpublished navigation pages**: the Settings page doesn't list an entry whose
+  page isn't on the public site, so saving the settings drops it (as the old
+  `show_in_nav` flag was cleared).
 - **Reserved slugs** (`blog`, `contact`, `404`, `index`) are listed in both
   `Page::RESERVED_SLUGS` and `astro/src/pages/[slug].astro` (kept equal by a test).
 - **Role default**: `users.role` defaults to `admin` at the database level;

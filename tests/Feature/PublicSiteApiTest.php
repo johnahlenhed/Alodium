@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Models\User;
@@ -56,7 +57,7 @@ class PublicSiteApiTest extends TestCase
     public function test_the_response_has_exactly_the_documented_shape_and_no_admin_data(): void
     {
         $about = $this->makePage('About');
-        $this->save(['navigation' => [$about->id], 'front_page_id' => $about->id, 'logo' => $this->image('png', 300, 150)]);
+        $this->save(['navigation' => [...$this->pageEntries($about), ['label' => 'Shop', 'url' => 'https://shop.example.com']], 'front_page_id' => $about->id, 'logo' => $this->image('png', 300, 150)]);
 
         $json = $this->getJson('/api/public/site')->assertOk()->json();
 
@@ -77,7 +78,7 @@ class PublicSiteApiTest extends TestCase
 
         // No ids, timestamps, emails or other admin data anywhere in it.
         $raw = $this->getJson('/api/public/site')->getContent();
-        foreach (['"id"', 'created_at', 'updated_at', 'front_page_id', 'show_in_nav', 'nav_order', 'author', $this->admin->email, 'status'] as $secret) {
+        foreach (['"id"', 'created_at', 'updated_at', 'front_page_id', 'show_in_nav', 'nav_order', 'page_id', 'sort_order', 'author', $this->admin->email, 'status'] as $secret) {
             $this->assertStringNotContainsString($secret, $raw);
         }
     }
@@ -97,31 +98,51 @@ class PublicSiteApiTest extends TestCase
         $this->assertSame(['width' => 384, 'height' => 128], ['width' => $logo['width'], 'height' => $logo['height']]);
     }
 
-    public function test_navigation_order_and_the_blog_and_contact_toggles(): void
+    public function test_navigation_entries_in_any_order_with_their_own_labels(): void
     {
-        [$a, $b, $c] = [$this->makePage('Alpha'), $this->makePage('Bravo'), $this->makePage('Charlie')];
+        [$about, $services] = [$this->makePage('About'), $this->makePage('Services')];
 
-        $this->save(['navigation' => [$c->id, $a->id], 'show_blog_in_nav' => true, 'show_contact_in_nav' => true]);
+        // Blog and Contact are ordinary entries, so they can sit between pages.
+        $this->save(['navigation' => [
+            ...$this->pageEntries($about),
+            self::BLOG,
+            ['page_id' => $services->id, 'label' => 'What we do'],
+            ['label' => 'Shop', 'url' => 'https://shop.example.com/catalogue'],
+            ['label' => 'Get in touch', 'url' => '/contact'],
+        ]]);
         $this->assertSame([
             ['label' => 'Home', 'href' => '/'],
-            ['label' => 'Charlie', 'href' => '/charlie'],
-            ['label' => 'Alpha', 'href' => '/alpha'],
+            ['label' => 'About', 'href' => '/about'],
             ['label' => 'Blog', 'href' => '/blog'],
-            ['label' => 'Contact', 'href' => '/contact'],
+            ['label' => 'What we do', 'href' => '/services'],
+            ['label' => 'Shop', 'href' => 'https://shop.example.com/catalogue'],
+            ['label' => 'Get in touch', 'href' => '/contact'],
         ], $this->getJson('/api/public/site')->json('navigation'));
 
-        $this->save(['navigation' => [$a->id, $b->id, $c->id], 'show_blog_in_nav' => false, 'show_contact_in_nav' => true]);
-        $this->assertSame(['/', '/alpha', '/bravo', '/charlie', '/contact'], array_column($this->getJson('/api/public/site')->json('navigation'), 'href'));
+        // A page entry without a label of its own follows the page's title and slug.
+        $about->update(['title' => 'About us', 'slug' => 'about-us']);
+        $this->assertSame(['label' => 'About us', 'href' => '/about-us'], $this->getJson('/api/public/site')->json('navigation.1'));
 
-        $this->save(['navigation' => [], 'show_blog_in_nav' => false, 'show_contact_in_nav' => false]);
+        $this->save(['navigation' => []]);
         $this->assertSame([['label' => 'Home', 'href' => '/']], $this->getJson('/api/public/site')->json('navigation'));
+    }
+
+    public function test_a_deleted_page_leaves_the_navigation(): void
+    {
+        $about = $this->makePage('About');
+        $this->save(['navigation' => [...$this->pageEntries($about), self::BLOG]]);
+
+        $about->delete();
+
+        $this->assertSame(['/', '/blog'], array_column($this->getJson('/api/public/site')->json('navigation'), 'href'));
+        $this->assertSame(1, NavigationItem::count()); // the foreign key removed its entry
     }
 
     public function test_drafts_and_scheduled_pages_never_appear(): void
     {
         $about = $this->makePage('About');
         $soon = $this->makePage('Coming soon');
-        $this->save(['navigation' => [$about->id, $soon->id], 'front_page_id' => $soon->id]);
+        $this->save(['navigation' => [...$this->pageEntries($about, $soon), self::BLOG], 'front_page_id' => $soon->id]);
 
         // Unpublished and scheduled after they were chosen: both drop out.
         $about->update(['status' => 'draft']);
@@ -159,7 +180,7 @@ class PublicSiteApiTest extends TestCase
             'footer_text' => '</style><style>body{display:none}</style>',
         ];
         $page = $this->makePage('<em>Page</em> & co');
-        $this->save([...$values, 'navigation' => [$page->id]]);
+        $this->save([...$values, 'navigation' => [...$this->pageEntries($page), ['label' => '<b>Shop</b> & "more"', 'url' => '/shop?a=1&b=2']]]);
 
         $response = $this->getJson('/api/public/site')->assertOk()->assertHeader('Content-Type', 'application/json');
         $json = $response->json();
@@ -169,6 +190,7 @@ class PublicSiteApiTest extends TestCase
         $this->assertSame($values['site_description'], $json['description']);
         $this->assertSame($values['footer_text'], $json['footer_text']);
         $this->assertSame('<em>Page</em> & co', $json['navigation'][1]['label']);
+        $this->assertSame(['label' => '<b>Shop</b> & "more"', 'href' => '/shop?a=1&b=2'], $json['navigation'][2]);
         $this->assertStringNotContainsString('&amp;', $response->getContent());
         $this->assertStringNotContainsString('&lt;', $response->getContent());
     }
@@ -193,7 +215,7 @@ class PublicSiteApiTest extends TestCase
     public function test_the_query_count_stays_small(): void
     {
         [$a, $b] = [$this->makePage('Alpha'), $this->makePage('Bravo')];
-        $this->save(['navigation' => [$a->id, $b->id], 'front_page_id' => $a->id, 'logo' => $this->image('png', 300, 100)]);
+        $this->save(['navigation' => [...$this->pageEntries($a, $b), self::BLOG], 'front_page_id' => $a->id, 'logo' => $this->image('png', 300, 100)]);
 
         DB::flushQueryLog();
         DB::enableQueryLog();
@@ -205,11 +227,11 @@ class PublicSiteApiTest extends TestCase
         $settingsQueries = count(DB::getQueryLog());
         DB::disableQueryLog();
 
-        // API: settings row, its media, navigation pages, front page.
-        $this->assertSame(4, $apiQueries);
-        // Settings page: the settings row and its media, the pages, the shared unread count.
-        // (actingAs() skips the user lookup a real request makes from the session.)
-        $this->assertSame(4, $settingsQueries);
+        // API: settings row, its media, navigation entries, their pages (one query), front page.
+        $this->assertSame(5, $apiQueries);
+        // Settings page: the settings row and its media, the pages, the navigation entries, the
+        // shared unread count. (actingAs() skips the user lookup a real request makes from the session.)
+        $this->assertSame(5, $settingsQueries);
         fwrite(STDERR, "\n[query counts] GET /api/public/site: $apiQueries, GET /settings: $settingsQueries\n");
     }
 }

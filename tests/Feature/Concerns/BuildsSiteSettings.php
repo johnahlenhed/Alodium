@@ -9,7 +9,18 @@ use Illuminate\Http\UploadedFile;
 /** Pages, valid Settings form data and real image files for the site settings tests. */
 trait BuildsSiteSettings
 {
+    /** The Blog and Contact entries, as the navigation_items migration creates them. */
+    private const BLOG = ['label' => 'Blog', 'url' => '/blog'];
+
+    private const CONTACT = ['label' => 'Contact', 'url' => '/contact'];
+
     private ?User $author = null;
+
+    /** Navigation entries for these pages, showing their titles. */
+    private function pageEntries(Page ...$pages): array
+    {
+        return array_map(fn (Page $page) => ['page_id' => $page->id], $pages);
+    }
 
     private function makePage(string $title, array $attributes = []): Page
     {
@@ -39,8 +50,6 @@ trait BuildsSiteSettings
             'font_heading' => 'inter',
             'corners' => 'round',
             'buttons' => 'outline',
-            'show_blog_in_nav' => true,
-            'show_contact_in_nav' => false,
             'navigation' => [],
             'front_page_id' => null,
             ...$overrides,

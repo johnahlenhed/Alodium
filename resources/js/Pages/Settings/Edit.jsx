@@ -69,9 +69,13 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
         font_heading: settings.font_heading,
         corners: settings.corners,
         buttons: settings.buttons,
-        show_blog_in_nav: settings.show_blog_in_nav,
-        show_contact_in_nav: settings.show_contact_in_nav,
-        navigation: settings.navigation,
+        // `key` identifies a row in NavigationEditor; it is left out when saving.
+        navigation: settings.navigation.map((item, index) => ({
+            key: `saved-${index}`,
+            page_id: item.page_id,
+            url: item.url ?? '',
+            label: item.label ?? '',
+        })),
         front_page_id: settings.front_page_id ?? '',
         logo: null,
         remove_logo: false,
@@ -97,9 +101,13 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
             ...current,
             _method: 'put',
             front_page_id: current.front_page_id === '' ? null : Number(current.front_page_id),
+            navigation: current.navigation.map(({ page_id, url, label }) => ({ page_id, url: page_id ? null : url, label })),
         }));
         form.post(route('settings.update'), {
             preserveScroll: true,
+            // With a logo, the form goes as multipart, where Inertia writes lists as "navigation[][label]"
+            // by default: PHP then reads every field as an entry of its own. Indices keep each entry together.
+            queryStringArrayFormat: 'indices',
             onSuccess: () => {
                 setData((current) => ({ ...current, logo: null, remove_logo: false }));
                 setNewLogoUrl(null);
@@ -242,16 +250,16 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                     />
                 </Section>
 
-                <Section title="Navigation" description="The links in the public site's header and footer. Only published pages can be added.">
+                <Section
+                    title="Navigation"
+                    description="The links in the public site's header and footer, after Home. Each one goes to a published page or to an address: a path on this site, such as /blog, or another website."
+                >
                     <NavigationEditor
                         pages={pages}
-                        selected={data.navigation}
+                        items={data.navigation}
                         onChange={(navigation) => setData('navigation', navigation)}
-                        showBlog={data.show_blog_in_nav}
-                        onShowBlog={(value) => setData('show_blog_in_nav', value)}
-                        showContact={data.show_contact_in_nav}
-                        onShowContact={(value) => setData('show_contact_in_nav', value)}
                         max={options.maxNavigation}
+                        frontPageId={data.front_page_id === '' ? null : Number(data.front_page_id)}
                         errors={errors}
                     />
                 </Section>

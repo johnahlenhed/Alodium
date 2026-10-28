@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Support\ColorContrast;
@@ -28,7 +29,7 @@ class PublicSiteSettings
             'show_site_name' => $settings->show_site_name,
             'theme' => $this->theme($settings),
             'logo' => $this->logo($settings),
-            'navigation' => $this->navigation($settings),
+            'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),
         ];
     }
@@ -71,26 +72,30 @@ class PublicSiteSettings
     }
 
     /**
-     * Home, the chosen pages in their order, then Blog and Contact when enabled.
-     * Only pages on the public site; hrefs without a trailing slash, like the
-     * links in the Astro templates.
+     * Home, then the navigation entries in their order. A page entry links to the
+     * page (hrefs without a trailing slash, like the links in the Astro
+     * templates) with its own label or else the page's title; it is left out
+     * while the page isn't on the public site. A URL entry is a path on the site
+     * (Blog is "/blog") or an http(s) address.
      */
-    private function navigation(SiteSetting $settings): array
+    private function navigation(): array
     {
-        $pages = Page::onPublicSite()
-            ->where('show_in_nav', true)
-            ->orderBy('nav_order')
+        $entries = NavigationItem::query()
+            ->with(['page' => fn ($query) => $query->onPublicSite()->select(['id', 'title', 'slug'])])
+            ->orderBy('sort_order')
             ->orderBy('id')
-            ->get(['title', 'slug'])
-            ->map(fn (Page $page) => ['label' => $page->title, 'href' => '/'.$page->slug])
+            ->get()
+            ->flatMap(function (NavigationItem $item) {
+                if ($item->page_id !== null) {
+                    return $item->page ? [['label' => $item->label ?? $item->page->title, 'href' => '/'.$item->page->slug]] : [];
+                }
+
+                // Validated on save; an incomplete row changed in the database is left out.
+                return filled($item->label) && filled($item->url) ? [['label' => $item->label, 'href' => $item->url]] : [];
+            })
             ->all();
 
-        return [
-            ['label' => 'Home', 'href' => '/'],
-            ...$pages,
-            ...($settings->show_blog_in_nav ? [['label' => 'Blog', 'href' => '/blog']] : []),
-            ...($settings->show_contact_in_nav ? [['label' => 'Contact', 'href' => '/contact']] : []),
-        ];
+        return [['label' => 'Home', 'href' => '/'], ...$entries];
     }
 
     /** null means "latest posts": none chosen, or the page is no longer on the site. */
