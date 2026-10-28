@@ -14,6 +14,12 @@ class HeroBlock extends BlockType
         return 'hero';
     }
 
+    /** "default" is the brand colour, so there is no separate "brand". */
+    public function variants(): array
+    {
+        return ['default', 'light', 'dark'];
+    }
+
     public function rules(): array
     {
         return [
@@ -22,6 +28,7 @@ class HeroBlock extends BlockType
             'image' => ['nullable', new MediaUrl],
             'button_label' => ['nullable', 'string', 'max:60'],
             'button_url' => ['nullable', new SafeLink],
+            'variant' => $this->variantRule(),
         ];
     }
 
@@ -33,6 +40,7 @@ class HeroBlock extends BlockType
             'image' => 'hero image',
             'button_label' => 'hero button label',
             'button_url' => 'hero button URL',
+            'variant' => 'hero background',
         ];
     }
 
@@ -44,6 +52,7 @@ class HeroBlock extends BlockType
             'image' => $this->text($data, 'image'),
             'button_label' => $this->text($data, 'button_label'),
             'button_url' => $this->text($data, 'button_url'),
+            'variant' => $this->variant($data),
         ];
     }
 

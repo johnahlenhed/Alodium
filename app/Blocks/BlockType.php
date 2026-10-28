@@ -10,6 +10,14 @@ use App\Services\ContentSanitizer;
  */
 abstract class BlockType
 {
+    /**
+     * Background treatments (data.variant), styled in astro/src/styles/blocks.css
+     * as .block--light, .block--brand and .block--dark. "default" adds none. A
+     * type lists the ones it offers in variants(); every colour pair they create
+     * is checked by astro/scripts/check-contrast.mjs.
+     */
+    public const VARIANTS = ['default', 'light', 'brand', 'dark'];
+
     /** Stored in each block's "type", e.g. "hero". */
     abstract public function name(): string;
 
@@ -37,6 +45,12 @@ abstract class BlockType
         return [];
     }
 
+    /** The variants this type offers (a subset of VARIANTS), or none. */
+    public function variants(): array
+    {
+        return [];
+    }
+
     /** Readable text, for excerpts and descriptions. */
     public function plainText(array $data): string
     {
@@ -49,6 +63,18 @@ abstract class BlockType
         $value = $data[$key] ?? null;
 
         return $value === null || $value === '' ? null : (string) $value;
+    }
+
+    /** The rule for data.variant: optional, one of this type's variants. */
+    protected function variantRule(): array
+    {
+        return ['nullable', 'in:'.implode(',', $this->variants())];
+    }
+
+    /** The variant to store: the validated value, or "default" when it is missing. */
+    protected function variant(array $data): string
+    {
+        return $this->text($data, 'variant') ?? 'default';
     }
 
     protected function html(array $data, string $key, ContentSanitizer $sanitizer): string

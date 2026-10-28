@@ -49,6 +49,34 @@ export function blockImageValue(item) {
     }
 }
 
+/** The background choices, as App\Blocks\BlockType::VARIANTS; each type offers a subset. */
+const VARIANT_LABELS = {
+    default: 'None',
+    light: 'Light (a pale tint of the brand colour)',
+    brand: 'Brand colour (white text)',
+    dark: 'Dark (white text)',
+};
+
+/**
+ * The block's background (data.variant). `variants` are the ones this block
+ * type offers; `defaultLabel` names what "default" looks like for it.
+ */
+export function VariantField({ id, variants, defaultLabel = VARIANT_LABELS.default, value, onChange, error }) {
+    return (
+        <div>
+            <InputLabel htmlFor={id} value="Background" />
+            <select id={id} className={inputClass} value={value || 'default'} onChange={(e) => onChange(e.target.value)}>
+                {variants.map((variant) => (
+                    <option key={variant} value={variant}>
+                        {variant === 'default' ? defaultLabel : VARIANT_LABELS[variant]}
+                    </option>
+                ))}
+            </select>
+            <InputError message={error} className="mt-1" />
+        </div>
+    );
+}
+
 export function BlockImageField({ label, description, value, onChange, error }) {
     return (
         <MediaPicker

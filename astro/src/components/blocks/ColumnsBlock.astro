@@ -1,9 +1,9 @@
 ---
-import { hasColumnContent, htmlText, safeImage } from '../../lib/blocks.js';
+import { classes, hasColumnContent, htmlText, PANEL_VARIANTS, safeImage, variantClass } from '../../lib/blocks.js';
 
 interface Props {
     id: string;
-    data: { columns: Array<{ html?: string | null; image?: string | null; alt?: string | null }> };
+    data: { columns: Array<{ html?: string | null; image?: string | null; alt?: string | null }>; variant?: string | null };
 }
 
 const { id, data } = Astro.props;
@@ -15,9 +15,10 @@ const columns = data.columns.filter(hasColumnContent).map((column) => ({
     alt: column.alt ?? '',
     html: htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? '') ? column.html : null,
 }));
+const variant = variantClass(data.variant, PANEL_VARIANTS);
 ---
 
-<section class={columns.length === 1 ? 'block block-columns block-columns--single' : 'block block-columns'} data-block-id={id}>
+<section class={classes('block', 'block-columns', columns.length === 1 && 'block-columns--single', variant && 'block--panel', variant)} data-block-id={id}>
     {
         columns.map((column) => (
             <div class="column">

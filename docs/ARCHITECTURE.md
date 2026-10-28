@@ -144,7 +144,7 @@ Types: `hero`, `text`, `image`, `columns`, `button`, `contact_form`. Max 50.
 
 | Side | Registry | Per type |
 |---|---|---|
-| Laravel | `app/Blocks/BlockRegistry.php` (`TYPES`) | a `BlockType` class in `app/Blocks/Types/` with `name()`, `rules()`, `sanitize()`, optional `attributes()` |
+| Laravel | `app/Blocks/BlockRegistry.php` (`TYPES`) | a `BlockType` class in `app/Blocks/Types/` with `name()`, `rules()`, `sanitize()`, optional `attributes()` and `variants()` |
 | Admin | `resources/js/Components/Blocks/blockTypes.js` (`BLOCK_TYPES`) | label, icon, `defaultData`, an `*Editor.jsx`, `fields`, `summary` |
 | Astro | `astro/src/components/blocks/registry.js` (`BLOCK_TYPES`) | an `.astro` component and a `check(data)` that skips the block with a build warning when it returns a reason |
 
@@ -153,6 +153,27 @@ matching CSS in `astro/src/styles/blocks.css`. The registry validates and
 normalises on save; HTML fields go through `ContentSanitizer`. Astro checks
 again at render time (`safeLink`, `safeImage`). A hero as the first rendered
 block provides the page's `<h1>` (`CmsPage.astro`).
+
+**Backgrounds (`data.variant`).** `BlockType::VARIANTS` is `default`, `light`
+(the brand tint), `brand` and `dark` (a near-black shade of the brand). The hero
+offers `default` (the brand colour), `light` and `dark`; text and columns offer
+all four; the other types none. A block missing the field is `default`. For a
+new type to offer them:
+
+1. Laravel: return the subset from `variants()`, add `'variant' =>
+   $this->variantRule()` to `rules()` and `'variant' => $this->variant($data)`
+   to `sanitize()`.
+2. Admin: `variant: 'default'` in `defaultData` and `fields`, and a
+   `VariantField` (`fields.jsx`) in the editor.
+3. Astro: `variantClass(data.variant, allowed)` from `lib/blocks.js`, which
+   only lets known names through. Text and columns also get `block--panel`:
+   the background reaches into the gutter, and the text stays in line with the
+   blocks around it.
+4. CSS: the `.block--light`, `.block--brand` and `.block--dark` rules only
+   redefine colour variables (`--color-text`, `--color-link`, `--color-surface`,
+   `--color-focus`, ...), so rich text inside follows. A new colour pair needs
+   an entry in `pairs()` in `astro/scripts/check-contrast.mjs`: the script reads
+   the colours from `blocks.css`, but checks only the pairs listed there.
 
 ## 6. Theming and site settings
 
@@ -275,7 +296,7 @@ The README requires the worker to run with `--timeout=660` and
 |---|---|---|
 | `check-theme.mjs` | `npm run check` | theme.js/fonts.js values, hostile input, font combinations |
 | `check-settings.mjs` | `npm run check` | `normalizeSite()` validation |
-| `check-contrast.mjs` | `npm run check` | WCAG contrast of every colour pair, read from `blocks.css` |
+| `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css` |
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |

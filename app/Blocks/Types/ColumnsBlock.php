@@ -16,6 +16,11 @@ class ColumnsBlock extends BlockType
         return 'columns';
     }
 
+    public function variants(): array
+    {
+        return self::VARIANTS;
+    }
+
     public function rules(): array
     {
         return [
@@ -24,6 +29,7 @@ class ColumnsBlock extends BlockType
             'columns.*.html' => ['nullable', 'string', 'max:100000'],
             'columns.*.image' => ['nullable', new MediaUrl],
             'columns.*.alt' => ['nullable', 'string', 'max:200'],
+            'variant' => $this->variantRule(),
         ];
     }
 
@@ -35,6 +41,7 @@ class ColumnsBlock extends BlockType
             'columns.*.html' => 'column :second-position text',
             'columns.*.image' => 'column :second-position image',
             'columns.*.alt' => 'column :second-position alt text',
+            'variant' => 'columns background',
         ];
     }
 
@@ -46,6 +53,7 @@ class ColumnsBlock extends BlockType
                 'image' => $this->text($column, 'image'),
                 'alt' => $this->text($column, 'alt'),
             ], array_values($data['columns'])),
+            'variant' => $this->variant($data),
         ];
     }
 
