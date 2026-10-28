@@ -20,6 +20,21 @@ export function isSitePath(href) {
     return typeof href === 'string' && href.startsWith('/') && !href.startsWith('//') && !/[\x00-\x20\x7F\\]/.test(href);
 }
 
+/**
+ * An http(s) address on another site, for navigation entries that link out
+ * (the server accepts the same: App\Rules\NavigationLink). No whitespace,
+ * backslash or control characters, as in isSitePath().
+ */
+export function isExternalUrl(href) {
+    if (typeof href !== 'string' || /[\x00-\x20\x7F\\]/.test(href)) return false;
+    try {
+        const { protocol } = new URL(href);
+        return protocol === 'http:' || protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 /** "/about/" -> "/about"; "/" stays "/". Query and fragment are ignored. */
 export function normalizePath(href) {
     const path = href.replace(/[?#].*$/, '');
@@ -98,7 +113,7 @@ function logo(value, apiOrigin, warn) {
     return { url: url.href, width: value.width, height: value.height };
 }
 
-/** Entries with a text label and a path on this site, in the order given; others are dropped. */
+/** Entries with a text label and a path on this site or an http(s) address, in the order given; others are dropped. */
 function navigation(value, warn) {
     if (!Array.isArray(value)) {
         warn('"navigation" is missing or not a list; using the default navigation.');
@@ -107,8 +122,8 @@ function navigation(value, warn) {
 
     return value.flatMap((item, index) => {
         const label = typeof item?.label === 'string' ? item.label.trim() : '';
-        if (label === '' || CONTROL_CHARACTERS.test(label) || !isSitePath(item?.href)) {
-            warn(`navigation entry ${index} is dropped: it needs a text label and an href starting with "/" (not "//").`);
+        if (label === '' || CONTROL_CHARACTERS.test(label) || !(isSitePath(item?.href) || isExternalUrl(item?.href))) {
+            warn(`navigation entry ${index} is dropped: it needs a text label, and an href starting with "/" (not "//") or an http(s) address.`);
             return [];
         }
         return [{ label, href: item.href }];
@@ -135,6 +150,9 @@ export function navigationFor(site) {
  * its section (a blog post for "Blog"), otherwise undefined (no attribute).
  */
 export function currentState(href, pathname) {
+    // A link to another site is never the current page. Paths on this site, Blog
+    // ("/blog") and Contact ("/contact") included, are matched below.
+    if (!isSitePath(href)) return undefined;
     const link = normalizePath(href);
     const page = normalizePath(pathname);
     if (page === link) return 'page';

@@ -1,11 +1,14 @@
 ---
+import { classes, PANEL_VARIANTS, variantClass } from '../../lib/blocks.js';
+
 interface Props {
     id: string;
-    data: { html: string };
+    data: { html: string; variant?: string | null };
 }
 
 const { id, data } = Astro.props;
+const variant = variantClass(data.variant, PANEL_VARIANTS);
 ---
 
 {/* Rich text, sanitised by the server (App\Services\ContentSanitizer) before it was stored. */}
-<div class="block block-text prose" data-block-id={id} set:html={data.html} />
+<div class={classes('block', 'block-text', 'prose', variant && 'block--panel', variant)} data-block-id={id} set:html={data.html} />

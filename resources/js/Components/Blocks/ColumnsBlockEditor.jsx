@@ -1,7 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import RichTextEditor from '@/Components/RichTextEditor';
-import { BlockImageField, Field } from './fields';
+import { BlockImageField, Field, VariantField } from './fields';
 
 const ALT_HINT = "Describe the image for people who can't see it, or leave it empty if it's purely decorative.";
 
@@ -47,6 +47,13 @@ export default function ColumnsBlockEditor({ blockId, data, errors, onChange }) 
                 ))}
             </div>
             <p className="text-sm text-gray-500">An empty column (no text and no image) is left out on the site.</p>
+            <VariantField
+                id={`${blockId}-variant`}
+                variants={['default', 'light', 'brand', 'dark']}
+                value={data.variant}
+                onChange={(variant) => onChange({ variant })}
+                error={errors['data.variant']}
+            />
         </div>
     );
 }

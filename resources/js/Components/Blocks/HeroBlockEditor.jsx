@@ -1,4 +1,4 @@
-import { BlockImageField, Field } from './fields';
+import { BlockImageField, Field, VariantField } from './fields';
 
 export default function HeroBlockEditor({ blockId, data, errors, onChange, isFirst }) {
     const set = (key) => (value) => onChange({ [key]: value });
@@ -30,9 +30,17 @@ export default function HeroBlockEditor({ blockId, data, errors, onChange, isFir
                 maxLength={500}
                 multiline
             />
+            <VariantField
+                id={`${blockId}-variant`}
+                variants={['default', 'light', 'dark']}
+                defaultLabel="Brand colour (white text)"
+                value={data.variant}
+                onChange={set('variant')}
+                error={errors['data.variant']}
+            />
             <BlockImageField
                 label="Background image"
-                description="Optional. Shown behind the heading, darkened so the text stays readable."
+                description="Optional. Shown behind the heading, covered in the background colour (lightened for Light) so the text stays readable."
                 value={data.image}
                 onChange={set('image')}
                 error={errors['data.image']}

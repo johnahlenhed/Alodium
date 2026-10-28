@@ -163,6 +163,46 @@ class PageBlocksTest extends TestCase
         ]])->assertSessionHasErrors(['blocks.0.data.heading', 'blocks.0.data.intro', 'blocks.1.data.style']);
     }
 
+    public function test_variants_are_stored_and_a_missing_one_becomes_default(): void
+    {
+        $page = $this->page();
+
+        $this->save($page, ['blocks' => [
+            ['type' => 'hero', 'data' => ['heading' => 'Hi', 'variant' => 'dark']],
+            ['type' => 'text', 'data' => ['html' => '<p>A</p>', 'variant' => 'brand']],
+            ['type' => 'columns', 'data' => ['variant' => 'light', 'columns' => [['html' => '<p>L</p>'], ['html' => '<p>R</p>']]]],
+            ['type' => 'text', 'data' => ['html' => '<p>B</p>']],
+            ['type' => 'text', 'data' => ['html' => '<p>C</p>', 'variant' => '']],
+        ]])->assertSessionHasNoErrors();
+
+        $this->assertSame(['dark', 'brand', 'light', 'default', 'default'], array_column(array_column($page->fresh()->blocks['blocks'], 'data'), 'variant'));
+    }
+
+    public function test_only_the_variants_a_block_type_offers_are_accepted(): void
+    {
+        $this->save($this->page(), ['blocks' => [
+            // The hero's default already is the brand colour, so it has no "brand".
+            ['type' => 'hero', 'data' => ['heading' => 'Hi', 'variant' => 'brand']],
+            ['type' => 'text', 'data' => ['html' => '<p>A</p>', 'variant' => 'neon']],
+            ['type' => 'columns', 'data' => ['variant' => ['dark'], 'columns' => [['html' => '<p>L</p>'], ['html' => '<p>R</p>']]]],
+        ]])->assertSessionHasErrors([
+            'blocks.0.data.variant' => 'The selected hero background is invalid.',
+            'blocks.1.data.variant' => 'The selected text background is invalid.',
+            'blocks.2.data.variant',
+        ]);
+    }
+
+    public function test_blocks_without_variants_ignore_the_field(): void
+    {
+        $page = $this->page();
+
+        $this->save($page, ['blocks' => [
+            ['type' => 'image', 'data' => ['image' => '/storage/1/a.jpg', 'variant' => 'dark']],
+        ]])->assertSessionHasNoErrors();
+
+        $this->assertArrayNotHasKey('variant', $page->fresh()->blocks['blocks'][0]['data']);
+    }
+
     public function test_unknown_block_type_is_rejected_with_its_name(): void
     {
         $this->save($this->page(), ['blocks' => [['type' => 'faq', 'data' => []]]])
@@ -178,7 +218,7 @@ class PageBlocksTest extends TestCase
         ]])->assertSessionHasNoErrors();
 
         $this->assertSame(
-            ['heading' => 'Hi', 'subheading' => null, 'image' => null, 'button_label' => null, 'button_url' => null],
+            ['heading' => 'Hi', 'subheading' => null, 'image' => null, 'button_label' => null, 'button_url' => null, 'variant' => 'default'],
             $page->fresh()->blocks['blocks'][0]['data'],
         );
     }

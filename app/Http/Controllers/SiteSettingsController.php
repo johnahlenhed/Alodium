@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateSiteSettingsRequest;
 use App\Jobs\RebuildAstroJob;
+use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Services\PublicSiteSettings;
@@ -23,9 +24,14 @@ class SiteSettingsController extends Controller
     {
         $settings = SiteSetting::current();
 
-        // Only pages on the public site can be chosen; ordered by title for the checkbox list.
-        $pages = Page::onPublicSite()->orderBy('title')->get(['id', 'title', 'slug', 'show_in_nav', 'nav_order']);
-        $navigation = $pages->where('show_in_nav', true)->sortBy([['nav_order', 'asc'], ['id', 'asc']])->pluck('id')->values();
+        // Only pages on the public site can be chosen; ordered by title for the page list.
+        $pages = Page::onPublicSite()->orderBy('title')->get(['id', 'title', 'slug']);
+        // A page entry whose page is off the public site is hidden there, and isn't
+        // offered here either: saving drops it (as the old show_in_nav flag was cleared).
+        $navigation = NavigationItem::query()->orderBy('sort_order')->orderBy('id')->get()
+            ->filter(fn (NavigationItem $item) => $item->page_id === null || $pages->contains('id', $item->page_id))
+            ->map(fn (NavigationItem $item) => $item->only(['page_id', 'url', 'label']))
+            ->values();
 
         // A front page that was unpublished or deleted is shown as "Latest posts",
         // which is also what the public site falls back to.
@@ -33,7 +39,8 @@ class SiteSettingsController extends Controller
 
         return Inertia::render('Settings/Edit', [
             'settings' => [
-                ...Arr::only($settings->attributesToArray(), $settings->getFillable()),
+                // The old Blog and Contact switches are navigation entries now (navigation_items).
+                ...Arr::except(Arr::only($settings->attributesToArray(), $settings->getFillable()), ['show_blog_in_nav', 'show_contact_in_nav']),
                 'front_page_id' => $frontPageMissing ? null : $settings->front_page_id,
                 'navigation' => $navigation,
             ],
@@ -45,7 +52,7 @@ class SiteSettingsController extends Controller
                 'corners' => collect(ThemeOptions::CORNERS)->map(fn (array $corner, string $value) => ['value' => $value, ...$corner])->values(),
                 'buttons' => $this->options(ThemeOptions::BUTTONS),
                 'minContrast' => ThemeOptions::MIN_BRAND_CONTRAST,
-                'maxNavigation' => UpdateSiteSettingsRequest::MAX_NAVIGATION_PAGES,
+                'maxNavigation' => UpdateSiteSettingsRequest::MAX_NAVIGATION_ITEMS,
             ],
         ]);
     }
@@ -89,19 +96,27 @@ class SiteSettingsController extends Controller
     }
 
     /**
-     * The navigation in the order given; every other page leaves it. Written with
-     * the query builder: these columns aren't content, so the pages' updated_at
-     * (their dateModified on the public site) and revisions stay untouched, and
-     * the content observer doesn't fire. update() decides about the rebuild.
+     * Replaces the navigation with the entries given, in that order. Nothing else
+     * refers to the entries, so a fresh list is simpler than matching up rows. The
+     * pages themselves aren't touched (their updated_at is their dateModified on
+     * the public site). update() decides about the rebuild.
      */
-    private function saveNavigation(array $ids): void
+    private function saveNavigation(array $items): void
     {
-        $ids = array_values(array_map('intval', $ids));
+        NavigationItem::query()->delete();
 
-        Page::query()->where('show_in_nav', true)->whereNotIn('id', $ids)->toBase()->update(['show_in_nav' => false, 'nav_order' => 0]);
-
-        foreach ($ids as $position => $id) {
-            Page::query()->whereKey($id)->toBase()->update(['show_in_nav' => true, 'nav_order' => $position + 1]);
+        // By index, not array order: validated() adds the entries rule by rule (every
+        // entry with a page_id before the ones with only a url), so the keys are right
+        // but their order isn't.
+        ksort($items);
+        foreach (array_values($items) as $position => $item) {
+            $pageId = isset($item['page_id']) ? (int) $item['page_id'] : null;
+            NavigationItem::create([
+                'page_id' => $pageId,
+                'url' => $pageId === null ? $item['url'] : null,
+                'label' => $item['label'] ?? null,
+                'sort_order' => $position + 1,
+            ]);
         }
     }
 
