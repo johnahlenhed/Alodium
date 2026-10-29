@@ -10,7 +10,9 @@ use Tests\TestCase;
 
 /**
  * Pins the exact output of /analytics, so moving its queries into a shared
- * service (used by the dashboard too) provably changes nothing.
+ * service (used by the dashboard too) provably changes nothing. One deliberate
+ * change since: Traffic sources and Top referrers use TrafficSource, like the
+ * dashboard (a source is the UTM source, else the referring host, else Direct).
  */
 class AnalyticsOutputTest extends TestCase
 {
@@ -58,10 +60,71 @@ class AnalyticsOutputTest extends TestCase
                     ['date' => '2026-10-22', 'count' => 2],
                 ])
                 ->where('topPages', self::same([['label' => '/blog/a/', 'count' => 2], ['label' => '/about/', 'count' => 1], ['label' => '/old/', 'count' => 1]]))
-                ->where('topSources', self::same([['label' => 'google', 'count' => 1]]))
+                // Was UTM-only ([google: 1]); now every visit has a source, as on the dashboard.
+                ->where('topSources', [['label' => 'Direct', 'count' => 2], ['label' => 'google', 'count' => 1], ['label' => 'news.example.com', 'count' => 1]])
                 ->where('topReferrers', self::same([['label' => 'https://news.example.com/x', 'count' => 1], ['label' => 'https://www.google.com/', 'count' => 1]]))
                 ->where('deviceBreakdown', self::same([['label' => 'desktop', 'count' => 2], ['label' => 'mobile', 'count' => 1]]))
                 ->where('topCountries', self::same([['label' => 'SE', 'count' => 2], ['label' => 'US', 'count' => 1]])));
+    }
+
+    public function test_navigation_within_the_site_is_not_a_referrer(): void
+    {
+        config(['app.public_site_url' => 'https://example.com']);
+        $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'UTC'));
+        $this->visit('2026-10-22 09:00', ['referrer' => 'https://example.com/']);
+        $this->visit('2026-10-22 09:01', ['referrer' => 'https://www.example.com/blog/a-post/']); // www. is the same site
+        $this->visit('2026-10-22 09:02', ['referrer' => 'https://example.com:443/about']);
+        $this->visit('2026-10-22 09:03', ['referrer' => 'https://shop.example.com/']); // another host
+        $this->visit('2026-10-22 09:04', ['referrer' => 'https://www.google.com/', 'utm_source' => 'newsletter']);
+
+        $this->actingAs(User::factory()->create())->get('/analytics?days=7')->assertInertia(fn ($page) => $page
+            ->where('topReferrers', [
+                ['label' => 'https://shop.example.com/', 'count' => 1],
+                ['label' => 'https://www.google.com/', 'count' => 1],
+            ])
+            ->where('topSources', [
+                ['label' => 'Your own site', 'count' => 3],
+                ['label' => 'newsletter', 'count' => 1],
+                ['label' => 'shop.example.com', 'count' => 1],
+            ]));
+    }
+
+    public function test_without_public_site_url_no_referrer_is_left_out(): void
+    {
+        config(['app.public_site_url' => null]);
+        $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'UTC'));
+        $this->visit('2026-10-22 09:00', ['referrer' => 'http://localhost:4321/']);
+
+        $this->actingAs(User::factory()->create())->get('/analytics?days=7')->assertInertia(fn ($page) => $page
+            ->where('topReferrers', [['label' => 'http://localhost:4321/', 'count' => 1]])
+            ->where('topSources', [['label' => 'localhost', 'count' => 1]]));
+    }
+
+    public function test_analytics_and_dashboard_show_the_same_traffic_sources(): void
+    {
+        config(['app.public_site_url' => 'https://example.com']);
+        $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'UTC'));
+        foreach ([
+            ['referrer' => 'https://www.google.com/search?q=x'], ['referrer' => 'https://google.com/'],
+            ['referrer' => 'https://example.com/'], ['utm_source' => 'newsletter'], [],
+            ['referrer' => 'https://news.example.org/a', 'utm_source' => ' '], // blank UTM: the referrer counts
+        ] as $i => $attributes) {
+            $this->visit("2026-10-21 10:0{$i}", $attributes);
+        }
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $analytics = $this->actingAs($admin)->get('/analytics?days=7')->viewData('page')['props']['topSources'];
+        $dashboard = $this->actingAs($admin)->get('/dashboard?days=7')->viewData('page')['props']['sources'];
+
+        $this->assertSame([
+            ['label' => 'google.com', 'count' => 2],
+            // Equal counts by label, byte order (as on the dashboard): capitals first.
+            ['label' => 'Direct', 'count' => 1],
+            ['label' => 'Your own site', 'count' => 1],
+            ['label' => 'news.example.org', 'count' => 1],
+            ['label' => 'newsletter', 'count' => 1],
+        ], $analytics);
+        $this->assertSame($analytics, $dashboard); // the dashboard shows the top 5, here all of them
     }
 
     public function test_default_period_is_30_days_and_clamped(): void

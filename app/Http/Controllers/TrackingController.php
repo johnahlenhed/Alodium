@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Visit;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Stevebauman\Location\Facades\Location;
@@ -77,10 +77,11 @@ class TrackingController extends Controller
     }
 
     /**
-     * Resolve a country code from the IP. The IP itself is never stored: only the
-     * resulting country code reaches the visits table. Lookups are cached per IP
-     * (keyed by hash) so repeat visitors don't trigger another external request,
-     * and any failure just yields null so tracking is never blocked by geolocation.
+     * Resolve a country code from the IP with the local GeoIP database. The IP
+     * itself is never stored: only the resulting country code reaches the visits
+     * table. Lookups are cached per IP (keyed by hash); a null result is not
+     * cached, so visitors get a country as soon as a missing database is
+     * installed. Any failure yields null, so geolocation never blocks tracking.
      */
     private function countryFor(?string $ip): ?string
     {
@@ -89,11 +90,14 @@ class TrackingController extends Controller
         }
 
         try {
-            return Cache::remember(
-                'geo:'.sha1($ip),
-                now()->addDay(),
-                fn () => Location::get($ip)?->countryCode ?: null,
-            );
+            return Cache::remember('geo:'.sha1($ip), now()->addDay(), function () use ($ip) {
+                // false is "no result": the address isn't in the database (local and
+                // private ones never are), or there is no database to read. The
+                // dashboard's Site status warns about the second (SiteStatus::geoip()).
+                $position = Location::get($ip);
+
+                return $position === false ? null : ($position->countryCode ?: null);
+            });
         } catch (Throwable) {
             return null;
         }

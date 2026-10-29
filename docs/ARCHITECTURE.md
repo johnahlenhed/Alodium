@@ -87,7 +87,7 @@ tests/
   Unit/              pure tests (PublicAddressTest, AddDomainScriptTest)
   Fakes/             fake DNS and HTTP for the image downloader
   Fixtures/          brand-colours.json and the script that generates it
-deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-5 on a
+deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-6 on a
                      new server) and check-add-domain.sh
 docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 ```
@@ -229,6 +229,7 @@ mail; they cannot change their own role or delete themselves there.
 | `content:publish-scheduled` | every minute | publishes due drafts with `publish_at` |
 | `db:backup` | daily 02:00 | `mysqldump` to `storage/app/backups`, keeps 30; optional encrypted off-server copy |
 | `media:backup-remote` | daily 02:30 | copies new/changed files from `storage/app/public` off-server (when configured) |
+| `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) warns when the file is missing, unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
 
@@ -296,8 +297,9 @@ The README requires the worker to run with `--timeout=660` and
   state (poll timing and back-off, stall detection, milestones, reason
   mapping and grouping, formatting).
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
-- `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes exactly
-  the env block and plain-HTTP Nginx config of README sections 4 and 5. `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
+- `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes and runs
+  exactly what README sections 4 to 6 describe: the env block, the plain-HTTP
+  Nginx config, the `MAXMIND_LICENSE_KEY` line and the GeoIP download commands. `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
 - In `astro/` (no test framework):
 
 | Script | npm command | Checks |
@@ -319,14 +321,14 @@ variables (`APP_*`, `DB_*`, `MAIL_*`, `SESSION_*`, `CACHE_STORE`,
 | Variable | Purpose |
 |---|---|
 | `APP_URL` | Laravel origin; also makes `/storage/` image paths absolute in the API |
-| `PUBLIC_SITE_URL` | public site address for the dashboard (links, own-site referrers) |
+| `PUBLIC_SITE_URL` | public site address: the dashboard's links, and its host (with or without `www.`) marks referrers as navigation within the site ("Your own site" in Traffic sources, left out of Top referrers on `/analytics`). Unset: nothing counts as internal |
 | `ASTRO_REBUILD_SCRIPT` | path to the rebuild script; empty skips rebuilds |
 | `WEBHOOK_SECRET` | secret for `POST /api/webhook/rebuild`; empty disables it |
 | `DB_QUEUE_RETRY_AFTER` | must exceed the worker timeout (660) |
 | `AUTH_REGISTRATION` | allow public registration (default: off in production) |
 | `CONTACT_NOTIFY_EMAIL` | recipient of contact form mails (falls back to the from address) |
 | `RESEND_API_KEY` | Resend mail transport |
-| `MAXMIND_LICENSE_KEY` | downloading the GeoLite2 country database |
+| `MAXMIND_LICENSE_KEY` | downloading the GeoLite2 country database (README step 6, then monthly by the scheduler); without the database visits get no country |
 | `SENTRY_LARAVEL_DSN`, `SENTRY_TRACES_SAMPLE_RATE` | error reporting (nothing without a DSN) |
 | `DB_BACKUP_PATH`, `DB_BACKUP_KEEP`, `DB_BACKUP_REMOTE_KEEP` | local backup folder and how many backups to keep |
 | `BACKUP_S3_KEY`, `_SECRET`, `_REGION`, `_BUCKET`, `_ENDPOINT`, `_USE_PATH_STYLE` | off-server backup bucket |

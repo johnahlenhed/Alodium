@@ -38,12 +38,24 @@ class DashboardTest extends TestCase
         // Never read or write the real log or backups.
         $this->dir = sys_get_temp_dir().'/alodium-dashboard-test-'.uniqid();
         File::ensureDirectoryExists($this->dir.'/backups');
+        File::ensureDirectoryExists($this->dir.'/geoip');
         config([
             'services.astro.rebuild_log' => $this->dir.'/astro-rebuild.log',
             'database.backups.path' => $this->dir.'/backups',
             'app.public_site_url' => 'https://example.com',
+            'location.maxmind.local.path' => $this->dir.'/geoip/GeoLite2-Country.mmdb',
         ]);
         $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'UTC'));
+        // A healthy site has the GeoIP database (MaxMind's test file), updated recently.
+        $this->installGeoIp(daysAgo: 3);
+    }
+
+    private function installGeoIp(int $daysAgo): void
+    {
+        $path = config('location.maxmind.local.path');
+        copy(__DIR__.'/../Fixtures/geoip/GeoIP2-Country-Test.mmdb', $path);
+        // The test's clock (travelTo), not the real time the file was copied.
+        touch($path, now()->subDays($daysAgo)->getTimestamp());
     }
 
     protected function tearDown(): void
@@ -359,6 +371,41 @@ class DashboardTest extends TestCase
         $this->log("Rebuild complete at Mon Oct 20 02:00:00 UTC 2026\n".str_repeat("noise line\n", 1000));
 
         $this->assertNull(app(SiteStatus::class)->lastRebuild());
+    }
+
+    public function test_a_missing_geoip_database_warns_on_the_dashboard(): void
+    {
+        unlink(config('location.maxmind.local.path'));
+
+        $this->actingAs($this->admin)->get('/dashboard')->assertInertia(fn ($page) => $page
+            ->where('siteStatus.geoip', ['present' => false, 'readable' => false, 'updatedAt' => null, 'ageHours' => null])
+            ->where('siteStatus.warnings', ['The GeoIP database is missing, so visits are recorded without a country. Install it as described in the README (deployment step 6).']));
+    }
+
+    public function test_a_geoip_file_that_is_not_a_database_warns(): void
+    {
+        // For example an error page saved in its place, or a cut-off download.
+        file_put_contents(config('location.maxmind.local.path'), '<html>401 Unauthorized</html>');
+
+        $summary = app(SiteStatus::class)->summary();
+        $this->assertSame(['present' => true, 'readable' => false, 'updatedAt' => null, 'ageHours' => null], $summary['geoip']);
+        $this->assertStringContainsString("can't be read", $summary['warnings'][0]);
+    }
+
+    public function test_geoip_database_age_threshold(): void
+    {
+        $this->installGeoIp(daysAgo: 44);
+        $summary = app(SiteStatus::class)->summary();
+        $this->assertTrue($summary['geoip']['readable']);
+        $this->assertSame('2026-09-08T12:00:00+00:00', $summary['geoip']['updatedAt']);
+        $this->assertSame(44.0 * 24, $summary['geoip']['ageHours']);
+        $this->assertSame([], $summary['warnings']);
+
+        $this->installGeoIp(daysAgo: 46);
+        $this->assertSame(
+            ['The GeoIP database has not been updated for more than 45 days. Check MAXMIND_LICENSE_KEY and the scheduler.'],
+            app(SiteStatus::class)->summary()['warnings'],
+        );
     }
 
     public function test_backup_age_threshold_and_failed_jobs_warnings(): void

@@ -68,28 +68,7 @@ Visit `http://localhost:8000`.
 
 ## GeoIP database (analytics country lookup)
 
-Alodium resolves each visitor's country from their IP using the **MaxMind GeoLite2-Country** database, read locally on your server. No visitor IP is ever sent to a third-party service, and IPs are never stored — only the resulting country code.
-
-The database file is **not included in the repository**: it is too large to commit and MaxMind's licence does not allow redistributing it. Download it once and place it at:
-
-```
-storage/app/geoip/GeoLite2-Country.mmdb
-```
-
-1. Create a free account at [maxmind.com](https://www.maxmind.com/en/geolite2/signup) and generate a license key.
-2. Add it to `.env`: `MAXMIND_LICENSE_KEY=your-key`
-3. Download it:
-
-```bash
-mkdir -p storage/app/geoip
-php artisan location:update
-```
-
-Or download the `GeoLite2 Country` (`.mmdb`) file manually from your MaxMind account and copy it to the path above. MaxMind updates the database regularly, so re-run `php artisan location:update` now and then (e.g. monthly via a scheduled task).
-
-Without the file everything still works; visits are simply recorded without a country.
-
-This product includes GeoLite2 data created by MaxMind, available from [https://www.maxmind.com](https://www.maxmind.com).
+Visitor countries come from the MaxMind GeoLite2-Country database, read locally; it is not in the repository. Locally it is optional: without it, visits are recorded without a country and the dashboard's Site status says so. To install it, follow [deployment step 6](#6-geoip-database-visitor-countries) from the project root (without `sudo -u www-data`).
 
 ## Deployment
 
@@ -210,6 +189,9 @@ Edit `.env` for production. At minimum:
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://ADMIN_DOMAIN
+# The public site: the dashboard's "View site" link, and visits from its own pages
+# count as navigation within the site, not as referrals (analytics).
+PUBLIC_SITE_URL=https://SITE_DOMAIN
 
 DB_CONNECTION=mysql
 DB_DATABASE=alodium
@@ -271,11 +253,11 @@ scp -r public/build/* root@SERVER:/var/www/alodium/public/build/
 
 Use `public/build/*`, not `public/build`. `scp -r public/build` would create `public/build/build/` on the server.
 
-For visitor countries in analytics, install the MaxMind database as described in [GeoIP database](#geoip-database-analytics-country-lookup).
+Visitor countries in the analytics need the MaxMind database: that is [step 6](#6-geoip-database-visitor-countries), after HTTPS.
 
 ### 4. Astro public site
 
-`deploy/add-domain.sh` automates this section and the next one on a new server (`--help` explains it). Its `setup` step writes `.env.production` and creates `astro-public`, but doesn't run `npm install`.
+`deploy/add-domain.sh` automates this section, the next one and step 6 (GeoIP) on a new server (`--help` explains it). Its `setup` step writes `.env.production` and creates `astro-public`, but doesn't run `npm install`.
 
 ```bash
 cd /var/www/alodium/astro
@@ -392,7 +374,7 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 ```
 
-If a firewall is active (`ufw`, or the hosting provider's firewall), open ports 22, 80 and 443. Port 8080 should stay closed. See [Server hardening](#11-server-hardening).
+If a firewall is active (`ufw`, or the hosting provider's firewall), open ports 22, 80 and 443. Port 8080 should stay closed. See [Server hardening](#12-server-hardening).
 
 #### HTTPS (Let's Encrypt)
 
@@ -440,7 +422,39 @@ Certbot writes the redirect as `if ($host = ...)` lines in one port 80 block per
 
 Test both sites in a browser: `https://SITE_DOMAIN` and `https://ADMIN_DOMAIN`. Optionally, check the HTTPS setup at [ssllabs.com/ssltest](https://www.ssllabs.com/ssltest/). Certbot renews the certificate automatically.
 
-### 6. Queue worker (Supervisor)
+### 6. GeoIP database (visitor countries)
+
+The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** warns while the file is missing.
+
+**One MaxMind account per client.** Every deployment uses a free MaxMind account and license key of its own, belonging to that client, never a key shared between clients: each install is then the client's own use of the GeoLite2 data, under MaxMind's terms.
+
+`deploy/add-domain.sh geoip --maxmind-key -` does steps 2 and 3 below: it asks for the key without showing it, writes it into `.env`, refreshes the config cache and downloads the database. Without a key it only explains where to get one. `deploy/add-domain.sh all` runs it too.
+
+1. Sign up for a free GeoLite account at [maxmind.com](https://www.maxmind.com/en/geolite2/signup), with the client's details. Log in, and in the account's GeoIP / GeoLite menu generate a license key.
+2. Add it to `.env`, then refresh the config cache:
+
+   ```ini
+   MAXMIND_LICENSE_KEY=your-key
+   ```
+
+   ```bash
+   cd /var/www/alodium
+   php artisan config:cache
+   ```
+
+3. Download the database as `www-data`, so the monthly update (below) can replace the file later:
+
+   ```bash
+   sudo -u www-data mkdir -p storage/app/geoip
+   sudo -u www-data php artisan location:update
+   ls -l storage/app/geoip/GeoLite2-Country.mmdb   # about 9 MB, owned by www-data
+   ```
+
+The scheduler (step 8) runs `location:update` on the 1st of every month at 03:00, as long as `MAXMIND_LICENSE_KEY` is set; MaxMind's licence expects the data to be kept up to date. The dashboard warns if the file hasn't been updated for more than 45 days.
+
+This product includes GeoLite2 data created by MaxMind, available from [https://www.maxmind.com](https://www.maxmind.com).
+
+### 7. Queue worker (Supervisor)
 
 The queue runs Astro rebuilds and other background work.
 
@@ -473,7 +487,7 @@ supervisorctl update
 supervisorctl status   # alodium-worker_00 should be RUNNING
 ```
 
-### 7. Scheduler (cron)
+### 8. Scheduler (cron)
 
 ```bash
 crontab -u www-data -e
@@ -483,9 +497,9 @@ crontab -u www-data -e
 * * * * * cd /var/www/alodium && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-The scheduler runs `content:publish-scheduled` every minute. It publishes posts and pages whose scheduled time has passed, which then triggers an Astro rebuild. Without this cron entry, scheduled content is never published.
+The scheduler runs `content:publish-scheduled` every minute. It publishes posts and pages whose scheduled time has passed, which then triggers an Astro rebuild. Without this cron entry, scheduled content is never published. It also runs the database backups (step 10) and, monthly, the GeoIP database update (step 6).
 
-### 8. Automatic Astro rebuilds
+### 9. Automatic Astro rebuilds
 
 The Astro site is static. It is rebuilt automatically whenever a change becomes visible publicly: content is published, a published post or page is edited, unpublished or deleted, or WordPress content is imported. Rebuilds run on the queue, so saving in the editor never waits for a build. Several changes in a row result in one build, and two builds never run at the same time.
 
@@ -539,9 +553,9 @@ The response is `202 Accepted`, and the build runs in the background. Check prog
 
 A failed build is retried once. The live site keeps the previous version until a build succeeds. Then open `https://SITE_DOMAIN`.
 
-### 9. Database backups
+### 10. Database backups
 
-`php artisan db:backup` runs every day at 02:00 UTC through the scheduler (step 7). It writes a compressed dump to `storage/app/backups/alodium-backup-YYYY-MM-DD-HHMM.sql.gz` and keeps the newest 30. A backup counts as successful only if `mysqldump` exits cleanly and the dump is complete. Failures are logged to `storage/logs/laravel.log` at error level.
+`php artisan db:backup` runs every day at 02:00 UTC through the scheduler (step 8). It writes a compressed dump to `storage/app/backups/alodium-backup-YYYY-MM-DD-HHMM.sql.gz` and keeps the newest 30. A backup counts as successful only if `mysqldump` exits cleanly and the dump is complete. Failures are logged to `storage/logs/laravel.log` at error level.
 
 Backup files are readable only by `www-data` (they contain user accounts and password hashes). Make a manual backup as that user, so the file gets the same owner:
 
@@ -567,7 +581,7 @@ php artisan up
 
 Replace `<DB_USERNAME>` with the `DB_USERNAME` from your `.env`. `mysql` asks for its `DB_PASSWORD`.
 
-The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. After restoring, trigger an Astro rebuild with the webhook (step 8) so the public site matches the restored content.
+The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. After restoring, trigger an Astro rebuild with the webhook (step 9) so the public site matches the restored content.
 
 #### Off-server copies (recommended)
 
@@ -651,11 +665,11 @@ rm alodium-backup-YYYY-MM-DD-0200.sql.gz          # the decrypted copy
 If the server is lost:
 
 1. Create a new droplet.
-2. Follow deployment steps 1–8 and 11, and point the DNS records at the new server's IP address (Certbot then issues a new certificate).
+2. Follow deployment steps 1–9 and 12, and point the DNS records at the new server's IP address (Certbot then issues a new certificate).
 3. Restore the latest backup as described in "Restoring from a remote backup" above.
-4. Re-add the `.env` values from the password manager: `APP_KEY`, the database password (`DB_PASSWORD`), S3 credentials, encryption passphrase, Resend, Sentry and the webhook secret. Then run `php artisan config:cache`. Use the old `APP_KEY`, not the one `key:generate` created on the new server. Without it, every session is invalidated and anything Laravel encrypted becomes unreadable. Save these values outside the server, so they survive its loss.
+4. Re-add the `.env` values from the password manager: `APP_KEY`, the database password (`DB_PASSWORD`), S3 credentials, encryption passphrase, Resend, Sentry, the webhook secret and `MAXMIND_LICENSE_KEY`. Then run `php artisan config:cache`. Use the old `APP_KEY`, not the one `key:generate` created on the new server. Without it, every session is invalidated and anything Laravel encrypted becomes unreadable. Save these values outside the server, so they survive its loss.
 5. Restore uploaded media (see below).
-6. Trigger an Astro rebuild with the webhook (step 8).
+6. Trigger an Astro rebuild with the webhook (step 9).
 
 #### What the backups don't cover
 
@@ -699,7 +713,7 @@ Restore the database first: Spatie's `media` table says which files belong to wh
 sudo -u www-data php artisan media-library:regenerate
 ```
 
-### 10. Sentry error monitoring (optional)
+### 11. Sentry error monitoring (optional)
 
 Sentry collects unhandled errors from production in a dashboard, with stack traces and request details. It covers both Laravel and the admin panel in the browser. It is only active when `APP_ENV=production`, so local and test errors are never sent.
 
@@ -727,7 +741,7 @@ Notes:
 - Personal data (IP addresses, user e-mails) is not sent by default (`send_default_pii` is off in `config/sentry.php`). This keeps the privacy-first analytics promise.
 - Profiling (`SENTRY_PROFILES_SAMPLE_RATE`, default 0.1) needs the PHP `excimer` extension. Without it, profiling is simply skipped.
 
-### 11. Server hardening
+### 12. Server hardening
 
 **Firewall.** Allow SSH *before* enabling the firewall, or the current session is locked out:
 
@@ -786,14 +800,14 @@ unattended-upgrade --dry-run -d 2>&1 | grep 'Allowed origins'
 ss -ltnp | grep 3306   # 127.0.0.1:3306, not 0.0.0.0:3306
 ```
 
-**Cron.** The scheduler entry (step 7) must exist only for `www-data`, not also for root. Otherwise every scheduled job (publishing, backups) runs twice:
+**Cron.** The scheduler entry (step 8) must exist only for `www-data`, not also for root. Otherwise every scheduled job (publishing, backups) runs twice:
 
 ```bash
 crontab -u www-data -l   # contains schedule:run
 crontab -l               # as root: must not contain schedule:run
 ```
 
-### 12. Users and roles
+### 13. Users and roles
 
 There are two roles:
 
@@ -802,13 +816,13 @@ There are two roles:
 
 Admins create users on the **Users** page (name, email and role). The new user gets an invitation email with a link to set their password. The link is valid for 60 minutes. After that, "Forgot your password?" on the login page sends a new one. This needs working email (see [Email (Resend)](#email-resend) in step 3). Roles can be changed on the same page.
 
-### 13. WordPress import
+### 14. WordPress import
 
 Admins import a WordPress export (**Tools > Export > All content**, an XML file of up to 20 MB) on the **Import** page. Published posts and pages stay published, drafts stay drafts, and items whose slug already exists are skipped, so an import can be run again.
 
 **Download images from the old site** (checked by default) copies the images used in posts and pages, and the featured images, into the media library, and points the content at the copies. Only images on the exported site's own addresses are copied (`base_site_url`, `base_blog_url` and the attachments' hosts); images hosted elsewhere stay where they are. Unchecked, only the text is imported, and featured images are not copied either. Links to attachment pages and other files on the old site are not changed.
 
-The images are downloaded after the upload, on the queue, so **the queue worker must be running** (`alodium-worker`, step 6). The import's page shows the progress and, when it is done, every skipped image with its reason. If nothing moves for a minute, check `supervisorctl status`. The limits are set in `config/import.php` and can be changed in `.env`:
+The images are downloaded after the upload, on the queue, so **the queue worker must be running** (`alodium-worker`, step 7). The import's page shows the progress and, when it is done, every skipped image with its reason. If nothing moves for a minute, check `supervisorctl status`. The limits are set in `config/import.php` and can be changed in `.env`:
 
 | Limit | Default | Variable |
 |---|---|---|
@@ -881,7 +895,7 @@ Publishing, editing, unpublishing or deleting posts and pages in the admin panel
 |---|---|
 | Astro build fails with `Cannot find module` | `astro/node_modules` is gitignored. Run `npm install --legacy-peer-deps` in `astro/` after every deploy. |
 | Astro build fails with an out-of-memory error | No swap on a 1 GB server. See [Swap file](#2-swap-file). |
-| Astro build fails with `EACCES` under `/var/www/.config` | www-data's home is not writable. See step 8. |
+| Astro build fails with `EACCES` under `/var/www/.config` | www-data's home is not writable. See step 9. |
 | Public site shows old or placeholder content | `astro/.env.production` is missing or points to the wrong `API_URL`. It is gitignored and must be created on the server. |
 | Rebuilds never happen | The worker is not running (`supervisorctl status`), `ASTRO_REBUILD_SCRIPT` is not set, or `config:cache` was not run after editing `.env`. |
 | Build is killed after 60 seconds | The worker is missing `--timeout=660`. |

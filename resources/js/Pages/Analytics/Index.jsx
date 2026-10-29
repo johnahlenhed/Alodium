@@ -111,7 +111,7 @@ export default function Index({
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         <TableCard title="Top pages" keyLabel="Page" rows={topPages} />
-                        <TableCard title="Traffic sources" keyLabel="UTM source" rows={topSources} />
+                        <TableCard title="Traffic sources" keyLabel="Source" rows={topSources} />
                         <TableCard title="Top referrers" keyLabel="Referrer" rows={topReferrers} />
                         <TableCard title="Devices" keyLabel="Device" rows={deviceBreakdown} />
                         <TableCard title="Countries" keyLabel="Country" rows={topCountries} />

@@ -1,13 +1,14 @@
 #!/bin/bash
-# Checks that deploy/add-domain.sh writes exactly what README.md sections 4 and 5
-# say to write by hand: the astro/.env.production block and the plain-HTTP Nginx
-# config. If one of them changes, change the other too. (robots.txt is not
+# Checks that deploy/add-domain.sh writes and runs exactly what README.md sections
+# 4, 5 and 6 say to do by hand: the astro/.env.production block, the plain-HTTP
+# Nginx config, the MAXMIND_LICENSE_KEY line and the GeoIP download commands. If
+# one of them changes, change the other too. (robots.txt is not
 # written by hand any more: astro/src/pages/robots.txt.ts builds it, and
 # astro/scripts/check-build.mjs checks it.)
 #
 #   deploy/check-add-domain.sh [README.md] [add-domain.sh]
 #
-# Exit 0 when both match; 1 with a diff for each one that doesn't, or if a
+# Exit 0 when all of them match; 1 with a diff for each one that doesn't, or if a
 # block can't be found in the README. Runs with `php artisan test`
 # (tests/Unit/AddDomainScriptTest.php). Needs no root and changes nothing: it
 # sources add-domain.sh, which then only defines the functions that generate
@@ -29,11 +30,14 @@ SITE=client.example
 # The README's blocks, found by the text around them.
 readme_env() { awk '/^### 4\. / { s = 1 } /^### 5\. / { exit } s && /^```ini$/ { g = 1; next } g && /^```$/ { exit } g' "$README"; }
 readme_nginx() { awk '/^### 5\. / { s = 1 } /^### 6\. / { exit } s && /^`\/etc\/nginx\/sites-available\/alodium`:$/ { f = 1; next } f && /^```nginx$/ { g = 1; next } g && /^```$/ { exit } g' "$README"; }
+# Section 6's blocks are indented (they are in a numbered list).
+readme_geoip_env() { awk '/^### 6\. / { s = 1 } /^### 7\. / { exit } s && /^ *```ini$/ { g = 1; next } g && /^ *```$/ { exit } g { sub(/^ +/, ""); print }' "$README"; }
+readme_geoip_commands() { awk '/^### 6\. / { s = 1 } /^### 7\. / { exit } s && /^ *sudo -u www-data / { sub(/^ +/, ""); sub(/ +#.*$/, ""); print }' "$README"; }
 
 set -- # the sourced script would otherwise see this script's arguments
 # shellcheck source=SCRIPTDIR/add-domain.sh
 source "$SCRIPT"
-for fn in env_content nginx_content; do
+for fn in env_content nginx_content maxmind_env_line geoip_commands; do
     declare -F "$fn" > /dev/null || { echo "check-add-domain: $SCRIPT no longer defines $fn()" >&2; exit 1; }
 done
 
@@ -59,5 +63,8 @@ compare() {
 
 compare "astro/.env.production (section 4)" "$(readme_env)" "$(env_content "$ADMIN" "$SITE")"
 compare "Nginx config, plain HTTP (section 5)" "$(readme_nginx)" "$(nginx_content "$ADMIN" "$SITE")"
+# The README's placeholder key on both sides.
+compare "MAXMIND_LICENSE_KEY line (section 6)" "$(readme_geoip_env)" "$(maxmind_env_line your-key)"
+compare "GeoIP download commands (section 6)" "$(readme_geoip_commands)" "$(geoip_commands)"
 
 exit $failed
