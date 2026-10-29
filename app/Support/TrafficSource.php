@@ -27,6 +27,14 @@ class TrafficSource
         return $ownHost !== null && $host === self::host($ownHost) ? self::INTERNAL : $host;
     }
 
+    /** The public site's host (PUBLIC_SITE_URL), or null when it isn't set: then nothing counts as internal. */
+    public static function ownHost(): ?string
+    {
+        $url = config('app.public_site_url');
+
+        return $url ? self::host($url) : null;
+    }
+
     /** "https://www.Google.com/search?q=x" -> "google.com". Accepts "google.com" without a scheme too. */
     public static function host(?string $url): ?string
     {
@@ -62,6 +70,35 @@ class TrafficSource
             $top[] = ['label' => (string) $label, 'count' => $count];
         }
         // Most views first; equal counts by name, so the order is stable.
+        usort($top, fn ($a, $b) => [$b['count'], $a['label']] <=> [$a['count'], $b['label']]);
+
+        return array_slice($top, 0, $limit);
+    }
+
+    /**
+     * The top referring URLs from the same rows, as stored (full URL), leaving out
+     * the site's own pages: a referrer on $ownHost is navigation within the site,
+     * not a referral.
+     *
+     * @param  iterable<array{utm_source: ?string, referrer: ?string, count: int}>  $rows
+     * @return list<array{label: string, count: int}>
+     */
+    public static function topReferrers(iterable $rows, int $limit = 10, ?string $ownHost = null): array
+    {
+        $own = $ownHost !== null ? self::host($ownHost) : null;
+        $totals = [];
+        foreach ($rows as $row) {
+            $referrer = trim((string) $row['referrer']);
+            if ($referrer === '' || ($own !== null && self::host($referrer) === $own)) {
+                continue;
+            }
+            $totals[$referrer] = ($totals[$referrer] ?? 0) + $row['count'];
+        }
+
+        $top = [];
+        foreach ($totals as $referrer => $count) {
+            $top[] = ['label' => (string) $referrer, 'count' => $count];
+        }
         usort($top, fn ($a, $b) => [$b['count'], $a['label']] <=> [$a['count'], $b['label']]);
 
         return array_slice($top, 0, $limit);

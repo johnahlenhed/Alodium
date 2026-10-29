@@ -1,8 +1,9 @@
 #!/bin/bash
-# README.md "Deployment", sections 4 (Astro public site) and 5 (DNS, Nginx and
-# HTTPS), as a script: astro/.env.production, the plain-HTTP Nginx config, and
-# the Let's Encrypt certificate. (robots.txt needs nothing: the Astro build
-# writes it, with the Sitemap line from SITE_URL.)
+# README.md "Deployment", sections 4 (Astro public site), 5 (DNS, Nginx and
+# HTTPS) and 6 (GeoIP database), as a script: astro/.env.production, the
+# plain-HTTP Nginx config, the Let's Encrypt certificate, and the client's own
+# MaxMind licence key with the GeoIP download. (robots.txt needs nothing: the
+# Astro build writes it, with the Sitemap line from SITE_URL.)
 #
 # Only for a NEW Alodium deployment, on a fresh server for a new client, after
 # README sections 1-3 (packages, swap, the app cloned to /var/www/alodium).
@@ -14,7 +15,8 @@
 # Usage, as root:
 #   add-domain.sh setup   --admin-domain admin.client.example --site-domain client.example
 #   add-domain.sh certbot --admin-domain admin.client.example --site-domain client.example --email you@client.example
-#   add-domain.sh all     (the options of certbot)
+#   add-domain.sh geoip   --maxmind-key -
+#   add-domain.sh all     (the options of certbot, and --maxmind-key)
 #
 #   setup    Section 4 and section 5 up to HTTPS: writes astro/.env.production,
 #            creates astro-public/, writes the Nginx config, links it, removes
@@ -22,7 +24,11 @@
 #            Needs no DNS.
 #   certbot  Section 5 "HTTPS": checks that SITE, www.SITE and ADMIN resolve to
 #            this server, then runs Certbot. Run it (again) once DNS has propagated.
-#   all      setup, then certbot.
+#   geoip    Section 6: writes this client's MaxMind licence key into .env as
+#            MAXMIND_LICENSE_KEY, refreshes the config cache and downloads the
+#            GeoIP database as www-data. Needs no domains or DNS. Without a key
+#            it explains where to get one and changes nothing.
+#   all      setup, then geoip, then certbot.
 #
 # Options:
 #   --email ADDRESS    for Let's Encrypt (expiry notices); needed by certbot and
@@ -34,9 +40,14 @@
 #   --skip-dns-check   run Certbot without checking DNS first
 #   --server-ip IP     this server's public IP, if it isn't on a network interface
 #                      (behind NAT); may be given more than once
+#   --maxmind-key KEY  the client's own MaxMind licence key (each deployment uses
+#                      the client's own free account, never a shared key). Give
+#                      "-" to type or paste it instead (not shown, and not kept
+#                      in the shell history). --force replaces a different key.
 #
-# Exit codes: 0 done, 1 error or refused, 2 DNS not ready yet (anything setup
-# wrote is kept; run the certbot step again later).
+# Exit codes: 0 done, 1 error or refused, 2 a step can't be finished yet: DNS
+# isn't ready (certbot) or no MaxMind key was given (geoip). Everything else is
+# done and kept; run that step again later.
 #
 # ALODIUM_APP_DIR and ALODIUM_NGINX_DIR replace /var/www/alodium and /etc/nginx,
 # so the script can be tested against a scratch directory.
@@ -147,6 +158,11 @@ NGINX
     printf '%s' "${template//SITE_DOMAIN/"$2"}"
 }
 
+# README section 6: the .env line for this client's MaxMind key ($1), and the
+# download commands, run from the app directory (after "cd /var/www/alodium").
+maxmind_env_line() { printf 'MAXMIND_LICENSE_KEY=%s' "$1"; }
+geoip_commands() { printf '%s\n' 'sudo -u www-data mkdir -p storage/app/geoip' 'sudo -u www-data php artisan location:update'; }
+
 # Sourced (by the check): stop here, with only the functions above defined.
 [[ ${BASH_SOURCE[0]} == "$0" ]] || return 0
 
@@ -160,22 +176,25 @@ SERVER_IPS=()
 FORCE=false
 DRY_RUN=false
 SKIP_DNS=false
+MAXMIND_KEY=
+GEOIP_DEFERRED=false
 
 case ${1:-} in
-    setup | certbot | all) COMMAND=$1; shift ;;
+    setup | certbot | geoip | all) COMMAND=$1; shift ;;
     -h | --help) usage; exit 0 ;;
     '') usage >&2; exit 1 ;;
-    *) die "unknown command \"$1\": use setup, certbot or all (see --help)" ;;
+    *) die "unknown command \"$1\": use setup, certbot, geoip or all (see --help)" ;;
 esac
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --admin-domain | --site-domain | --email | --server-ip)
+        --admin-domain | --site-domain | --email | --server-ip | --maxmind-key)
             [[ $# -ge 2 ]] || die "$1 needs a value"
             case $1 in
                 --admin-domain) ADMIN=${2,,} ;;
                 --site-domain) SITE=${2,,} ;;
                 --email) EMAIL=$2 ;;
                 --server-ip) SERVER_IPS+=("$2") ;;
+                --maxmind-key) MAXMIND_KEY=$2 ;;
             esac
             shift 2
             ;;
@@ -200,18 +219,38 @@ check_domain() {
     [[ -n $value ]] || die "$option is missing (for example $option $example)"
     is_domain "$value" || die "$option \"$value\" doesn't look like a domain name. Give only the name, like $example: no https://, port, path or trailing dot."
 }
-check_domain --admin-domain "$ADMIN" admin.client.example
-check_domain --site-domain "$SITE" client.example
-# www.SITE is added for Certbot and Nginx, so "www.client.example" would become www.www.client.example.
-[[ $SITE != www.* ]] || die "give --site-domain without www. (${SITE#www.}): www.${SITE#www.} is added automatically."
-[[ $ADMIN != "$SITE" && $ADMIN != "www.$SITE" ]] || die "--admin-domain must be a different name from the site (for example admin.$SITE)."
-if [[ $COMMAND != setup ]]; then
+# The geoip step alone needs no domains.
+if [[ $COMMAND != geoip ]]; then
+    check_domain --admin-domain "$ADMIN" admin.client.example
+    check_domain --site-domain "$SITE" client.example
+    # www.SITE is added for Certbot and Nginx, so "www.client.example" would become www.www.client.example.
+    [[ $SITE != www.* ]] || die "give --site-domain without www. (${SITE#www.}): www.${SITE#www.} is added automatically."
+    [[ $ADMIN != "$SITE" && $ADMIN != "www.$SITE" ]] || die "--admin-domain must be a different name from the site (for example admin.$SITE)."
+fi
+if [[ $COMMAND == certbot || $COMMAND == all ]]; then
     [[ -n $EMAIL ]] || die "--email is missing: Let's Encrypt needs an address for expiry notices."
     [[ $EMAIL =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || die "--email \"$EMAIL\" doesn't look like an email address."
 fi
 for ip in ${SERVER_IPS[@]+"${SERVER_IPS[@]}"}; do
     [[ $ip =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ || $ip =~ ^[0-9a-fA-F:]+:[0-9a-fA-F:]*$ ]] || die "--server-ip \"$ip\" is not an IP address."
 done
+# "-": read the key from standard input, so it isn't in the shell history or the
+# process list. Typed at a terminal, it isn't shown.
+if [[ $MAXMIND_KEY == - ]]; then
+    if [[ -t 0 ]]; then
+        printf 'MaxMind licence key for this client (not shown): ' >&2
+        IFS= read -rs MAXMIND_KEY || true
+        echo >&2
+    else
+        IFS= read -r MAXMIND_KEY || true
+    fi
+    MAXMIND_KEY=${MAXMIND_KEY//[[:space:]]/}
+fi
+# Letters, digits and underscores (MaxMind's format). Anything else could break
+# the .env line ("$" is expanded there, quotes and spaces end the value).
+if [[ -n $MAXMIND_KEY && ! $MAXMIND_KEY =~ ^[A-Za-z0-9_]{6,128}$ ]]; then
+    die "--maxmind-key doesn't look like a MaxMind licence key (letters, digits and _ only). Copy it again from the MaxMind account."
+fi
 
 ENV_CONTENT=$(env_content "$ADMIN" "$SITE")
 NGINX_CONTENT=$(nginx_content "$ADMIN" "$SITE")
@@ -356,7 +395,9 @@ setup_step() {
     if $DRY_RUN; then echo "Dry run of setup done: nothing was changed."; else echo "Setup done."; fi
     echo "Still to do by hand (README section 4 and 5):"
     echo "  cd $APP_DIR/astro && npm install --legacy-peer-deps"
-    echo "  If a firewall is active, open ports 22, 80 and 443 (README section 11)."
+    echo "  If a firewall is active, open ports 22, 80 and 443 (README section 12)."
+    [[ $COMMAND == setup ]] && echo "  Visitor countries: $0 geoip --maxmind-key - (README section 6)."
+    return 0
 }
 
 # ---------------------------------------------------------------- certbot
@@ -460,13 +501,103 @@ EOF
     fi
 }
 
+# ---------------------------------------------------------------- geoip
+
+# Like run(), from directory $1, as the README's commands run after "cd /var/www/alodium".
+run_in() {
+    local dir=$1
+    shift
+    if $DRY_RUN; then printf '  would run (in %s):' "$dir"; else printf '+ (in %s)' "$dir"; fi
+    printf ' %q' "$@"
+    echo
+    $DRY_RUN || (cd "$dir" && "$@")
+}
+
+# The last 4 characters, to tell keys apart without showing them.
+key_hint() { printf '...%s' "${1: -4}"; }
+
+geoip_step() {
+    echo "== GeoIP: README section 6 (visitor countries)"
+    local env_file="$APP_DIR/.env"
+    [[ -f $APP_DIR/artisan ]] || die "$APP_DIR/artisan not found. Clone the app to $APP_DIR first (README section 3)."
+    [[ -f $env_file ]] || die "$env_file not found. Create it first (README section 3)."
+
+    if [[ -z $MAXMIND_KEY ]]; then
+        GEOIP_DEFERRED=true
+        cat <<EOF
+No MaxMind licence key given, so the GeoIP database isn't installed yet and nothing
+was changed. Until it is, visits are recorded without a country (the dashboard's
+Site status says so). Each client uses a MaxMind account of their own, not a
+shared key, so each install is that client's own use of MaxMind's data:
+  1. Sign up for a free GeoLite account at https://www.maxmind.com/en/geolite2/signup
+  2. Log in, and in the account's GeoIP / GeoLite menu generate a license key.
+  3. Run: $0 geoip --maxmind-key -
+     (type or paste the key; it isn't shown)
+EOF
+        return 0
+    fi
+
+    # The key in .env now: no line, an empty value (as in .env.example), this key, or another one.
+    local current state
+    current=$(awk '/^MAXMIND_LICENSE_KEY=/ { sub(/^[^=]*=/, ""); gsub(/^["\047]|["\047]$/, ""); print; exit }' "$env_file")
+    if ! grep -q '^MAXMIND_LICENSE_KEY=' "$env_file"; then state=new
+    elif [[ -z $current ]]; then state=empty
+    elif [[ $current == "$MAXMIND_KEY" ]]; then state=same
+    else state=differs
+    fi
+    if [[ $state == differs ]] && ! $FORCE; then
+        die "$env_file already has a different MAXMIND_LICENSE_KEY ($(key_hint "$current")). Nothing was changed. If this client's key has changed, run again with --force."
+    fi
+
+    if [[ $state == same ]]; then
+        echo "Unchanged: MAXMIND_LICENSE_KEY in $env_file ($(key_hint "$MAXMIND_KEY"))"
+    elif $DRY_RUN; then
+        echo "  would set MAXMIND_LICENSE_KEY in $env_file to the key given ($(key_hint "$MAXMIND_KEY"))"
+    else
+        if [[ $state == differs ]]; then
+            cp -p -- "$env_file" "$env_file.bak-$STAMP"
+            echo "Kept the old $env_file as $env_file.bak-$STAMP. It holds the old key and the other secrets: delete it once the new key works."
+        fi
+        # Replaces the line (or adds it). In place (">"), so .env keeps its owner and mode.
+        local content
+        content=$(KEY_LINE="$(maxmind_env_line "$MAXMIND_KEY")" awk '
+            /^MAXMIND_LICENSE_KEY=/ && !done { print ENVIRON["KEY_LINE"]; done = 1; next }
+            { print }
+            END { if (!done) print ENVIRON["KEY_LINE"] }' "$env_file")
+        printf '%s\n' "$content" > "$env_file"
+        echo "Set MAXMIND_LICENSE_KEY in $env_file ($(key_hint "$MAXMIND_KEY"))"
+    fi
+
+    # A cached config (php artisan config:cache, README section 3) doesn't see .env changes.
+    if [[ $state != same && -f $APP_DIR/bootstrap/cache/config.php ]]; then
+        run_in "$APP_DIR" php artisan config:cache
+    fi
+
+    # The README's commands, word for word (fixed strings, so splitting them is safe).
+    local command words
+    while IFS= read -r command; do
+        read -ra words <<< "$command"
+        run_in "$APP_DIR" "${words[@]}" || die "\"$command\" failed (output above). Check the key in the MaxMind account; a new key can take a few minutes to work."
+    done < <(geoip_commands)
+
+    if ! $DRY_RUN; then
+        local database="$APP_DIR/storage/app/geoip/GeoLite2-Country.mmdb"
+        [[ -s $database ]] || die "$database is missing after the download."
+        echo "Installed $database ($(du -h "$database" | cut -f1)). The scheduler updates it monthly (README section 8)."
+    fi
+}
+
 # ---------------------------------------------------------------- main
 
 if $DRY_RUN; then
-    echo "DRY RUN: nothing is written, Nginx is not tested or reloaded, and Certbot is not run."
+    echo "DRY RUN: nothing is written, Nginx is not tested or reloaded, and neither Certbot nor the GeoIP download is run."
 fi
 case $COMMAND in
     setup) setup_step ;;
     certbot) certbot_step ;;
-    all) setup_step; echo; certbot_step ;;
+    geoip) geoip_step ;;
+    # geoip before certbot: certbot stops the script while DNS isn't ready.
+    all) setup_step; echo; geoip_step; echo; certbot_step ;;
 esac
+# No key yet: everything else is done; the geoip step can run again later.
+if $GEOIP_DEFERRED; then exit 2; fi

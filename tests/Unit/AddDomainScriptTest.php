@@ -50,7 +50,7 @@ class AddDomainScriptTest extends TestCase
         $process = $this->check();
 
         $this->assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
-        $this->assertSame(2, substr_count($process->getOutput(), 'ok    '));
+        $this->assertSame(4, substr_count($process->getOutput(), 'ok    '));
     }
 
     public static function readmeEdits(): array
@@ -59,6 +59,8 @@ class AddDomainScriptTest extends TestCase
             'an Nginx setting' => ['client_max_body_size 30M;', 'client_max_body_size 50M;', 'Nginx config', '-    client_max_body_size 50M;'],
             'an env line' => ['TRACKER_URL=https://ADMIN_DOMAIN/tracker.js', 'TRACKER_URL=https://ADMIN_DOMAIN/js/tracker.js', 'astro/.env.production', '-TRACKER_URL=https://admin.client.example/js/tracker.js'],
             'the Nginx block moved' => ['`/etc/nginx/sites-available/alodium`:', 'The configuration:', 'Nginx config', 'not found in'],
+            'the MaxMind key line' => ['MAXMIND_LICENSE_KEY=your-key', 'MAXMIND_KEY=your-key', 'MAXMIND_LICENSE_KEY line', '-MAXMIND_KEY=your-key'],
+            'a GeoIP download command' => ['sudo -u www-data php artisan location:update', 'sudo -u www-data php artisan geoip:update', 'GeoIP download commands', '-sudo -u www-data php artisan geoip:update'],
         ];
     }
 
@@ -71,7 +73,7 @@ class AddDomainScriptTest extends TestCase
         $this->assertSame(1, $process->getExitCode(), $output);
         $this->assertStringContainsString("FAIL  {$block}", $output);
         $this->assertStringContainsString($expected, $output);
-        $this->assertSame(1, substr_count($output, 'ok    '), 'only the edited block fails');
+        $this->assertSame(3, substr_count($output, 'ok    '), 'only the edited block fails');
     }
 
     public function test_a_script_change_alone_fails_the_check(): void
@@ -82,5 +84,15 @@ class AddDomainScriptTest extends TestCase
         $this->assertSame(1, $process->getExitCode(), $output);
         $this->assertStringContainsString('FAIL  astro/.env.production', $output);
         $this->assertStringContainsString('+API_URL=https://admin.client.example/api', $output);
+    }
+
+    public function test_a_change_to_the_scripts_geoip_commands_fails_the_check(): void
+    {
+        $process = $this->check(script: $this->editedCopy('deploy/add-domain.sh', "'sudo -u www-data mkdir -p storage/app/geoip'", "'mkdir -p storage/app/geoip'"));
+        $output = $process->getOutput();
+
+        $this->assertSame(1, $process->getExitCode(), $output);
+        $this->assertStringContainsString('FAIL  GeoIP download commands', $output);
+        $this->assertStringContainsString('+mkdir -p storage/app/geoip', $output);
     }
 }

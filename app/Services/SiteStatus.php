@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Carbon\CarbonImmutable;
+use GeoIp2\Database\Reader;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -13,6 +14,9 @@ use Throwable;
 class SiteStatus
 {
     public const BACKUP_MAX_AGE_HOURS = 36;
+
+    /** The scheduler updates the GeoIP database monthly; older than this means it isn't. */
+    public const GEOIP_MAX_AGE_DAYS = 45;
 
     /** How much of the end of the rebuild log is read. */
     private const LOG_TAIL_BYTES = 4096;
@@ -93,6 +97,38 @@ class SiteStatus
         return $this->offsite->isConfigured() && $this->offsite->hasPassphrase();
     }
 
+    /**
+     * The GeoIP country database (config location.maxmind.local.path): whether it
+     * is there, whether it opens as a GeoIP database, and when it was last written
+     * (by `location:update`). Without a readable file every visit is recorded
+     * without a country, and nothing else says so.
+     *
+     * @return array{present: bool, readable: bool, updatedAt: ?string, ageHours: ?float}
+     */
+    public function geoip(): array
+    {
+        $path = (string) config('location.maxmind.local.path');
+        if ($path === '' || ! is_file($path)) {
+            return ['present' => false, 'readable' => false, 'updatedAt' => null, 'ageHours' => null];
+        }
+
+        try {
+            // The reader checks the file's metadata, so a truncated or wrong file fails here.
+            (new Reader($path))->close();
+        } catch (Throwable) {
+            return ['present' => true, 'readable' => false, 'updatedAt' => null, 'ageHours' => null];
+        }
+
+        $modified = CarbonImmutable::createFromTimestamp(filemtime($path));
+
+        return [
+            'present' => true,
+            'readable' => true,
+            'updatedAt' => $modified->toIso8601String(),
+            'ageHours' => round($modified->diffInMinutes(now(), true) / 60, 1),
+        ];
+    }
+
     /** Rows in a table, or null if it doesn't exist or can't be read. */
     public function countRows(string $table): ?int
     {
@@ -103,7 +139,7 @@ class SiteStatus
         }
     }
 
-    /** @return array{lastRebuild: ?array, lastBackup: ?array, offsite: array, queuedJobs: ?int, failedJobs: ?int, warnings: list<string>} */
+    /** @return array{lastRebuild: ?array, lastBackup: ?array, offsite: array, geoip: array, queuedJobs: ?int, failedJobs: ?int, warnings: list<string>} */
     public function summary(): array
     {
         $rebuild = $this->lastRebuild();
@@ -132,10 +168,21 @@ class SiteStatus
             $warnings[] = 'The last off-server copy was uploaded more than '.self::BACKUP_MAX_AGE_HOURS.' hours ago.';
         }
 
+        // In every environment: without the file, visitor countries are silently empty.
+        $geoip = $this->geoip();
+        if (! $geoip['present']) {
+            $warnings[] = 'The GeoIP database is missing, so visits are recorded without a country. Install it as described in the README (deployment step 6).';
+        } elseif (! $geoip['readable']) {
+            $warnings[] = "The GeoIP database can't be read, so visits are recorded without a country. Download it again with: php artisan location:update";
+        } elseif ($geoip['ageHours'] > self::GEOIP_MAX_AGE_DAYS * 24) {
+            $warnings[] = 'The GeoIP database has not been updated for more than '.self::GEOIP_MAX_AGE_DAYS.' days. Check MAXMIND_LICENSE_KEY and the scheduler.';
+        }
+
         return [
             'lastRebuild' => $rebuild,
             'lastBackup' => $backup,
             'offsite' => $offsite,
+            'geoip' => $geoip,
             'queuedJobs' => $this->countRows('jobs'),
             'failedJobs' => $failed,
             'warnings' => $warnings,

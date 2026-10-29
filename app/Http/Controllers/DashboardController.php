@@ -11,7 +11,6 @@ use App\Services\VisitStatistics;
 use App\Support\TrafficSource;
 use App\Support\UrlToContent;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -60,7 +59,7 @@ class DashboardController extends Controller
             ...$props,
             'visitors' => $this->visitorSummary($days, $since),
             'topContent' => $this->topContent($since),
-            'sources' => TrafficSource::top($this->stats->sourcePairs($since), 5, $this->publicHost()),
+            'sources' => TrafficSource::top($this->stats->sourcePairs($since), 5, TrafficSource::ownHost()),
             'siteStatus' => $this->siteStatus->summary(),
         ];
     }
@@ -175,12 +174,5 @@ class DashboardController extends Controller
                 'created_at' => $submission->created_at,
             ])->all(),
         ];
-    }
-
-    private function publicHost(): ?string
-    {
-        $url = config('app.public_site_url');
-
-        return $url ? TrafficSource::host($url) : null;
     }
 }
