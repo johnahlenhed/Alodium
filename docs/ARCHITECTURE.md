@@ -275,7 +275,10 @@ The README requires the worker to run with `--timeout=660` and
   the country comes from an offline MaxMind database.
 - **Webhook**: `hash_equals` on `X-Webhook-Secret`; an empty secret disables it.
 - **Rate limits**: tracker 120/min, contact 5/min, webhook 10/min per IP. The
-  public GET endpoints have no rate limit.
+  public GET endpoints share 60/min per IP (`public-content` limiter in
+  `AppServiceProvider`), except for requests from the server itself (loopback,
+  or `REMOTE_ADDR` equal to `SERVER_ADDR`): the Astro build makes one request
+  per published post and page plus five, all at once, so it is not limited.
 - **Role checks**: `admin` middleware, policies, and the role split in the
   dashboard. CORS allows any origin for `api/*` only.
 - **Output**: JSON-LD is serialised with `<`, `>` and `&` escaped; Astro text
@@ -396,5 +399,6 @@ Astro (`astro/.env`, `astro/.env.production`):
   every code path that creates users sets the role explicitly.
 - **Default test**: `tests/Unit/ExampleTest.php` is still the framework
   example (it asserts `true`).
-- **Public GET endpoints** have no rate limit (the Astro build makes many
-  requests in a burst).
+- **Build rate-limit exemption** assumes the build reaches Laravel directly.
+  Behind a proxy such as Cloudflare's orange cloud, requests would come from the
+  proxy's IPs: the build would be limited to 60/min and fail on a larger site.
