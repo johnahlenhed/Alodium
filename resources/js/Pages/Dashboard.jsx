@@ -11,6 +11,7 @@ import {
     Eye,
     FilePlus,
     FileText,
+    Globe,
     Inbox,
     Minus,
     RefreshCw,
@@ -304,7 +305,7 @@ function StatusRow({ icon: Icon, label, children }) {
 }
 
 function SiteStatus({ status }) {
-    const { lastRebuild, lastBackup, offsite, queuedJobs, failedJobs, warnings } = status;
+    const { lastRebuild, lastBackup, offsite, geoip, queuedJobs, failedJobs, warnings } = status;
 
     return (
         <Section title="Site status" icon={Server}>
@@ -342,6 +343,13 @@ function SiteStatus({ status }) {
                         : offsite.lastUploadAt
                           ? `Off-server copy: last uploaded ${formatAge(offsite.ageHours)}`
                           : 'Off-server copy: no upload recorded yet'}
+                </StatusRow>
+                <StatusRow icon={Globe} label="Visitor countries (GeoIP database)">
+                    {!geoip.present
+                        ? 'Missing: visits are recorded without a country'
+                        : !geoip.readable
+                          ? "Can't be read: visits are recorded without a country"
+                          : `Updated ${formatDateTime(geoip.updatedAt)} (${formatAge(geoip.ageHours)})`}
                 </StatusRow>
                 <StatusRow icon={Server} label="Background jobs">
                     {queuedJobs === null ? 'No data' : `${queuedJobs} queued`}
