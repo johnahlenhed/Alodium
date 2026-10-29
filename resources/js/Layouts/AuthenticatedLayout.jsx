@@ -16,13 +16,13 @@ export default function AuthenticatedLayout({ header, children }) {
 
     return (
         <div className="min-h-screen bg-canvas">
-            <nav className="border-b border-gray-100 bg-surface">
+            <nav className="bg-nav">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-primary" />
+                                    <ApplicationLogo className="block h-9 w-auto fill-current text-on-nav" />
                                 </Link>
                             </div>
 
@@ -57,7 +57,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Submissions
                                     {unreadSubmissions > 0 && (
-                                        <span className="ms-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold leading-none text-on-primary">
+                                        <span className="ms-1.5 rounded-full bg-on-nav px-1.5 py-0.5 text-xs font-semibold leading-none text-nav">
                                             {unreadSubmissions}
                                             <span className="sr-only"> unread</span>
                                         </span>
@@ -72,7 +72,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                             Analytics
                                         </NavLink>
                                         {/* Utilities are kept apart from content sections. */}
-                                        <span className="h-6 w-px self-center bg-gray-200" aria-hidden="true" />
+                                        <span className="h-6 w-px self-center bg-on-nav-muted/30" aria-hidden="true" />
                                         <NavLink
                                             href={route('import.create')}
                                             active={route().current('import.*')}
@@ -103,7 +103,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                         <span className="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-surface px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                className="inline-flex items-center rounded-md border border-transparent bg-nav px-3 py-2 text-sm font-medium leading-4 text-on-nav-muted transition duration-150 ease-in-out hover:text-on-nav focus:outline-none focus-visible:text-on-nav focus-visible:ring-2 focus-visible:ring-on-nav-muted"
                                             >
                                                 {user.name}
 
@@ -148,7 +148,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                         (previousState) => !previousState,
                                     )
                                 }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                                className="inline-flex items-center justify-center rounded-md p-2 text-on-nav-muted transition duration-150 ease-in-out hover:bg-nav-hover hover:text-on-nav focus:bg-nav-hover focus:text-on-nav focus:outline-none"
                             >
                                 <svg
                                     className="h-6 w-6"
@@ -230,7 +230,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Analytics
                                 </ResponsiveNavLink>
-                                <div className="mt-2 border-t border-gray-200 px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                <div className="mt-2 border-t border-nav-hover px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-on-nav-muted">
                                     Tools
                                 </div>
                                 <ResponsiveNavLink
@@ -255,12 +255,12 @@ export default function AuthenticatedLayout({ header, children }) {
                         )}
                     </div>
 
-                    <div className="border-t border-gray-200 pb-1 pt-4">
+                    <div className="border-t border-nav-hover pb-1 pt-4">
                         <div className="px-4">
-                            <div className="text-base font-medium text-gray-800">
+                            <div className="text-base font-medium text-on-nav">
                                 {user.name}
                             </div>
-                            <div className="text-sm font-medium text-gray-500">
+                            <div className="text-sm font-medium text-on-nav-muted">
                                 {user.email}
                             </div>
                         </div>

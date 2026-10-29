@@ -249,7 +249,10 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
   - `surface` is cards, nav, header, menus and modals;
   - `primary`, `primary-hover` and `primary-active` are filled buttons,
     selected toggles, badges and progress bars, and `primary` is `#1B2A4A`;
-  - `on-primary` is text on primary.
+  - `on-primary` is text on primary;
+  - `nav`, `nav-hover`, `nav-accent`, `on-nav` and `on-nav-muted` are the navy
+    top bar and its mobile menu: the bar, hovered items, the current item's
+    underline, and the text.
   Links, checked controls and focus rings use lighter brand steps
   (`brand-600`, `brand-500`): navy text would be hard to tell apart from the
   navy-tinted body text.
@@ -258,6 +261,12 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
   why `blue.600` exists, pointing at `brand-600`; it isn't for use in classes.
   The chart (`VisitsChart.jsx`) and Inertia's progress bar use
   `rgb(var(--color-…))` directly.
+- **Form controls** (inputs, selects, textareas, checkboxes, radios) have a
+  `gray-400` border, 3.1:1 against the surface, for WCAG 1.4.11. Buttons keep
+  `gray-300`: their text identifies them.
+- **Logo:** `ApplicationLogo.jsx` is an "A" cut out of a rounded square. It's a
+  placeholder until there is a designed logo. It's drawn in `currentColor`, and
+  `public/favicon.svg` is the same drawing in `#1B2A4A`.
 - **`ThemePreview.jsx`** shows the public site, so it keeps its own colours
   (white card, the chosen brand colour).
 - `node resources/js/theme.check.mjs` checks the contrast rules and catches
@@ -363,8 +372,10 @@ The README requires the worker to run with `--timeout=660` and
   - no class names a colour the theme doesn't define (Tailwind would silently
     leave it out);
   - there are no hex colours in `resources/js`;
-  - text and background classes in the same string literal reach 4.5:1. This
-    is a heuristic: nested elements aren't paired.
+  - text and background classes in the same string literal reach 4.5:1, and
+    form-control borders reach 3:1. Both are heuristics on string literals:
+    nested elements aren't paired, and a control is recognised by its focus
+    classes.
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
 - `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes and runs
   exactly what README sections 4 to 6 describe: the env block, the plain-HTTP

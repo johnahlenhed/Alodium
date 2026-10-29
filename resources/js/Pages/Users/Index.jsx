@@ -43,7 +43,7 @@ function UserRow({ user, isSelf }) {
                             value={data.role}
                             disabled={processing}
                             onChange={(e) => changeRole(e.target.value)}
-                            className="rounded-md border-gray-300 py-1 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
+                            className="rounded-md border-gray-400 py-1 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
                         >
                             <option value="admin">Admin</option>
                             <option value="editor">Editor</option>
@@ -129,7 +129,7 @@ function CreateUserForm() {
                         id="new-role"
                         value={data.role}
                         onChange={(e) => setData('role', e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
+                        className="mt-1 block w-full rounded-md border-gray-400 shadow-sm focus:border-brand-500 focus:ring-brand-500"
                     >
                         <option value="editor">Editor</option>
                         <option value="admin">Admin</option>

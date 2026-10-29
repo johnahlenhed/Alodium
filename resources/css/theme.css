@@ -92,4 +92,9 @@
     --color-primary-hover: var(--color-brand-700);
     --color-primary-active: var(--color-brand-900);
     --color-on-primary: 255 255 255; /* text and icons on primary */
+    --color-nav: var(--color-brand-800); /* the top navigation bar, incl. its mobile menu */
+    --color-nav-hover: var(--color-brand-700); /* hovered and current items in the mobile menu */
+    --color-nav-accent: var(--color-brand-400); /* underline of the current item */
+    --color-on-nav: 255 255 255; /* current item, logo, names */
+    --color-on-nav-muted: var(--color-brand-200); /* the other items */
 }

@@ -42,6 +42,15 @@ export default {
                 active: token('primary-active'),
             },
             'on-primary': token('on-primary'),
+            nav: {
+                DEFAULT: token('nav'),
+                hover: token('nav-hover'),
+                accent: token('nav-accent'),
+            },
+            'on-nav': {
+                DEFAULT: token('on-nav'),
+                muted: token('on-nav-muted'),
+            },
             // Only for @tailwindcss/forms, which reads colors.blue.600 for focus
             // rings and checked boxes on controls without their own classes.
             // Not for use in class names.

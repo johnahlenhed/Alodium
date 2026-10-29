@@ -10,7 +10,7 @@ import { Link } from '@inertiajs/react';
 import { useCallback, useRef, useState } from 'react';
 
 const textareaClass =
-    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500';
+    'mt-1 block w-full rounded-md border-gray-400 shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 // Shared by Create and Edit. The parent owns the useForm instance and submit handler.
 // mode: "blocks" (block editor) or "classic" (one rich-text editor for `content`,

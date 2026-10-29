@@ -10,7 +10,7 @@ import BrandColorField from './Partials/BrandColorField';
 import NavigationEditor from './Partials/NavigationEditor';
 import ThemePreview from './Partials/ThemePreview';
 
-const fieldClass = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500';
+const fieldClass = 'mt-1 block w-full rounded-md border-gray-400 shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 function Section({ title, description, children }) {
     const id = `section-${title.toLowerCase().replace(/\s+/g, '-')}`;
@@ -47,7 +47,7 @@ function ChoiceGroup({ legend, name, options, value, onChange, error }) {
                             value={option.value}
                             checked={value === option.value}
                             onChange={() => onChange(option.value)}
-                            className="border-gray-300 text-brand-600 focus:ring-brand-500"
+                            className="border-gray-400 text-brand-600 focus:ring-brand-500"
                         />
                         {option.label}
                     </label>

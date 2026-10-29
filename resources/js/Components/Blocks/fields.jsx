@@ -3,7 +3,7 @@ import InputLabel from '@/Components/InputLabel';
 import MediaPicker from '@/Components/MediaPicker';
 
 export const inputClass =
-    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500';
+    'mt-1 block w-full rounded-md border-gray-400 shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 /** Labelled text input or textarea with its hint and server error. */
 export function Field({ id, label, value, onChange, error, hint, multiline = false, ...props }) {

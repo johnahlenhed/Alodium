@@ -67,7 +67,7 @@ function Divider() {
 }
 
 const inputClass =
-    'block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500';
+    'block w-full rounded-md border-gray-400 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 /**
  * Small form shown below the toolbar for links and images. It is a <div>, not a
@@ -260,7 +260,7 @@ export default function RichTextEditor({ value, onChange }) {
     const setField = (name, fieldValue) => setPopover((p) => ({ ...p, [name]: fieldValue }));
 
     return (
-        <div className="mt-1 rounded-md border border-gray-300 bg-surface shadow-sm focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
+        <div className="mt-1 rounded-md border border-gray-400 bg-surface shadow-sm focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
             {/* Sticky so the toolbar stays reachable while editing long content. */}
             <div className="sticky top-0 z-10 rounded-t-md border-b border-gray-200 bg-surface">
                 <div className="flex flex-wrap items-center gap-0.5 p-1.5" role="toolbar" aria-label="Formatting">

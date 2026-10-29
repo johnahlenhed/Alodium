@@ -95,6 +95,15 @@ check('roles: text on primary and danger fills, and the focus ring', () => {
     for (const bg of ['surface', 'canvas']) assertPair('brand-500', bg, AA_NON_TEXT);
 });
 
+check('roles: the navigation bar', () => {
+    for (const fg of ['on-nav', 'on-nav-muted']) {
+        for (const bg of ['nav', 'nav-hover']) assertPair(fg, bg, AA_TEXT);
+    }
+    // The current item's underline, and the unread badge (text-nav on bg-on-nav).
+    assertPair('nav-accent', 'nav', AA_NON_TEXT);
+    assertPair('nav', 'on-nav', AA_TEXT);
+});
+
 // Class names in the admin's source.
 const sources = [];
 const walk = (dir) => {
@@ -142,30 +151,54 @@ check('no hex colours in the admin source, only tokens', () => {
     assert.deepEqual(problems, []);
 });
 
-check('text and background set on the same element are AA (4.5:1)', () => {
-    // A heuristic: unprefixed text-* and bg-* classes in one string literal.
-    // ${...} parts of template literals are left out (they are separate strings).
-    const problems = [];
-    let pairs = 0;
-    for (const path of sources.filter((p) => p.endsWith('.jsx') || p.endsWith('.js'))) {
+// Every string literal in the JS source, split into classes. A heuristic:
+// ${...} parts of template literals are left out (they are separate strings).
+const literals = sources
+    .filter((path) => path.endsWith('.jsx') || path.endsWith('.js'))
+    .flatMap((path) => {
         const code = read(path);
-        const literals = [
+        return [
             ...[...code.matchAll(/'([^'\n]*)'|"([^"\n]*)"/g)].map((m) => m[1] ?? m[2]),
             ...[...code.matchAll(/`([^`]*)`/g)].map((m) => m[1].replace(/\$\{[^}]*\}/g, ' ')),
-        ];
-        for (const literal of literals) {
-            const classes = literal.split(/\s+/);
-            const colour = (prefix) => classes.filter((c) => c.startsWith(prefix)).map((c) => classColours[c.slice(prefix.length)]).filter(Boolean);
-            for (const fg of colour('text-')) {
-                for (const bg of colour('bg-')) {
-                    pairs++;
-                    const r = ratio(fg, bg);
-                    if (r < AA_TEXT) problems.push(`${path}: text-${fg} on bg-${bg} is ${fmt(r)}:1`);
-                }
+        ].map((literal) => ({ path, classes: literal.split(/\s+/) }));
+    });
+// Colour tokens of the unprefixed classes with this prefix (text-, bg-, border-).
+const coloursOf = (classes, prefix) =>
+    classes.filter((c) => c.startsWith(prefix)).map((c) => classColours[c.slice(prefix.length)]).filter(Boolean);
+
+check('text and background set on the same element are AA (4.5:1)', () => {
+    const problems = [];
+    let pairs = 0;
+    for (const { path, classes } of literals) {
+        for (const fg of coloursOf(classes, 'text-')) {
+            for (const bg of coloursOf(classes, 'bg-')) {
+                pairs++;
+                const r = ratio(fg, bg);
+                if (r < AA_TEXT) problems.push(`${path}: text-${fg} on bg-${bg} is ${fmt(r)}:1`);
             }
         }
     }
     assert.ok(pairs > 10, `only ${pairs} pairs found: the scan is broken`);
+    assert.deepEqual(problems, []);
+});
+
+check('form controls have a 3:1 border on the surface (WCAG 1.4.11)', () => {
+    // A control is recognised by its focus style: text inputs, selects and
+    // textareas change their border; checkboxes and radios are text-brand-600
+    // with a focus ring. Buttons are left out: their text identifies them.
+    const isControl = (classes) =>
+        classes.some((c) => /^focus(-within)?:border-brand-500$/.test(c)) ||
+        (classes.includes('text-brand-600') && classes.includes('focus:ring-brand-500'));
+    const problems = [];
+    let controls = 0;
+    for (const { path, classes } of literals.filter(({ classes }) => isControl(classes))) {
+        controls++;
+        for (const border of coloursOf(classes, 'border-')) {
+            const r = ratio(border, 'surface');
+            if (r < AA_NON_TEXT) problems.push(`${path}: border-${border} is ${fmt(r)}:1`);
+        }
+    }
+    assert.ok(controls > 5, `only ${controls} controls found: the scan is broken`);
     assert.deepEqual(problems, []);
 });
 

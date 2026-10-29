@@ -2,7 +2,7 @@ import InputError from '@/Components/InputError';
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 
-const FIELD = 'mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500';
+const FIELD = 'mt-1 block w-full rounded-md border-gray-400 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500';
 const ICON_BUTTON =
     'rounded-md border border-gray-300 bg-surface p-1.5 text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:bg-surface';
 const ADD_BUTTON =

@@ -32,7 +32,7 @@ export default function BrandColorField({ value, onChange, error, minContrast })
                         type="color"
                         value={lastValid.current.toLowerCase()}
                         onChange={(e) => onChange(e.target.value.toUpperCase())}
-                        className="mt-1 block h-10 w-16 cursor-pointer rounded-md border border-gray-300 bg-surface p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                        className="mt-1 block h-10 w-16 cursor-pointer rounded-md border border-gray-400 bg-surface p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                     />
                 </div>
                 <div>
