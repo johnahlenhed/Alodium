@@ -264,9 +264,11 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
 - **Form controls** (inputs, selects, textareas, checkboxes, radios) have a
   `gray-400` border, 3.1:1 against the surface, for WCAG 1.4.11. Buttons keep
   `gray-300`: their text identifies them.
-- **Logo:** `ApplicationLogo.jsx` is an "A" cut out of a rounded square. It's a
-  placeholder until there is a designed logo. It's drawn in `currentColor`, and
-  `public/favicon.svg` is the same drawing in `#1B2A4A`.
+- **Logo:** `ApplicationLogo.jsx` is the Alodium mark, the path from
+  `astro/src/assets/alodium-mark.svg`, drawn in `currentColor`. The public
+  site's copy is a placeholder until a client uploads their own logo; the admin
+  always shows Alodium's. `public/favicon.svg` and `favicon.ico` are copies of
+  the public site's favicons.
 - **`ThemePreview.jsx`** shows the public site, so it keeps its own colours
   (white card, the chosen brand colour).
 - `node resources/js/theme.check.mjs` checks the contrast rules and catches
