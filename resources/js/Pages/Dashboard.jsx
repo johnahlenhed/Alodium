@@ -13,6 +13,7 @@ import {
     FileText,
     Globe,
     Inbox,
+    Info,
     Minus,
     RefreshCw,
     Server,
@@ -357,6 +358,14 @@ function SiteStatus({ status }) {
                     {failedJobs === null ? 'failed: no data' : `${failedJobs} failed`}
                 </StatusRow>
             </dl>
+            {/* Always shown, and not a warning: there is nothing to fix (docs/ARCHITECTURE.md, "Tracker blockers"). */}
+            <p className="mt-3 flex items-start gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                    Visitor counts may undercount real traffic: some visitors use tracker-blocking tools, and their visits
+                    can&rsquo;t be recorded. This is by design.
+                </span>
+            </p>
         </Section>
     );
 }

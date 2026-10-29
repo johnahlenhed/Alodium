@@ -138,6 +138,28 @@ picker, session auth) and `GET /import/runs/{run}/status` (`status`,
 50 `failures` and `failures_recorded`), which the run page `/import/runs/{run}`
 polls. The old `/import/result` redirects to the latest run.
 
+### Tracker blockers (an accepted limitation)
+
+Visitors who block trackers are not counted, and nothing shows it. Ad and
+tracker blockers can intercept the tracker's `POST /api/collect` in the
+browser and answer it with a made-up success (seen in production: a `204 No
+Content` without nginx's `Server` and `Date` headers). Such blockers include
+browser extensions (uBlock Origin, AdGuard), built-in browser protection
+(Firefox's Enhanced Tracking Protection, Brave Shields) and VPN apps with
+ad blocking (NordVPN's Threat Protection). A common filter list, EasyPrivacy, has
+the rule `/api/collect|$ping,xmlhttprequest`, which matches this URL. The
+`PATCH` and the events need the `visit_id` that `POST` returns, so the whole
+visit is lost.
+
+- **Invisible by design.** `tracker.js` ignores every failed or unexpected
+  response, so a blocked request never breaks the host page. The request
+  never reaches the server, so nothing is logged or stored either.
+- **Accepted, not worked around.** A visitor who has chosen to block trackers
+  has made that choice, and a privacy-first tool respects it. Renaming the
+  endpoint or proxying it to get past filter lists would mean working around
+  that choice. Visitor numbers are a lower bound: real traffic can be higher.
+  The dashboard's Site status says so.
+
 ## 5. Blocks
 
 Block pages store `pages.blocks` as `{version: 1, blocks: [{id, type, data}]}`.
@@ -350,6 +372,9 @@ Astro (`astro/.env`, `astro/.env.production`):
 | `SITE_URL` | public site address for the sitemap, robots.txt and canonical links |
 
 ## 12. Known gaps
+
+- **Tracker blockers**: visitors who block trackers are never counted, by
+  design. The counts are a lower bound (section 4, "Tracker blockers").
 
 - **Sanitiser and relative images**: `allowRelativeMedias()` still keeps
   relative `<img src>` values other than `/storage/...` (e.g. `../x.jpg`);
