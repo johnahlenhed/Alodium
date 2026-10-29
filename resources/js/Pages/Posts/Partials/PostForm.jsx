@@ -8,7 +8,7 @@ import { localTimeZone, toLocalInput } from '@/utils/publishing';
 import { Link } from '@inertiajs/react';
 
 const textareaClass =
-    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 // Shared by Create and Edit. The parent owns the useForm instance and submit handler.
 export default function PostForm({ form, onSubmit, submitLabel }) {

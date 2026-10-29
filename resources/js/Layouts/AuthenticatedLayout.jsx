@@ -15,14 +15,14 @@ export default function AuthenticatedLayout({ header, children }) {
         useState(false);
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="border-b border-gray-100 bg-white">
+        <div className="min-h-screen bg-canvas">
+            <nav className="border-b border-gray-100 bg-surface">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
+                                    <ApplicationLogo className="block h-9 w-auto fill-current text-primary" />
                                 </Link>
                             </div>
 
@@ -57,7 +57,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Submissions
                                     {unreadSubmissions > 0 && (
-                                        <span className="ms-1.5 rounded-full bg-indigo-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white">
+                                        <span className="ms-1.5 rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold leading-none text-on-primary">
                                             {unreadSubmissions}
                                             <span className="sr-only"> unread</span>
                                         </span>
@@ -103,7 +103,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                         <span className="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                className="inline-flex items-center rounded-md border border-transparent bg-surface px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
                                             >
                                                 {user.name}
 
@@ -230,7 +230,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Analytics
                                 </ResponsiveNavLink>
-                                <div className="mt-2 border-t border-gray-200 px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                <div className="mt-2 border-t border-gray-200 px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
                                     Tools
                                 </div>
                                 <ResponsiveNavLink
@@ -282,7 +282,7 @@ export default function AuthenticatedLayout({ header, children }) {
             </nav>
 
             {header && (
-                <header className="bg-white shadow">
+                <header className="bg-surface shadow">
                     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                         {header}
                     </div>
@@ -292,12 +292,12 @@ export default function AuthenticatedLayout({ header, children }) {
             {(flash?.success || flash?.warning) && (
                 <div className="mx-auto max-w-7xl space-y-3 px-4 pt-6 sm:px-6 lg:px-8">
                     {flash.success && (
-                        <div role="status" className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                        <div role="status" className="rounded-md border border-success-200 bg-success-50 p-4 text-sm text-success-800">
                             {flash.success}
                         </div>
                     )}
                     {flash.warning && (
-                        <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        <div role="alert" className="rounded-md border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800">
                             {flash.warning}
                         </div>
                     )}

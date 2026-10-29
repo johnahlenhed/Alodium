@@ -40,7 +40,7 @@ function formatAge(hours) {
 
 function Section({ title, icon: Icon, action, children, className = '' }) {
     return (
-        <section className={`rounded-lg bg-white p-5 shadow-sm ${className}`}>
+        <section className={`rounded-lg bg-surface p-5 shadow-sm ${className}`}>
             <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                     {Icon && <Icon className="h-4 w-4 text-gray-500" aria-hidden="true" />}
@@ -54,7 +54,7 @@ function Section({ title, icon: Icon, action, children, className = '' }) {
 }
 
 const actionClass =
-    'inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2';
+    'inline-flex items-center gap-2 rounded-md border border-gray-300 bg-surface px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2';
 
 function Header({ userName, publicSiteUrl, unread }) {
     return (
@@ -70,7 +70,7 @@ function Header({ userName, publicSiteUrl, unread }) {
                 <Link href={route('submissions.index')} className={actionClass}>
                     <Inbox className="h-4 w-4" aria-hidden="true" /> Submissions
                     {unread > 0 && (
-                        <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white">
+                        <span className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold leading-none text-on-primary">
                             {unread}
                             <span className="sr-only"> unread</span>
                         </span>
@@ -132,7 +132,7 @@ function Visitors({ summary }) {
                             type="button"
                             onClick={() => changePeriod(days)}
                             aria-pressed={summary.days === days}
-                            className={`border border-gray-300 px-3 py-1.5 text-sm font-medium first:rounded-s-md last:rounded-e-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${summary.days === days ? 'bg-gray-800 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                            className={`border border-gray-300 px-3 py-1.5 text-sm font-medium first:rounded-s-md last:rounded-e-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${summary.days === days ? 'bg-primary text-on-primary' : 'bg-surface text-gray-700 hover:bg-gray-50'}`}
                         >
                             {days} days
                         </button>
@@ -186,7 +186,7 @@ function TopContent({ rows, days }) {
                 renderLabel={(row) => (
                     <>
                         {row.editUrl ? (
-                            <Link href={row.editUrl} className="font-medium text-indigo-700 hover:underline">
+                            <Link href={row.editUrl} className="font-medium text-brand-700 hover:underline">
                                 {row.title}
                             </Link>
                         ) : (
@@ -233,7 +233,7 @@ function ContentStatus({ content }) {
             <h4 className="mt-5 text-sm font-semibold text-gray-900">Needs attention</h4>
             {content.missingMetaCount === 0 ? (
                 <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-                    <CircleCheck className="h-4 w-4 text-green-700" aria-hidden="true" />
+                    <CircleCheck className="h-4 w-4 text-success-700" aria-hidden="true" />
                     Every published post and page has a meta description.
                 </p>
             ) : (
@@ -245,7 +245,7 @@ function ContentStatus({ content }) {
                     <ul className="mt-2 space-y-1 text-sm">
                         {content.missingMeta.map((item) => (
                             <li key={item.editUrl}>
-                                <Link href={item.editUrl} className="text-indigo-700 hover:underline">
+                                <Link href={item.editUrl} className="text-brand-700 hover:underline">
                                     {item.title}
                                 </Link>
                                 <span className="ms-2 text-gray-500">{item.type}</span>
@@ -264,7 +264,7 @@ function Submissions({ submissions }) {
             title="Submissions"
             icon={Inbox}
             action={
-                <Link href={route('submissions.index')} className="text-sm text-indigo-700 hover:underline">
+                <Link href={route('submissions.index')} className="text-sm text-brand-700 hover:underline">
                     View all
                 </Link>
             }
@@ -282,7 +282,7 @@ function Submissions({ submissions }) {
                             <Link href={route('submissions.show', submission.id)} className={`hover:underline ${submission.read ? 'text-gray-900' : 'font-semibold text-gray-900'}`}>
                                 {submission.name}
                             </Link>
-                            {!submission.read && <span className="ms-2 text-xs font-medium text-indigo-700">unread</span>}
+                            {!submission.read && <span className="ms-2 text-xs font-medium text-brand-700">unread</span>}
                             <span className="ms-2 text-gray-500">{formatDateTime(submission.created_at)}</span>
                             <p className="truncate text-gray-600">{submission.excerpt}</p>
                         </li>
@@ -313,7 +313,7 @@ function SiteStatus({ status }) {
             {warnings.length > 0 ? (
                 <ul className="mb-3 space-y-2" aria-label="Warnings">
                     {warnings.map((warning) => (
-                        <li key={warning} className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        <li key={warning} className="flex items-start gap-2 rounded-md border border-warning-300 bg-warning-50 px-3 py-2 text-sm text-warning-900">
                             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                             <span>
                                 <span className="font-semibold">Warning: </span>
@@ -324,7 +324,7 @@ function SiteStatus({ status }) {
                 </ul>
             ) : (
                 <p className="mb-3 flex items-center gap-2 text-sm text-gray-700">
-                    <CircleCheck className="h-4 w-4 text-green-700" aria-hidden="true" />
+                    <CircleCheck className="h-4 w-4 text-success-700" aria-hidden="true" />
                     No problems found.
                 </p>
             )}

@@ -210,7 +210,7 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
                     {/* A one-line summary while dragging, never a second editor. */}
                     <DragOverlay>
                         {activeBlock && (
-                            <div className="rounded-lg border border-indigo-300 bg-white px-4 py-3 text-sm shadow-lg">
+                            <div className="rounded-lg border border-brand-300 bg-surface px-4 py-3 text-sm shadow-lg">
                                 <span className="font-medium text-gray-900">{blockLabel(activeBlock)}</span>{' '}
                                 <span className="text-gray-500">{blockSummary(activeBlock)}</span>
                             </div>
@@ -219,7 +219,7 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
                 </DndContext>
             )}
 
-            {listError && <p className="text-sm text-red-600">{listError}</p>}
+            {listError && <p className="text-sm text-danger-600">{listError}</p>}
 
             <div className="relative">
                 <button
@@ -229,7 +229,7 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
                     disabled={!canAdd(blocks)}
                     aria-expanded={menuOpen}
                     aria-controls="add-block-menu"
-                    className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-surface px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     Add block
@@ -241,7 +241,7 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
                 {menuOpen && (
                     <ul
                         id="add-block-menu"
-                        className="mt-2 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+                        className="mt-2 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-surface shadow-sm"
                         onKeyDown={(e) => {
                             if (e.key === 'Escape') {
                                 setMenuOpen(false);
@@ -255,7 +255,7 @@ export default function BlockEditor({ blocks, setBlocks, errors, submittedIds })
                                     type="button"
                                     autoFocus={i === 0}
                                     onClick={() => add(type)}
-                                    className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-gray-50 focus:bg-indigo-50 focus:outline-none"
+                                    className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-gray-50 focus:bg-brand-50 focus:outline-none"
                                 >
                                     <definition.icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" aria-hidden="true" />
                                     <span>

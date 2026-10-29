@@ -226,6 +226,44 @@ The PHP and JS rules are kept in sync by tests: `SiteThemeSyncTest` loads
 `theme.js`/`fonts.js` with Node; `BrandColorTest` reads a fixture generated
 from `color.js`.
 
+### Admin colours
+
+The admin panel has its own fixed palette, separate from the public site's
+brand colour setting. It is derived from the default brand colour `#1B2A4A`.
+
+- **Tokens** are in `resources/css/theme.css`, as `--color-*` CSS variables
+  with "R G B" channels and the hex in a comment. `tailwind.config.js` only
+  maps them to class names. It replaces Tailwind's palette instead of
+  extending it, so `indigo-600` and the like no longer exist.
+- **Scales** `brand`, `gray` (neutrals tinted with the brand hue), `success`,
+  `warning` and `danger`, each with steps 50 to 950. Each step is an OKLCH
+  colour with the scale's hue, at a fixed contrast against white, so a step
+  has the same role in every scale:
+  - 50–300 are backgrounds and borders;
+  - 400 is icons and other non-text UI (3:1);
+  - 500 is the lightest text colour (5.1:1, so AA on the canvas too);
+  - 600–950 is text.
+  `#1B2A4A` is `brand-800`.
+- **Roles** cover what no single step expresses:
+  - `canvas` is the page background;
+  - `surface` is cards, nav, header, menus and modals;
+  - `primary`, `primary-hover` and `primary-active` are filled buttons,
+    selected toggles, badges and progress bars, and `primary` is `#1B2A4A`;
+  - `on-primary` is text on primary.
+  Links, checked controls and focus rings use lighter brand steps
+  (`brand-600`, `brand-500`): navy text would be hard to tell apart from the
+  navy-tinted body text.
+- **Outside class names:** `@tailwindcss/forms` reads `colors.gray` and
+  `colors.blue.600`. That is why the neutral scale is still called `gray`, and
+  why `blue.600` exists, pointing at `brand-600`; it isn't for use in classes.
+  The chart (`VisitsChart.jsx`) and Inertia's progress bar use
+  `rgb(var(--color-…))` directly.
+- **`ThemePreview.jsx`** shows the public site, so it keeps its own colours
+  (white card, the chosen brand colour).
+- `node resources/js/theme.check.mjs` checks the contrast rules and catches
+  classes that use a colour that isn't defined, or hex colours in the admin
+  source (section 10).
+
 ## 7. Roles and permissions
 
 | Action | Admin | Editor |
@@ -318,6 +356,15 @@ The README requires the worker to run with `--timeout=660` and
 - `node resources/js/utils/importRun.check.mjs` checks the import run page's
   state (poll timing and back-off, stall detection, milestones, reason
   mapping and grouping, formatting).
+- `node resources/js/theme.check.mjs` checks the admin colour tokens
+  (section 6, "Admin colours"):
+  - each hex comment matches its channels;
+  - the WCAG AA contrast rules of the steps and roles hold;
+  - no class names a colour the theme doesn't define (Tailwind would silently
+    leave it out);
+  - there are no hex colours in `resources/js`;
+  - text and background classes in the same string literal reach 4.5:1. This
+    is a heuristic: nested elements aren't paired.
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
 - `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes and runs
   exactly what README sections 4 to 6 describe: the env block, the plain-HTTP

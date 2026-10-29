@@ -10,12 +10,12 @@ import BrandColorField from './Partials/BrandColorField';
 import NavigationEditor from './Partials/NavigationEditor';
 import ThemePreview from './Partials/ThemePreview';
 
-const fieldClass = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+const fieldClass = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 function Section({ title, description, children }) {
     const id = `section-${title.toLowerCase().replace(/\s+/g, '-')}`;
     return (
-        <section aria-labelledby={id} className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+        <section aria-labelledby={id} className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
             <h3 id={id} className="text-lg font-medium text-gray-900">
                 {title}
             </h3>
@@ -47,7 +47,7 @@ function ChoiceGroup({ legend, name, options, value, onChange, error }) {
                             value={option.value}
                             checked={value === option.value}
                             onChange={() => onChange(option.value)}
-                            className="border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="border-gray-300 text-brand-600 focus:ring-brand-500"
                         />
                         {option.label}
                     </label>
@@ -173,7 +173,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                             It is shown at most 128 pixels high.
                         </p>
                         {shownLogo && (
-                            <div className="mt-3 inline-block rounded-md border border-gray-200 bg-[repeating-conic-gradient(#f3f4f6_0%_25%,#fff_0%_50%)] bg-[length:16px_16px] p-3">
+                            <div className="mt-3 inline-block rounded-md border border-gray-200 bg-[repeating-conic-gradient(rgb(var(--color-gray-100))_0%_25%,rgb(var(--color-surface))_0%_50%)] bg-[length:16px_16px] p-3">
                                 <img src={shownLogo} alt={newLogoUrl ? 'New logo, not saved yet' : 'Current logo'} className="max-h-16 w-auto" />
                             </div>
                         )}
@@ -184,7 +184,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                             accept="image/png,image/jpeg,image/webp"
                             aria-describedby="logo_help"
                             onChange={(e) => chooseLogo(e.target.files[0])}
-                            className="mt-3 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            className="mt-3 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                         />
                         {progress && <p className="mt-2 text-sm text-gray-600">Uploading… {progress.percentage}%</p>}
                         {logo && !data.logo && (
@@ -288,7 +288,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                             If the chosen page is unpublished or deleted later, the home page goes back to the latest posts.
                         </p>
                         {frontPageMissing && (
-                            <p role="status" className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                            <p role="status" className="mt-2 rounded-md border border-warning-200 bg-warning-50 p-3 text-sm text-warning-800">
                                 The page chosen before is no longer published, so the home page shows the latest posts.
                             </p>
                         )}
@@ -318,7 +318,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                 <div className="flex items-center gap-4 px-4 sm:px-0">
                     <PrimaryButton disabled={processing}>{processing ? 'Saving…' : 'Save settings'}</PrimaryButton>
                     {Object.keys(errors).length > 0 && (
-                        <p role="alert" className="text-sm text-red-600">
+                        <p role="alert" className="text-sm text-danger-600">
                             Some settings need fixing. See the messages above.
                         </p>
                     )}

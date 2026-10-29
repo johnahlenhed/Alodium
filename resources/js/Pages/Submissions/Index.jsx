@@ -23,7 +23,7 @@ export default function Index({ submissions }) {
                         {total === 1 ? 'message' : 'messages'} in total.
                     </p>
 
-                    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
+                    <div className="overflow-hidden bg-surface shadow sm:rounded-lg">
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -44,10 +44,10 @@ export default function Index({ submissions }) {
                                     </tr>
                                 )}
                                 {data.map((submission) => (
-                                    <tr key={submission.id} className={submission.read ? '' : 'bg-indigo-50/40'}>
+                                    <tr key={submission.id} className={submission.read ? '' : 'bg-brand-50/40'}>
                                         <td className="px-4 py-3">
                                             {!submission.read && (
-                                                <span className="block h-2.5 w-2.5 rounded-full bg-indigo-600" aria-hidden="true" />
+                                                <span className="block h-2.5 w-2.5 rounded-full bg-primary" aria-hidden="true" />
                                             )}
                                             <span className="sr-only">{submission.read ? 'Read' : 'Unread'}</span>
                                         </td>
@@ -55,7 +55,7 @@ export default function Index({ submissions }) {
                                             {/* Plain text from visitors: rendered as escaped text, never HTML. */}
                                             <Link
                                                 href={route('submissions.show', submission.id)}
-                                                className={`text-gray-900 hover:text-indigo-700 hover:underline ${submission.read ? '' : 'font-semibold'}`}
+                                                className={`text-gray-900 hover:text-brand-700 hover:underline ${submission.read ? '' : 'font-semibold'}`}
                                             >
                                                 {submission.name}
                                             </Link>
@@ -76,7 +76,7 @@ export default function Index({ submissions }) {
                     {last_page > 1 && (
                         <nav className="flex items-center justify-between px-4 text-sm sm:px-0" aria-label="Pagination">
                             {prev_page_url ? (
-                                <Link href={prev_page_url} className="text-indigo-600 hover:text-indigo-900" preserveScroll>
+                                <Link href={prev_page_url} className="text-brand-600 hover:text-brand-900" preserveScroll>
                                     ← Newer
                                 </Link>
                             ) : (
@@ -86,7 +86,7 @@ export default function Index({ submissions }) {
                                 Page {current_page} of {last_page}
                             </span>
                             {next_page_url ? (
-                                <Link href={next_page_url} className="text-indigo-600 hover:text-indigo-900" preserveScroll>
+                                <Link href={next_page_url} className="text-brand-600 hover:text-brand-900" preserveScroll>
                                     Older →
                                 </Link>
                             ) : (

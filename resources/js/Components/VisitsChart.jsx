@@ -8,6 +8,12 @@ import {
     YAxis,
 } from 'recharts';
 
+// Theme tokens (resources/css/theme.css); SVG attributes accept var().
+const GRID = 'rgb(var(--color-gray-200))';
+const TICK = 'rgb(var(--color-gray-500))';
+const LINE = 'rgb(var(--color-primary))';
+const DOT_RING = 'rgb(var(--color-surface))';
+
 /**
  * Daily page views as a line chart (shared by Analytics and the dashboard).
  * The chart is an image with an aria-label; the same numbers are in a visually
@@ -25,18 +31,18 @@ export default function VisitsChart({ data, label = 'Page views per day', unit =
             >
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data}>
-                        <CartesianGrid stroke="#e5e7eb" vertical={false} />
+                        <CartesianGrid stroke={GRID} vertical={false} />
                         <XAxis
                             dataKey="date"
                             tickFormatter={(d) => d.slice(5)}
-                            tick={{ fontSize: 12, fill: '#6b7280' }}
+                            tick={{ fontSize: 12, fill: TICK }}
                             tickLine={false}
-                            axisLine={{ stroke: '#e5e7eb' }}
+                            axisLine={{ stroke: GRID }}
                             minTickGap={24}
                         />
                         <YAxis
                             allowDecimals={false}
-                            tick={{ fontSize: 12, fill: '#6b7280' }}
+                            tick={{ fontSize: 12, fill: TICK }}
                             tickLine={false}
                             axisLine={false}
                             width={32}
@@ -45,10 +51,10 @@ export default function VisitsChart({ data, label = 'Page views per day', unit =
                         <Line
                             type="monotone"
                             dataKey="count"
-                            stroke="#4f46e5"
+                            stroke={LINE}
                             strokeWidth={2}
                             dot={false}
-                            activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }}
+                            activeDot={{ r: 4, stroke: DOT_RING, strokeWidth: 2 }}
                         />
                     </LineChart>
                 </ResponsiveContainer>

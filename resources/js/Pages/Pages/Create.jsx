@@ -35,7 +35,7 @@ export default function Create({ blocks = [] }) {
             <Head title="New page" />
 
             <div className="py-12">
-                <div className="mx-auto max-w-3xl bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div className="mx-auto max-w-3xl bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     <PageForm form={form} onSubmit={submit} submitLabel="Create page" mode="blocks" />
                 </div>
             </div>

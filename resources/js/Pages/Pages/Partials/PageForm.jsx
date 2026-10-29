@@ -10,7 +10,7 @@ import { Link } from '@inertiajs/react';
 import { useCallback, useRef, useState } from 'react';
 
 const textareaClass =
-    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+    'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 // Shared by Create and Edit. The parent owns the useForm instance and submit handler.
 // mode: "blocks" (block editor) or "classic" (one rich-text editor for `content`,
@@ -57,14 +57,14 @@ export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic'
             ) : (
                 <div>
                     {onConvert && (
-                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-indigo-200 bg-indigo-50 px-4 py-3">
-                            <p className="text-sm text-indigo-900">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-brand-200 bg-brand-50 px-4 py-3">
+                            <p className="text-sm text-brand-900">
                                 This page uses the classic editor. Convert it to build the page from blocks.
                             </p>
                             <button
                                 type="button"
                                 onClick={onConvert}
-                                className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-indigo-700 shadow-sm ring-1 ring-indigo-200 hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-brand-700 shadow-sm ring-1 ring-brand-200 hover:bg-brand-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             >
                                 Convert to blocks
                             </button>

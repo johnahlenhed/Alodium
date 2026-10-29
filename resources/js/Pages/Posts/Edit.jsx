@@ -37,7 +37,7 @@ export default function Edit({ post, revisions }) {
             <Head title="Edit post" />
 
             <div className="mx-auto max-w-3xl space-y-6 py-12">
-                <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     <PostForm form={form} onSubmit={submit} submitLabel="Save changes" />
                 </div>
 

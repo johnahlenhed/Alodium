@@ -6,7 +6,7 @@ const RANGES = [7, 30, 90];
 
 function MetricCard({ label, value }) {
     return (
-        <div className="bg-white p-6 shadow sm:rounded-lg">
+        <div className="bg-surface p-6 shadow sm:rounded-lg">
             <div className="text-sm font-medium text-gray-500">{label}</div>
             <div className="mt-2 text-3xl font-semibold text-gray-900">{value}</div>
         </div>
@@ -15,7 +15,7 @@ function MetricCard({ label, value }) {
 
 function TableCard({ title, keyLabel, rows }) {
     return (
-        <div className="bg-white p-6 shadow sm:rounded-lg">
+        <div className="bg-surface p-6 shadow sm:rounded-lg">
             <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
             {rows.length === 0 ? (
                 <p className="mt-4 text-sm text-gray-500">No data yet.</p>
@@ -77,8 +77,8 @@ export default function Index({
                                 className={
                                     'border border-gray-300 px-3 py-1.5 text-sm font-medium first:rounded-s-md last:rounded-e-md ' +
                                     (days === range
-                                        ? 'bg-gray-800 text-white'
-                                        : 'bg-white text-gray-700 hover:bg-gray-50')
+                                        ? 'bg-primary text-on-primary'
+                                        : 'bg-surface text-gray-700 hover:bg-gray-50')
                                 }
                             >
                                 {range} days
@@ -98,7 +98,7 @@ export default function Index({
                         <MetricCard label="Avg scroll depth" value={`${avgScrollDepth}%`} />
                     </div>
 
-                    <div className="bg-white p-6 shadow sm:rounded-lg">
+                    <div className="bg-surface p-6 shadow sm:rounded-lg">
                         <h3 className="text-sm font-semibold text-gray-900">Visits over time</h3>
                         {totalVisits === 0 ? (
                             <p className="mt-4 text-sm text-gray-500">No data yet.</p>

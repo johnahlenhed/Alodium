@@ -50,7 +50,7 @@ export default function Index({ media }) {
                             type="button"
                             onClick={() => fileInput.current.click()}
                             disabled={processing}
-                            className="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 disabled:opacity-50"
+                            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-widest text-on-primary hover:bg-primary-hover disabled:opacity-50"
                         >
                             {processing ? 'Uploading…' : 'Upload'}
                         </button>
@@ -65,7 +65,7 @@ export default function Index({ media }) {
                     {progress && (
                         <div className="h-2 overflow-hidden rounded bg-gray-200">
                             <div
-                                className="h-full bg-indigo-600 transition-all"
+                                className="h-full bg-primary transition-all"
                                 style={{ width: `${progress.percentage}%` }}
                             />
                         </div>
@@ -73,16 +73,16 @@ export default function Index({ media }) {
                     <InputError message={errors.file} />
 
                     {media.length === 0 ? (
-                        <div className="bg-white p-12 text-center shadow sm:rounded-lg">
+                        <div className="bg-surface p-12 text-center shadow sm:rounded-lg">
                             <p className="text-gray-500">No media uploaded yet.</p>
-                            <p className="mt-1 text-sm text-gray-400">
+                            <p className="mt-1 text-sm text-gray-500">
                                 JPG, PNG, GIF, WebP or SVG, up to 10 MB.
                             </p>
                         </div>
                     ) : (
                         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                             {media.map((item) => (
-                                <li key={item.id} className="overflow-hidden bg-white shadow sm:rounded-lg">
+                                <li key={item.id} className="overflow-hidden bg-surface shadow sm:rounded-lg">
                                     <a href={item.url} target="_blank" rel="noreferrer">
                                         <img
                                             src={item.thumb_url}
@@ -105,7 +105,7 @@ export default function Index({ media }) {
                                                     method="delete"
                                                     as="button"
                                                     preserveScroll
-                                                    className="text-red-600 hover:text-red-900"
+                                                    className="text-danger-600 hover:text-danger-900"
                                                     onBefore={() => confirm(`Delete ${item.file_name}?`)}
                                                 >
                                                     Delete

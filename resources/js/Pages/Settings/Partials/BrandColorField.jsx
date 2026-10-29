@@ -32,7 +32,7 @@ export default function BrandColorField({ value, onChange, error, minContrast })
                         type="color"
                         value={lastValid.current.toLowerCase()}
                         onChange={(e) => onChange(e.target.value.toUpperCase())}
-                        className="mt-1 block h-10 w-16 cursor-pointer rounded-md border border-gray-300 bg-white p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                        className="mt-1 block h-10 w-16 cursor-pointer rounded-md border border-gray-300 bg-surface p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                     />
                 </div>
                 <div>
@@ -54,17 +54,17 @@ export default function BrandColorField({ value, onChange, error, minContrast })
             <p id="brand_color_contrast" aria-live="polite" className="mt-3 flex items-start gap-2 text-sm text-gray-800">
                 {ratio === null ? (
                     <>
-                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning-600" aria-hidden="true" />
                         <span>Enter # followed by 6 hexadecimal digits, for example #1B2A4A.</span>
                     </>
                 ) : ok ? (
                     <>
-                        <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-700" aria-hidden="true" />
+                        <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-success-700" aria-hidden="true" />
                         <span>Contrast with white: {formatRatio(ratio)}:1, OK</span>
                     </>
                 ) : (
                     <>
-                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning-600" aria-hidden="true" />
                         <span>
                             Contrast with white: {formatRatio(ratio)}:1, too low (minimum {minContrast.toFixed(1)}:1). Try a
                             darker shade.

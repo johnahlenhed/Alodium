@@ -8,7 +8,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 const formatDate = (value) => new Date(value).toLocaleDateString('sv-SE');
 
 const ROLE_BADGE = {
-    admin: 'bg-indigo-100 text-indigo-800',
+    admin: 'bg-brand-100 text-brand-800',
     editor: 'bg-gray-100 text-gray-700',
 };
 
@@ -43,7 +43,7 @@ function UserRow({ user, isSelf }) {
                             value={data.role}
                             disabled={processing}
                             onChange={(e) => changeRole(e.target.value)}
-                            className="rounded-md border-gray-300 py-1 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="rounded-md border-gray-300 py-1 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
                         >
                             <option value="admin">Admin</option>
                             <option value="editor">Editor</option>
@@ -63,7 +63,7 @@ function UserRow({ user, isSelf }) {
                         onBefore={() =>
                             confirm(`Delete ${user.name}? Their posts, pages and media will be transferred to you.`)
                         }
-                        className="text-red-600 hover:text-red-900"
+                        className="text-danger-600 hover:text-danger-900"
                     >
                         Delete
                     </Link>
@@ -89,7 +89,7 @@ function CreateUserForm() {
     };
 
     return (
-        <section className="bg-white p-4 shadow sm:rounded-lg sm:p-6">
+        <section className="bg-surface p-4 shadow sm:rounded-lg sm:p-6">
             <h3 className="text-lg font-medium text-gray-900">Create user</h3>
             <p className="mt-1 text-sm text-gray-600">
                 The new user gets an email with a link to set their own password.
@@ -129,7 +129,7 @@ function CreateUserForm() {
                         id="new-role"
                         value={data.role}
                         onChange={(e) => setData('role', e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500"
                     >
                         <option value="editor">Editor</option>
                         <option value="admin">Admin</option>
@@ -170,7 +170,7 @@ export default function Index({ users }) {
 
                     <CreateUserForm />
 
-                    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
+                    <div className="overflow-hidden bg-surface shadow sm:rounded-lg">
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                             <thead className="bg-gray-50">
                                 <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">

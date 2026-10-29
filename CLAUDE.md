@@ -97,6 +97,7 @@ php artisan migrate:fresh --seed  # Reset and seed
 php artisan test           # Run the PHPUnit tests (in-memory SQLite, no network)
 node resources/js/Components/Blocks/blocksReducer.check.mjs   # Block editor list operations
 node resources/js/utils/importRun.check.mjs                    # Import run page state
+node resources/js/theme.check.mjs                              # Admin colour tokens: contrast, no undefined colours
 
 # Background work
 php artisan queue:work     # Astro rebuilds, import image downloads, media conversions
