@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Foundation\Application;
 
 /**
  * `composer setup`'s key step. Laravel's key:generate replaces APP_KEY without
@@ -21,7 +22,10 @@ class EnsureAppKey extends Command
 
     public function handle(): int
     {
-        $path = $this->laravel->environmentFilePath();
+        // The contract type of $laravel lacks environmentFilePath(); the application always has it.
+        /** @var Application $app */
+        $app = $this->laravel;
+        $path = $app->environmentFilePath();
 
         if (! $this->hasKey($path)) {
             // A fresh install: exactly what composer setup did before.

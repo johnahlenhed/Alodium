@@ -52,7 +52,7 @@ app/
   Blocks/            BlockRegistry + BlockType, one class per block type in Types/
   Console/Commands/  db:backup, media:backup-remote, content:publish-scheduled,
                      content:sanitize, db:backup-test-remote, user:set-password,
-                     app:ensure-key
+                     app:ensure-key, app:configure-env
   Http/Controllers/  admin pages (Inertia) and API controllers; Auth/ is Breeze
   Http/Middleware/   RequireAdmin ("admin" alias), HandleInertiaRequests, EnsureRegistrationIsEnabled
   Http/Requests/     UpdateSiteSettingsRequest, ProfileUpdateRequest, Auth/LoginRequest
@@ -354,7 +354,8 @@ forgot-password page, which fails the same way.
 | `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) warns when the file is missing, unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
-| `app:ensure-key` | `composer setup` | runs `key:generate` only when `.env` has no `APP_KEY`; otherwise explains why it skipped (a new key logs everyone out and makes encrypted data unreadable) |
+| `app:ensure-key` | `composer setup`, README step 3 | runs `key:generate` only when `.env` has no `APP_KEY`; otherwise explains why it skipped (a new key logs everyone out and makes encrypted data unreadable) |
+| `app:configure-env` | README step 3, again to add skipped values | generates `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` and (if left empty) `DB_PASSWORD`, asks for the database user, Resend key, Sentry DSN and S3 bucket; never replaces a value already set; writes `.env` once, then `config:cache` once (section 11) |
 | `user:set-password` | manually | sets a user's password (hidden prompt or `--generate`), creating an admin for a new email; sends no email (section 7) |
 
 The README requires the worker to run with `--timeout=660` and
@@ -457,13 +458,30 @@ Laravel (`.env`), project-specific ones; standard Laravel and package
 variables (`APP_*`, `DB_*`, `MAIL_*`, `SESSION_*`, `CACHE_STORE`,
 `QUEUE_CONNECTION`, `LOG_*`, ...) have their usual meaning.
 
+**Who sets what on a server.** Each value has one place it comes from, and none
+of these steps replaces a value that is already set:
+
+| Values | Set by |
+|---|---|
+| `APP_KEY` | `php artisan app:ensure-key` (also in `composer setup`) |
+| `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` (generated); `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (generated if left empty, with the SQL for the user printed); `RESEND_API_KEY`, `SENTRY_LARAVEL_DSN`, `BACKUP_S3_*` (asked for, each can be skipped) | `php artisan app:configure-env` (`ConfigureEnv`); run it again to add what was skipped |
+| `MAXMIND_LICENSE_KEY` | `deploy/add-domain.sh geoip` |
+| `APP_ENV`, `APP_DEBUG`, `APP_URL`, `PUBLIC_SITE_URL`, `MAIL_FROM_ADDRESS`, `ASTRO_REBUILD_SCRIPT` | by hand, README steps 3 and 9 (`add-domain.sh` takes the domains but writes only `astro/.env.production`) |
+| everything else, including `DB_QUEUE_RETRY_AFTER` | the defaults in `.env.example` |
+
+`app:configure-env` writes `.env` in one pass, checks that every value reads back
+as written (the same `.env` parser Laravel uses), quotes values only where `.env` needs it,
+then runs `config:cache` once. Secrets are asked at hidden prompts and never
+printed; the exception is a generated database password, inside the SQL that
+creates its user.
+
 | Variable | Purpose |
 |---|---|
 | `APP_URL` | Laravel origin; also makes `/storage/` image paths absolute in the API |
 | `PUBLIC_SITE_URL` | public site address: the dashboard's links, and its host (with or without `www.`) marks referrers as navigation within the site ("Your own site" in Traffic sources, left out of Top referrers on `/analytics`). Unset: nothing counts as internal |
 | `ASTRO_REBUILD_SCRIPT` | path to the rebuild script; empty skips rebuilds |
 | `WEBHOOK_SECRET` | secret for `POST /api/webhook/rebuild`; empty disables it |
-| `DB_QUEUE_RETRY_AFTER` | must exceed the worker timeout (660) |
+| `DB_QUEUE_RETRY_AFTER` | must exceed the worker timeout (660); `.env.example` sets 720 (Laravel's default is 90) |
 | `AUTH_REGISTRATION` | allow public registration (default: off in production) |
 | `CONTACT_NOTIFY_EMAIL` | recipient of contact form mails (falls back to the from address) |
 | `RESEND_API_KEY` | Resend mail transport |

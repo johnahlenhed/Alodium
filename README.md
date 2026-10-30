@@ -60,7 +60,14 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-**2. Create a MySQL database and a user for it.** The SQL in [deployment step 1](#1-server-setup) works locally too. On Ubuntu, run it in `sudo mysql`.
+**2. Create a MySQL database and a user for it**, with a password you choose. On Ubuntu, run this in `sudo mysql`:
+
+```sql
+CREATE DATABASE alodium CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'alodium'@'localhost' IDENTIFIED BY 'the-password-you-chose';
+GRANT ALL PRIVILEGES ON alodium.* TO 'alodium'@'localhost';
+FLUSH PRIVILEGES;
+```
 
 **3. Edit `.env`:**
 
@@ -148,7 +155,7 @@ apt install -y mysql-server
 mysql_secure_installation
 ```
 
-Create the database and a dedicated user:
+Create the database. Its user comes in step 3: `php artisan app:configure-env` generates the password and prints the SQL that creates the user with it, so you never type the password yourself.
 
 ```bash
 mysql
@@ -158,9 +165,6 @@ On Ubuntu, MySQL's root account uses socket authentication, so run `mysql` as ro
 
 ```sql
 CREATE DATABASE alodium CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'alodium'@'localhost' IDENTIFIED BY 'a-strong-password';
-GRANT ALL PRIVILEGES ON alodium.* TO 'alodium'@'localhost';
-FLUSH PRIVILEGES;
 ```
 
 ```bash
@@ -198,10 +202,10 @@ cd /var/www/alodium
 
 composer install --no-dev --optimize-autoloader
 cp .env.example .env
-php artisan key:generate
+php artisan app:ensure-key    # generates APP_KEY, but never replaces one already in .env
 ```
 
-Edit `.env` for production. At minimum:
+Edit `.env` for the values that depend on this server and its domains:
 
 ```ini
 APP_ENV=production
@@ -210,18 +214,24 @@ APP_URL=https://ADMIN_DOMAIN
 # The public site: the dashboard's "View site" link, and visits from its own pages
 # count as navigation within the site, not as referrals (analytics).
 PUBLIC_SITE_URL=https://SITE_DOMAIN
-
-DB_CONNECTION=mysql
-DB_DATABASE=alodium
-DB_USERNAME=alodium
-DB_PASSWORD=a-strong-password
-
-MAIL_MAILER=resend
-RESEND_API_KEY=re_...
+# An address on the domain you verify in Resend (Email, below)
 MAIL_FROM_ADDRESS=hello@SITE_DOMAIN
-
-QUEUE_CONNECTION=database
 ```
+
+The rest of `.env.example` is already right for production: MySQL, the database queue, Resend as the mailer and `DB_QUEUE_RETRY_AFTER=720`.
+
+Then fill in the secrets and service credentials:
+
+```bash
+php artisan app:configure-env
+```
+
+It writes everything to `.env` in one go and then runs `php artisan config:cache` once.
+
+- **Generated, nothing to type:** `WEBHOOK_SECRET` (step 9) and `BACKUP_ENCRYPTION_PASSPHRASE` (step 10). Copy the passphrase from `.env` into a password manager now; without it, off-server backups can't be restored.
+- **The database:** it asks for the user name (`alodium` by default) and generates its password when you leave the password empty. At the end it prints the SQL that creates that user. Run it in `sudo mysql`. If you type a password of your own instead, create the user with that password: the same SQL as step 1's, with `CREATE USER` and `GRANT`.
+- **Asked for, each can be skipped:** the Resend API key (Email, below), the Sentry DSN (step 11) and the off-server backup bucket (step 10). Leave an answer empty to skip it. The summary says what won't work until it is set.
+- **Safe to run again:** it never replaces a value that is already set, so it only asks for what is still missing. Run it again when you have the Resend key or the bucket.
 
 Then:
 
@@ -255,11 +265,7 @@ php artisan storage:link
 
 Add and verify the sending domain in Resend **before any mail is sent**, otherwise sending fails. In the Resend dashboard, add the domain under *Domains* and add the DNS records it shows (DKIM, plus SPF and the return-path records) at your DNS provider. Wait until Resend shows the domain as verified.
 
-Create an API key with **Sending access** only, and put it in `RESEND_API_KEY`. Set `MAIL_FROM_ADDRESS` to an address on the verified domain, then:
-
-```bash
-php artisan config:cache
-```
+Create an API key with **Sending access** only. `php artisan app:configure-env` asks for it, so run it again if you skipped the key earlier. `MAIL_FROM_ADDRESS` (set above) must be an address on the verified domain.
 
 Set file ownership so PHP-FPM and the queue worker (both `www-data`) can write to storage:
 
@@ -542,21 +548,13 @@ mkdir -p /var/www/.config /var/www/.npm
 chown -R www-data:www-data /var/www/.config /var/www/.npm
 ```
 
-Generate a webhook secret:
-
-```bash
-openssl rand -hex 32
-```
-
 Add to `.env`:
 
 ```ini
 ASTRO_REBUILD_SCRIPT=/var/www/alodium/rebuild-astro.sh
-WEBHOOK_SECRET=the-generated-secret
-# Must be higher than the worker's --timeout (660), or a second worker
-# starts the same build while the first is still running.
-DB_QUEUE_RETRY_AFTER=720
 ```
+
+`WEBHOOK_SECRET` was generated in step 3. `DB_QUEUE_RETRY_AFTER=720` comes from `.env.example`. It must stay higher than the worker's `--timeout` (660), or a second worker starts the same build while the first is still running.
 
 ```bash
 php artisan config:cache
@@ -565,10 +563,11 @@ supervisorctl restart alodium-worker:*
 
 The script runs as `www-data` (the queue worker's user) and needs no `sudo`.
 
-Run the first build by calling the webhook:
+Run the first build by calling the webhook, with the secret read from `.env`:
 
 ```bash
-curl -X POST https://ADMIN_DOMAIN/api/webhook/rebuild -H "X-Webhook-Secret: the-generated-secret"
+cd /var/www/alodium
+curl -X POST https://ADMIN_DOMAIN/api/webhook/rebuild -H "X-Webhook-Secret: $(sed -n 's/^WEBHOOK_SECRET=//p' .env)"
 ```
 
 The response is `202 Accepted`, and the build runs in the background. Check progress in:
@@ -615,33 +614,33 @@ Local backups don't survive the loss of the server. When object storage is confi
 
 **1. Create a bucket and an API key.** Any S3-compatible provider works: Cloudflare R2, Hetzner Object Storage, DigitalOcean Spaces or Backblaze B2. Create a private bucket, for example `alodium-backups`. Then create an API key that can read, write and delete objects **in that bucket only**. Pruning needs delete, and `db:backup-test-remote` needs read. Never use an account-wide admin key. For Cloudflare R2: *R2 → Manage API tokens → Object Read & Write*, limited to the bucket. The endpoint is `https://<account-id>.r2.cloudflarestorage.com` and the region is `auto`. Buckets created with the EU jurisdiction use `https://<account-id>.eu.r2.cloudflarestorage.com` instead. Copy the exact endpoint from the bucket settings. Other providers show their endpoint and region in the bucket settings.
 
-**2. Generate an encryption passphrase:**
-
-```bash
-openssl rand -base64 32
-```
+**2. The encryption passphrase** is already in `.env`: `php artisan app:configure-env` generated `BACKUP_ENCRYPTION_PASSPHRASE` in step 3. That's the same as `openssl rand -base64 32`, written to `.env` for you.
 
 **Store the passphrase outside the server too**, for example in a password manager. Copy it from the server's `.env` into the password manager as soon as it is generated, and test a restore using the password manager copy. It's needed to decrypt any remote backup. If the server is lost and the passphrase only existed in its `.env`, the remote backups can't be restored. The encryption protects backups if the bucket or the provider is compromised. It does not protect against someone with access to the server itself, since the passphrase is in `.env`.
 
-**3. Add to `.env`:**
+**3. Add the bucket** by running the setup command again and answering *yes* to off-server backups. It asks only for what is still missing, then caches the config:
+
+```bash
+php artisan app:configure-env
+```
+
+It asks for the access key ID, the secret (hidden), the bucket, the endpoint and the region. For Cloudflare R2 the endpoint is `https://<account-id>.r2.cloudflarestorage.com` (EU jurisdiction: `https://<account-id>.eu.r2.cloudflarestorage.com`) and the region is `auto`. The result in `.env`:
 
 ```ini
 BACKUP_S3_KEY=...
 BACKUP_S3_SECRET=...
 BACKUP_S3_REGION=auto
 BACKUP_S3_BUCKET=alodium-backups
-# EU jurisdiction buckets: https://<account-id>.eu.r2.cloudflarestorage.com
 BACKUP_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 BACKUP_S3_USE_PATH_STYLE=true
-BACKUP_ENCRYPTION_PASSPHRASE="the-generated-passphrase"
+BACKUP_ENCRYPTION_PASSPHRASE="..."
 ```
 
 The quotes only protect characters like `=`, `+` and `/` in the `.env` file and are not part of the passphrase. When decrypting, type the passphrase without quotes.
 
-**4. Apply and test:**
+**4. Test:**
 
 ```bash
-php artisan config:cache
 sudo -u www-data php artisan db:backup-test-remote
 ```
 
@@ -691,11 +690,16 @@ rm alodium-backup-YYYY-MM-DD-0200.sql.gz          # the decrypted copy
 If the server is lost:
 
 1. Create a new droplet.
-2. Follow deployment steps 1–9 and 12, and point the DNS records at the new server's IP address (Certbot then issues a new certificate).
+2. Follow deployment steps 1–9 and 12, and point the DNS records at the new server's IP address (Certbot then issues a new certificate). In step 3, right after `cp .env.example .env`, put the old values from the password manager into `.env`, **before** running `app:ensure-key` and `app:configure-env`. That's `APP_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`, the S3 credentials, `RESEND_API_KEY`, the Sentry DSN, `WEBHOOK_SECRET` and `MAXMIND_LICENSE_KEY`. Both commands keep values that are already set:
+   - With the old `APP_KEY`, sessions stay valid and data Laravel encrypted stays readable.
+   - With the old passphrase, the existing remote backups can be decrypted. A newly generated passphrase can't decrypt them.
+
+   `DB_PASSWORD` can stay empty: the command generates a new one and prints the SQL for the new server's database user.
 3. Restore the latest backup as described in "Restoring from a remote backup" above.
-4. Re-add the `.env` values from the password manager: `APP_KEY`, the database password (`DB_PASSWORD`), S3 credentials, encryption passphrase, Resend, Sentry, the webhook secret and `MAXMIND_LICENSE_KEY`. Then run `php artisan config:cache`. Use the old `APP_KEY`, not the one `key:generate` created on the new server. Without it, every session is invalidated and anything Laravel encrypted becomes unreadable. Save these values outside the server, so they survive its loss.
-5. Restore uploaded media (see below).
-6. Trigger an Astro rebuild with the webhook (step 9).
+4. Restore uploaded media (see below).
+5. Trigger an Astro rebuild with the webhook (step 9).
+
+Save the `.env` values outside the server, so they survive its loss.
 
 #### What the backups don't cover
 
@@ -745,17 +749,15 @@ Sentry collects unhandled errors from production in a dashboard, with stack trac
 
 1. Create a free account at [sentry.io](https://sentry.io) and create a Laravel project.
 2. Copy the DSN from the project settings (Client Keys).
-3. Add it to `.env` on the server:
-
-   ```ini
-   SENTRY_LARAVEL_DSN=https://...@....ingest.sentry.io/...
-   SENTRY_TRACES_SAMPLE_RATE=0.1
-   ```
-
-4. Apply and verify:
+3. Add it by running the setup command again, and paste the DSN when it asks. It asks only for what is still missing, then caches the config. `SENTRY_TRACES_SAMPLE_RATE=0.1` is already in `.env.example`.
 
    ```bash
-   php artisan config:cache
+   php artisan app:configure-env
+   ```
+
+4. Verify:
+
+   ```bash
    php artisan sentry:test   # sends a test event; it should appear in Sentry within a minute
    ```
 
