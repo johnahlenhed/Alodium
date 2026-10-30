@@ -67,6 +67,12 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            fontSize: {
+                // The page heading under the navigation bar: grows with the screen,
+                // from 20px on phones to 30px on wide screens. The rem part keeps it
+                // growing with the browser's text size (zoom), not only the width.
+                'page-title': ['clamp(1.25rem, 0.95rem + 1.1vw, 1.875rem)', { lineHeight: '1.25' }],
+            },
             // A bare `ring` falls back to colors.blue.500, which isn't defined here.
             ringColor: {
                 DEFAULT: token('brand-500'),

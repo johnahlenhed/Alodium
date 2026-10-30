@@ -265,7 +265,7 @@ export default function Run({ run, status, statusUrl }) {
                 <h2
                     ref={heading}
                     tabIndex={-1}
-                    className="rounded text-xl font-semibold leading-tight text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    className="rounded text-page-title font-semibold text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                     Import result
                 </h2>
@@ -275,7 +275,7 @@ export default function Run({ run, status, statusUrl }) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-5xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="grid gap-6 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         <Stat label="Posts imported" value={imported_posts} />
                         <Stat label="Pages imported" value={imported_pages} />
                         <Stat label="Skipped" value={skipped.length} />
@@ -310,7 +310,7 @@ export default function Run({ run, status, statusUrl }) {
                                 These posts and pages were imported, but something in them was converted, lost
                                 or repaired. Check them before publishing.
                             </p>
-                            <div className="overflow-x-auto">
+                            <div className="relative overflow-x-auto">
                                 <table className="mt-4 min-w-full divide-y divide-warning-200 text-sm">
                                     <thead className="bg-warning-100/60">
                                         <tr className="text-left text-xs font-medium uppercase tracking-wider text-warning-900">
@@ -339,7 +339,7 @@ export default function Run({ run, status, statusUrl }) {
                     {skipped.length > 0 && (
                         <div className="overflow-hidden bg-surface shadow sm:rounded-lg">
                             <h3 className="px-6 pt-6 text-sm font-semibold text-gray-900">Skipped items</h3>
-                            <div className="overflow-x-auto">
+                            <div className="relative overflow-x-auto">
                                 <table className="mt-4 min-w-full divide-y divide-gray-200 text-sm">
                                     <thead className="bg-gray-50">
                                         <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">

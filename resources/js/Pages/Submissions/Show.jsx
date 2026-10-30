@@ -10,7 +10,7 @@ export default function Show({ submission }) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     Message from {submission.name}
                 </h2>
             }
@@ -24,7 +24,7 @@ export default function Show({ submission }) {
                     </Link>
 
                     <article className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
-                        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+                        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
                             <dt className="font-medium text-gray-500">From</dt>
                             <dd className="text-gray-900">{submission.name}</dd>
                             <dt className="font-medium text-gray-500">Email</dt>

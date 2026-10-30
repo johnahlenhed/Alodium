@@ -59,7 +59,7 @@ const actionClass =
 function Header({ userName, publicSiteUrl, unread }) {
     return (
         <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">Welcome back, {userName}</h2>
+            <h2 className="text-page-title font-semibold text-gray-900">Welcome back, {userName}</h2>
             <nav aria-label="Quick actions" className="flex flex-wrap gap-2">
                 <Link href={route('posts.create')} className={actionClass}>
                     <FilePlus className="h-4 w-4" aria-hidden="true" /> New post
@@ -140,7 +140,7 @@ function Visitors({ summary }) {
                 </div>
             }
         >
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Stat label={`Page views, last ${summary.days} days`} value={summary.pageViews}>
                     <Change summary={summary} />
                 </Stat>
@@ -379,7 +379,7 @@ export default function Dashboard({ userName, publicSiteUrl, content, submission
             <Head title="Dashboard" />
 
             <div className="py-8">
-                <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
+                <div className="mx-auto grid grid-cols-1 max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
                     {isAdminView && (
                         <>
                             <Visitors summary={visitors} />

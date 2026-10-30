@@ -95,7 +95,7 @@ function CreateUserForm() {
                 The new user gets an email with a link to set their own password.
             </p>
 
-            <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-start">
+            <form onSubmit={submit} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-start">
                 <div>
                     <InputLabel htmlFor="new-name" value="Name" />
                     <TextInput
@@ -153,7 +153,7 @@ export default function Index({ users }) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     Users
                 </h2>
             }

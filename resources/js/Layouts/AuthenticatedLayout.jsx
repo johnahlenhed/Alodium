@@ -27,7 +27,11 @@ export default function AuthenticatedLayout({ header, children }) {
                                 </Link>
                             </div>
 
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            {/* Desktop nav from lg (1024px); below that, the mobile menu. With all admin
+                                links it needs about 1,110px at the wide spacing, so from 1024 to 1279px the
+                                links sit closer together and a long user name is cut off sooner (account
+                                menu). Measured to fit at 1024px with a long name and the unread badge. */}
+                            <div className="hidden space-x-3 lg:-my-px lg:ms-4 lg:flex xl:ms-10 xl:space-x-8">
                                 <NavLink
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
@@ -97,7 +101,7 @@ export default function AuthenticatedLayout({ header, children }) {
                             </div>
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden lg:ms-6 lg:flex lg:items-center">
                             <ThemeToggle />
                             <div className="relative ms-3">
                                 <Dropdown>
@@ -107,7 +111,10 @@ export default function AuthenticatedLayout({ header, children }) {
                                                 type="button"
                                                 className="inline-flex items-center rounded-md border border-transparent bg-nav px-3 py-2 text-sm font-medium leading-4 text-on-nav-muted transition duration-150 ease-in-out hover:text-on-nav focus:outline-none focus-visible:text-on-nav focus-visible:ring-2 focus-visible:ring-on-nav-muted"
                                             >
-                                                {user.name}
+                                                {/* Cut off with … so a long name can't push the bar wider than the screen. */}
+                                                <span className="max-w-24 truncate xl:max-w-32" title={user.name}>
+                                                    {user.name}
+                                                </span>
 
                                                 <svg
                                                     className="-me-0.5 ms-2 h-4 w-4"
@@ -143,7 +150,7 @@ export default function AuthenticatedLayout({ header, children }) {
                             </div>
                         </div>
 
-                        <div className="-me-2 flex items-center gap-1 sm:hidden">
+                        <div className="-me-2 flex items-center gap-1 lg:hidden">
                             <ThemeToggle />
                             <button
                                 onClick={() =>
@@ -190,7 +197,7 @@ export default function AuthenticatedLayout({ header, children }) {
                 <div
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
+                        ' lg:hidden'
                     }
                 >
                     <div className="space-y-1 pb-3 pt-2">

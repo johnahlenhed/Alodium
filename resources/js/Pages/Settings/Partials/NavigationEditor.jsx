@@ -134,7 +134,7 @@ export default function NavigationEditor({ pages, items, onChange, max, frontPag
                                         {iconButton(item, 'remove', X, `Remove ${name} from the navigation`, false, () => remove(item))}
                                     </span>
                                 </div>
-                                <div className={page ? '' : 'grid gap-3 sm:grid-cols-2'}>
+                                <div className={page ? '' : 'grid grid-cols-1 gap-3 sm:grid-cols-2'}>
                                     <div>
                                         <label htmlFor={`${id}-label`} className="block text-xs font-medium text-gray-700">
                                             {page ? 'Label (optional)' : 'Label'}

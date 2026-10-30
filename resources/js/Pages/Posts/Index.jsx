@@ -10,7 +10,7 @@ export default function Index({ posts }) {
         <AuthenticatedLayout
             header={
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    <h2 className="text-page-title font-semibold text-gray-800">
                         Posts
                     </h2>
                     <Link

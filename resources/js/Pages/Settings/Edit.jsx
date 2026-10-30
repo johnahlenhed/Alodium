@@ -122,7 +122,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
     const shownLogo = newLogoUrl ?? (data.remove_logo ? null : logo?.url);
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Site settings</h2>}>
+        <AuthenticatedLayout header={<h2 className="text-page-title font-semibold text-gray-800">Site settings</h2>}>
             <Head title="Site settings" />
 
             <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6 py-12" noValidate>
@@ -220,7 +220,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                         minContrast={options.minContrast}
                     />
 
-                    <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         {[
                             ['font_body', 'Body text font'],
                             ['font_heading', 'Heading font'],

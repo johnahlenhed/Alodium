@@ -64,7 +64,7 @@ export default function Index({
         <AuthenticatedLayout
             header={
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    <h2 className="text-page-title font-semibold text-gray-800">
                         Analytics
                     </h2>
                     <div className="inline-flex rounded-md shadow-sm" role="group" aria-label="Date range">
@@ -92,7 +92,7 @@ export default function Index({
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="grid gap-6 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         <MetricCard label="Total visits" value={totalVisits} />
                         <MetricCard label="Avg duration" value={`${avgDuration} s`} />
                         <MetricCard label="Avg scroll depth" value={`${avgScrollDepth}%`} />
@@ -109,7 +109,7 @@ export default function Index({
                         )}
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                         <TableCard title="Top pages" keyLabel="Page" rows={topPages} />
                         <TableCard title="Traffic sources" keyLabel="Source" rows={topSources} />
                         <TableCard title="Top referrers" keyLabel="Referrer" rows={topReferrers} />

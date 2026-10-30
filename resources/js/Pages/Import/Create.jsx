@@ -16,7 +16,8 @@ function RecentRuns({ runs }) {
             <h3 id="recent-imports" className="px-6 pt-6 text-sm font-semibold text-gray-900">
                 Recent imports
             </h3>
-            <div className="mt-4 overflow-x-auto">
+            {/* relative: the table's sr-only texts are absolutely positioned and would otherwise escape this scroll box and widen the page. */}
+            <div className="relative mt-4 overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -78,7 +79,7 @@ export default function Create({ limits, recentRuns = [] }) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     Import from WordPress
                 </h2>
             }
