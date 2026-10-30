@@ -2,6 +2,25 @@
 @import './theme.css';
 
 @tailwind base;
+
+/*
+ * @tailwindcss/forms hard-codes white for control backgrounds and for the gap
+ * around focus rings. Its selectors use :where(), so these plain ones win (they
+ * come later) and controls follow the theme; :checked still uses currentColor.
+ */
+@layer base {
+    input,
+    select,
+    textarea {
+        background-color: rgb(var(--color-surface));
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        --tw-ring-offset-color: rgb(var(--color-surface));
+    }
+}
 @tailwind components;
 @tailwind utilities;
 

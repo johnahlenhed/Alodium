@@ -237,8 +237,9 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
   extending it, so `indigo-600` and the like no longer exist.
 - **Scales** `brand`, `gray` (neutrals tinted with the brand hue), `success`,
   `warning` and `danger`, each with steps 50 to 950. Each step is an OKLCH
-  colour with the scale's hue, at a fixed contrast against white, so a step
-  has the same role in every scale:
+  colour with the scale's hue, at a fixed contrast against the theme's surface
+  (white in the light theme), so a step has the same role in every scale and
+  in both themes:
   - 50–300 are backgrounds and borders;
   - 400 is icons and other non-text UI (3:1);
   - 500 is the lightest text colour (5.1:1, so AA on the canvas too);
@@ -250,6 +251,8 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
   - `primary`, `primary-hover` and `primary-active` are filled buttons,
     selected toggles, badges and progress bars, and `primary` is `#1B2A4A`;
   - `on-primary` is text on primary;
+  - `danger-fill`, `danger-fill-hover`, `danger-fill-active` and `on-danger`
+    are `DangerButton`;
   - `nav`, `nav-hover`, `nav-accent`, `on-nav` and `on-nav-muted` are the navy
     top bar and its mobile menu: the bar, hovered items, the current item's
     underline, and the text.
@@ -270,10 +273,43 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
   always shows Alodium's. `public/favicon.svg` and `favicon.ico` are copies of
   the public site's favicons.
 - **`ThemePreview.jsx`** shows the public site, so it keeps its own colours
-  (white card, the chosen brand colour).
-- `node resources/js/theme.check.mjs` checks the contrast rules and catches
-  classes that use a colour that isn't defined, or hex colours in the admin
-  source (section 10).
+  (white card, the chosen brand colour). Its card has `data-theme="light"`, so
+  it stays light in the dark theme.
+
+#### Dark theme and the toggle
+
+- **Tokens:** `theme.css` has three blocks. `:root, [data-theme='light']` is
+  the light theme and the default. `[data-theme='dark']` redefines every one of
+  those tokens. A last `:root` block holds the navigation bar's tokens: the bar
+  is navy in both themes, so they are fixed values, not references to the
+  brand scale.
+- **How the dark scales were made:** the same method, against the dark
+  surface (`#131927`). Each step is lighter than the one before, so
+  `text-gray-900` stays the strongest text and `bg-gray-50` a subtle tint.
+  Components therefore need no `dark:` classes, and `tailwind.config.js` has
+  no `darkMode` setting.
+- **Fills in the dark theme:** `primary` and `danger-fill` are lighter than in
+  the light theme, still with AA white text. `primary` is `brand-400`
+  (`#4465AC`, 5.7:1), because navy on near-black barely shows.
+- **Outside class names:** `@tailwindcss/forms` hard-codes white input
+  backgrounds and focus-ring gaps. `app.css` overrides them with the surface
+  colour. The chart tooltip uses tokens too.
+- **Which theme is shown:**
+  - The stored choice in `localStorage` under `alodium-theme` (`light` or
+    `dark`). It is per browser, not per account.
+  - Without one, the OS setting (`prefers-color-scheme`), followed live.
+  - `resources/js/utils/theme.js` sets `data-theme` on `<html>`. A small inline
+    script at the top of `app.blade.php` does the same before the first paint,
+    so a page never flashes the wrong theme. Other open tabs follow through
+    the `storage` event.
+- **Where to change it:** the moon/sun button in the navigation bar, next to
+  the account menu on desktop and next to the menu button on mobile, switches
+  between light and dark. Profile, "Appearance", also offers "Device setting",
+  which clears the stored choice. The login page uses the same theme but has
+  no toggle.
+- `node resources/js/theme.check.mjs` checks the contrast rules in both
+  themes, and catches classes that use a colour that isn't defined, or hex
+  colours in the admin source (section 10).
 
 ## 7. Roles and permissions
 
@@ -368,7 +404,11 @@ The README requires the worker to run with `--timeout=660` and
   state (poll timing and back-off, stall detection, milestones, reason
   mapping and grouping, formatting).
 - `node resources/js/theme.check.mjs` checks the admin colour tokens
-  (section 6, "Admin colours"):
+  (section 6, "Admin colours"), in the light and the dark theme:
+  - the dark theme redefines every token of the light one;
+  - the first-paint script in `app.blade.php` picks the same theme as
+    `utils/theme.js` for every stored value and OS setting (it runs the script
+    in `node:vm`);
   - each hex comment matches its channels;
   - the WCAG AA contrast rules of the steps and roles hold;
   - no class names a colour the theme doesn't define (Tailwind would silently

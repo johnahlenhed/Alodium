@@ -33,7 +33,13 @@ export default {
             brand: scale('brand'),
             success: scale('success'),
             warning: scale('warning'),
-            danger: scale('danger'),
+            danger: {
+                ...scale('danger'),
+                // DangerButton's fill: a fixed step in the light theme, a lighter one in the dark theme.
+                fill: token('danger-fill'),
+                'fill-hover': token('danger-fill-hover'),
+                'fill-active': token('danger-fill-active'),
+            },
             canvas: token('canvas'),
             surface: token('surface'),
             primary: {
@@ -42,6 +48,7 @@ export default {
                 active: token('primary-active'),
             },
             'on-primary': token('on-primary'),
+            'on-danger': token('on-danger'),
             nav: {
                 DEFAULT: token('nav'),
                 hover: token('nav-hover'),
@@ -63,6 +70,10 @@ export default {
             // A bare `ring` falls back to colors.blue.500, which isn't defined here.
             ringColor: {
                 DEFAULT: token('brand-500'),
+            },
+            // The gap of ring-offset-* (focus rings): the surface, not white, in both themes.
+            ringOffsetColor: {
+                DEFAULT: 'rgb(var(--color-surface))',
             },
         },
     },

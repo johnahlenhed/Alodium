@@ -13,6 +13,8 @@ const GRID = 'rgb(var(--color-gray-200))';
 const TICK = 'rgb(var(--color-gray-500))';
 const LINE = 'rgb(var(--color-primary))';
 const DOT_RING = 'rgb(var(--color-surface))';
+// Recharts' tooltip box is white by default, its values in the line colour (too light for text in the dark theme).
+const TOOLTIP_BOX = { background: 'rgb(var(--color-surface))', borderColor: GRID, color: 'rgb(var(--color-gray-900))' };
 
 /**
  * Daily page views as a line chart (shared by Analytics and the dashboard).
@@ -47,7 +49,7 @@ export default function VisitsChart({ data, label = 'Page views per day', unit =
                             axisLine={false}
                             width={32}
                         />
-                        <Tooltip formatter={(value) => [value, unit]} labelFormatter={(value) => value} />
+                        <Tooltip formatter={(value) => [value, unit]} labelFormatter={(value) => value} contentStyle={TOOLTIP_BOX} itemStyle={{ color: TOOLTIP_BOX.color }} />
                         <Line
                             type="monotone"
                             dataKey="count"
