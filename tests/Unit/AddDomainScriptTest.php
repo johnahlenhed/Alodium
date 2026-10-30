@@ -7,8 +7,8 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 
 /**
- * deploy/check-add-domain.sh: deploy/add-domain.sh must write exactly what
- * README.md sections 4 and 5 describe. The edited copies prove the check fails,
+ * deploy/check-add-domain.sh: deploy/add-domain.sh must write and run exactly
+ * what README.md sections 3 to 8 describe. The edited copies prove the check fails,
  * and fails on the right block, when either side changes alone.
  */
 class AddDomainScriptTest extends TestCase
@@ -50,7 +50,7 @@ class AddDomainScriptTest extends TestCase
         $process = $this->check();
 
         $this->assertSame(0, $process->getExitCode(), $process->getOutput().$process->getErrorOutput());
-        $this->assertSame(4, substr_count($process->getOutput(), 'ok    '));
+        $this->assertSame(8, substr_count($process->getOutput(), 'ok    '));
     }
 
     public static function readmeEdits(): array
@@ -61,6 +61,10 @@ class AddDomainScriptTest extends TestCase
             'the Nginx block moved' => ['`/etc/nginx/sites-available/alodium`:', 'The configuration:', 'Nginx config', 'not found in'],
             'the MaxMind key line' => ['MAXMIND_LICENSE_KEY=your-key', 'MAXMIND_KEY=your-key', 'MAXMIND_LICENSE_KEY line', '-MAXMIND_KEY=your-key'],
             'a GeoIP download command' => ['sudo -u www-data php artisan location:update', 'sudo -u www-data php artisan geoip:update', 'GeoIP download commands', '-sudo -u www-data php artisan geoip:update'],
+            'a Laravel domain value' => ['MAIL_FROM_ADDRESS=hello@SITE_DOMAIN', 'MAIL_FROM_ADDRESS=info@SITE_DOMAIN', 'Laravel .env domain values', '-MAIL_FROM_ADDRESS=info@client.example'],
+            'the npm install command' => ["cd /var/www/alodium/astro\nnpm install --legacy-peer-deps", "cd /var/www/alodium/astro\nnpm ci", 'Astro npm install', 'not found in'],
+            'a Supervisor setting' => ['stopwaitsecs=670', 'stopwaitsecs=60', 'Supervisor worker config', '-stopwaitsecs=60'],
+            'the cron line' => ['* * * * * cd /var/www/alodium && php artisan schedule:run >> /dev/null 2>&1', '*/5 * * * * cd /var/www/alodium && php artisan schedule:run >> /dev/null 2>&1', 'cron line', 'not found in'],
         ];
     }
 
@@ -73,7 +77,7 @@ class AddDomainScriptTest extends TestCase
         $this->assertSame(1, $process->getExitCode(), $output);
         $this->assertStringContainsString("FAIL  {$block}", $output);
         $this->assertStringContainsString($expected, $output);
-        $this->assertSame(3, substr_count($output, 'ok    '), 'only the edited block fails');
+        $this->assertSame(7, substr_count($output, 'ok    '), 'only the edited block fails');
     }
 
     public function test_a_script_change_alone_fails_the_check(): void
@@ -94,5 +98,15 @@ class AddDomainScriptTest extends TestCase
         $this->assertSame(1, $process->getExitCode(), $output);
         $this->assertStringContainsString('FAIL  GeoIP download commands', $output);
         $this->assertStringContainsString('+mkdir -p storage/app/geoip', $output);
+    }
+
+    public function test_a_change_to_the_scripts_worker_config_fails_the_check(): void
+    {
+        $process = $this->check(script: $this->editedCopy('deploy/add-domain.sh', '--tries=3 --timeout=660', '--tries=3 --timeout=60'));
+        $output = $process->getOutput();
+
+        $this->assertSame(1, $process->getExitCode(), $output);
+        $this->assertStringContainsString('FAIL  Supervisor worker config', $output);
+        $this->assertStringContainsString('+command=php /var/www/alodium/artisan queue:work --sleep=3 --tries=3 --timeout=60', $output);
     }
 }

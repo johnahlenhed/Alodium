@@ -88,8 +88,8 @@ tests/
   Unit/              pure tests (PublicAddressTest, AddDomainScriptTest)
   Fakes/             fake DNS and HTTP for the image downloader
   Fixtures/          brand-colours.json and the script that generates it
-deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-6 on a
-                     new server) and check-add-domain.sh
+deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-8 and
+                     section 3's domain values, on a new server) and check-add-domain.sh
 docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 ```
 
@@ -438,8 +438,19 @@ The README requires the worker to run with `--timeout=660` and
     classes.
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
 - `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes and runs
-  exactly what README sections 4 to 6 describe: the env block, the plain-HTTP
-  Nginx config, the `MAXMIND_LICENSE_KEY` line and the GeoIP download commands. `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
+  exactly what README sections 3 to 8 describe:
+  - section 3: the domain values for Laravel's `.env`;
+  - section 4: `astro/.env.production` and the npm install command;
+  - section 5: the plain-HTTP Nginx config;
+  - section 6: the `MAXMIND_LICENSE_KEY` line and the GeoIP download commands;
+  - sections 7 and 8: the Supervisor worker config and the cron line.
+
+  `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
+  `tests/Unit/AddDomainSetupTest.php` runs `add-domain.sh setup` itself in a
+  sandbox, as root in a user namespace with stub system commands. It checks the
+  `.env` values (placeholders replaced, values of their own kept, `--force`),
+  that a second run changes nothing and adds no second cron line, that
+  `--dry-run` changes and runs nothing, and the refusals.
 - In `astro/` (no test framework):
 
 | Script | npm command | Checks |
@@ -465,8 +476,9 @@ of these steps replaces a value that is already set:
 |---|---|
 | `APP_KEY` | `php artisan app:ensure-key` (also in `composer setup`) |
 | `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` (generated); `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (generated if left empty, with the SQL for the user printed); `RESEND_API_KEY`, `SENTRY_LARAVEL_DSN`, `BACKUP_S3_*` (asked for, each can be skipped) | `php artisan app:configure-env` (`ConfigureEnv`); run it again to add what was skipped |
+| `APP_URL`, `PUBLIC_SITE_URL`, `MAIL_FROM_ADDRESS` (`hello@` the site domain) | `deploy/add-domain.sh setup`, from the domains; it fills in only empty values and `.env.example`'s placeholders, and keeps values of their own unless `--force` |
 | `MAXMIND_LICENSE_KEY` | `deploy/add-domain.sh geoip` |
-| `APP_ENV`, `APP_DEBUG`, `APP_URL`, `PUBLIC_SITE_URL`, `MAIL_FROM_ADDRESS`, `ASTRO_REBUILD_SCRIPT` | by hand, README steps 3 and 9 (`add-domain.sh` takes the domains but writes only `astro/.env.production`) |
+| `APP_ENV`, `APP_DEBUG`, `ASTRO_REBUILD_SCRIPT` | by hand, README steps 3 and 9 |
 | everything else, including `DB_QUEUE_RETRY_AFTER` | the defaults in `.env.example` |
 
 `app:configure-env` writes `.env` in one pass, checks that every value reads back

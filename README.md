@@ -205,11 +205,16 @@ cp .env.example .env
 php artisan app:ensure-key    # generates APP_KEY, but never replaces one already in .env
 ```
 
-Edit `.env` for the values that depend on this server and its domains:
+Edit `.env` for production:
 
 ```ini
 APP_ENV=production
 APP_DEBUG=false
+```
+
+The values that follow from the domains are set by `deploy/add-domain.sh setup` in step 4. It fills in each one that is still empty or still `.env.example`'s placeholder (`http://localhost:8000`, `hello@alodium.dev`), and keeps a value of your own. Without the script, set them here:
+
+```ini
 APP_URL=https://ADMIN_DOMAIN
 # The public site: the dashboard's "View site" link, and visits from its own pages
 # count as navigation within the site, not as referrals (analytics).
@@ -265,7 +270,7 @@ php artisan storage:link
 
 Add and verify the sending domain in Resend **before any mail is sent**, otherwise sending fails. In the Resend dashboard, add the domain under *Domains* and add the DNS records it shows (DKIM, plus SPF and the return-path records) at your DNS provider. Wait until Resend shows the domain as verified.
 
-Create an API key with **Sending access** only. `php artisan app:configure-env` asks for it, so run it again if you skipped the key earlier. `MAIL_FROM_ADDRESS` (set above) must be an address on the verified domain.
+Create an API key with **Sending access** only. `php artisan app:configure-env` asks for it, so run it again if you skipped the key earlier. `MAIL_FROM_ADDRESS` must be an address on the verified domain. `add-domain.sh` sets it to `hello@SITE_DOMAIN` in step 4. If you verify another domain, set it to an address on that one.
 
 Set file ownership so PHP-FPM and the queue worker (both `www-data`) can write to storage:
 
@@ -289,7 +294,13 @@ Visitor countries in the analytics need the MaxMind database: that is [step 6](#
 
 ### 4. Astro public site
 
-`deploy/add-domain.sh` automates this section, the next one and step 6 (GeoIP) on a new server (`--help` explains it). Its `setup` step writes `.env.production` and creates `astro-public`, but doesn't run `npm install`.
+`deploy/add-domain.sh` automates this section and steps 5 (Nginx and HTTPS), 6 (GeoIP), 7 (queue worker) and 8 (scheduler) on a new server, plus step 3's domain values (`--help` explains it). Its `setup` step runs the commands below and writes `.env.production`. It also sets `APP_URL`, `PUBLIC_SITE_URL` and `MAIL_FROM_ADDRESS`, writes the Nginx config, installs the worker and adds the cron entry, then refreshes the config cache.
+
+- **Safe to run again:** it changes nothing that's already right, and never adds the cron entry twice.
+- **Refuses rather than overwrites:** it won't replace a different Nginx or Supervisor config or cron line, or `.env` values of your own, unless you add `--force`.
+- **Dry run:** `--dry-run` shows what it would do without changing anything.
+
+The sections below are what it does, and how to do it by hand.
 
 ```bash
 cd /var/www/alodium/astro
@@ -488,7 +499,7 @@ This product includes GeoLite2 data created by MaxMind, available from [https://
 
 ### 7. Queue worker (Supervisor)
 
-The queue runs Astro rebuilds and other background work.
+The queue runs Astro rebuilds and other background work. `deploy/add-domain.sh setup` (step 4) does this step: it writes the file below, creates the log file and runs `supervisorctl reread` and `update`. Check the worker afterwards with `supervisorctl status`.
 
 `/etc/supervisor/conf.d/alodium-worker.conf`:
 
@@ -520,6 +531,8 @@ supervisorctl status   # alodium-worker_00 should be RUNNING
 ```
 
 ### 8. Scheduler (cron)
+
+`deploy/add-domain.sh setup` (step 4) adds this line to `www-data`'s crontab, once. By hand:
 
 ```bash
 crontab -u www-data -e
