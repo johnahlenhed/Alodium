@@ -92,6 +92,7 @@ npm run build              # Build the admin assets
 # Database
 php artisan migrate        # Run migrations
 php artisan migrate:fresh --seed  # Reset and seed
+php artisan user:set-password EMAIL  # Create an admin or set a password (hidden prompt or --generate); sends no email
 
 # Testing
 php artisan test           # Run the PHPUnit tests (in-memory SQLite, no network)

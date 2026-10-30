@@ -47,9 +47,9 @@
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
-            "@php artisan migrate --force",
             "npm install --ignore-scripts --legacy-peer-deps",
-            "npm run build"
+            "npm run build",
+            "@php -r \"echo PHP_EOL, 'Next: create a MySQL database, set DB_DATABASE, DB_USERNAME and DB_PASSWORD in .env, then run php artisan migrate and php artisan storage:link (README, Installation).', PHP_EOL;\""
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",

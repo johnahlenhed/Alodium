@@ -12,10 +12,10 @@
 /public/storage
 /public/build/
 /storage/*.key
-/storage/app/
-/storage/framework/
-/storage/logs/
 /storage/pail
+# storage/app, storage/framework and storage/logs: the .gitignore files inside
+# them keep their contents (uploads, backups, logs, caches) out of git, but the
+# empty folders are committed, because Laravel fails without them on a fresh clone.
 
 # Testing
 /coverage/

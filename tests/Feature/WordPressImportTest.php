@@ -162,6 +162,37 @@ XML;
         $this->assertSame(1, Post::count());
     }
 
+    /** A WordPress "Contact" or "Blog" page would be imported as published and never built. */
+    public function test_pages_with_a_reserved_slug_are_skipped_with_the_reason(): void
+    {
+        $user = User::factory()->create();
+        $xml = $this->wxr(
+            $this->item('Contact', 'page', 'publish', '<p>Call us</p>')
+            .$this->item('Blog', 'page', 'publish')
+            .$this->item('About', 'page', 'publish', '<p>About us</p>')
+            // Posts live under /blog/, where these slugs are free.
+            .$this->item('Contact', 'post', 'publish', '<p>A post</p>')
+        );
+
+        $result = $this->importString($xml, $user);
+
+        $this->assertSame(1, $result['imported_pages']);
+        $this->assertSame(1, $result['imported_posts']);
+        $this->assertSame(['about'], Page::pluck('slug')->all());
+        $this->assertSame(['contact'], Post::pluck('slug')->all());
+
+        $skipped = collect($result['skipped'])->keyBy('title');
+        $this->assertSame(['Contact', 'Blog'], $skipped->keys()->all());
+        $this->assertSame('page', $skipped['Contact']['type']);
+        $this->assertStringContainsString("/contact is the site's built-in contact page", $skipped['Contact']['reason']);
+        $this->assertStringContainsString("/blog is the site's built-in blog", $skipped['Blog']['reason']);
+
+        // A re-run skips them again instead of importing a renamed copy.
+        $second = $this->importString($xml, $user);
+        $this->assertSame(0, $second['imported_pages']);
+        $this->assertSame(1, Page::count());
+    }
+
     public function test_content_is_cleaned(): void
     {
         $user = User::factory()->create();

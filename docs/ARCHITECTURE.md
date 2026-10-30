@@ -51,7 +51,7 @@ observer fires.
 app/
   Blocks/            BlockRegistry + BlockType, one class per block type in Types/
   Console/Commands/  db:backup, media:backup-remote, content:publish-scheduled,
-                     content:sanitize, db:backup-test-remote
+                     content:sanitize, db:backup-test-remote, user:set-password
   Http/Controllers/  admin pages (Inertia) and API controllers; Auth/ is Breeze
   Http/Middleware/   RequireAdmin ("admin" alias), HandleInertiaRequests, EnsureRegistrationIsEnabled
   Http/Requests/     UpdateSiteSettingsRequest, ProfileUpdateRequest, Auth/LoginRequest
@@ -326,6 +326,20 @@ Self-registered accounts are always editors; registration is closed by default
 in production (`AUTH_REGISTRATION`). Admins create users with an invitation
 mail; they cannot change their own role or delete themselves there.
 
+**Without email.** The invitation and "Forgot your password?" both send mail;
+when it fails, the user is created but can't set a password. The way in that
+needs no mail is `php artisan user:set-password EMAIL` on the server
+(`SetUserPassword`). It also creates the first admin on a fresh install. For an
+existing account it sets a new password and a new remember token, and keeps
+the name and role. For a new email it asks, then creates an admin. The password
+is typed at a hidden prompt with no visible fallback: on a terminal that can't
+hide input, it fails instead of echoing. Input piped in, for example from a
+password manager's CLI, is read as it is. Or the password is made with
+`--generate` and printed once. It is never an argument,
+so it doesn't end up in shell history. The Users page's warning when an
+invitation fails points to this command. It no longer points to the
+forgot-password page, which fails the same way.
+
 ## 8. Jobs and scheduled commands
 
 | Job / command | When | What |
@@ -339,6 +353,7 @@ mail; they cannot change their own role or delete themselves there.
 | `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) warns when the file is missing, unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
+| `user:set-password` | manually | sets a user's password (hidden prompt or `--generate`), creating an admin for a new email; sends no email (section 7) |
 
 The README requires the worker to run with `--timeout=660` and
 `DB_QUEUE_RETRY_AFTER` above it in production.
@@ -522,6 +537,12 @@ Astro (`astro/.env`, `astro/.env.production`):
   `show_in_nav` flag was cleared).
 - **Reserved slugs** (`blog`, `contact`, `404`, `index`) are listed in both
   `Page::RESERVED_SLUGS` and `astro/src/pages/[slug].astro` (kept equal by a test).
+  The page form refuses a title that would get one, with the reason
+  (`Page::reservedSlugMessage()`), and the WordPress import skips such pages,
+  listing them in the run's report. Pages saved before that check keep their slug
+  until they are edited, and saving them then asks for another title. Posts are
+  not affected: they live under `/blog/`, where a post called "Index" is built at
+  `/blog/index/`, next to the blog's own `/blog/index.html`.
 - **Role default**: `users.role` defaults to `admin` at the database level;
   every code path that creates users sets the role explicitly.
 - **Default test**: `tests/Unit/ExampleTest.php` is still the framework

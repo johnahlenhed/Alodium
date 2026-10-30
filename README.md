@@ -47,6 +47,10 @@ Run `php --ini` to find which `php.ini` is loaded. The CLI (`php artisan serve`)
 
 ## Installation
 
+For local development. A server deployment is described under [Deployment](#deployment).
+
+**1. Get the code and dependencies:**
+
 ```bash
 git clone https://github.com/johnahlenhed/Alodium.git
 cd Alodium
@@ -54,17 +58,39 @@ composer install
 npm install --legacy-peer-deps
 cp .env.example .env
 php artisan key:generate
-php artisan migrate
 ```
 
-Configure your `.env` with database credentials and Resend API key, then:
+**2. Create a MySQL database and a user for it.** The SQL in [deployment step 1](#1-server-setup) works locally too. On Ubuntu, run it in `sudo mysql`.
+
+**3. Edit `.env`:**
+
+```ini
+DB_DATABASE=alodium
+DB_USERNAME=alodium
+DB_PASSWORD=the-password-you-chose
+# Locally, write emails (invitations, password resets) to storage/logs/laravel.log
+# instead of sending them. Or keep resend and set RESEND_API_KEY.
+MAIL_MAILER=log
+```
+
+**4. Create the tables, the public link for uploads, and a login:**
+
+```bash
+php artisan migrate
+php artisan storage:link
+php artisan db:seed      # an admin login, admin@example.com with password "password", and sample visits
+```
+
+Instead of the seeded login, `php artisan user:set-password you@example.com` creates an admin with a password of your choice.
+
+**5. Run it**, in two terminals:
 
 ```bash
 php artisan serve
 npm run dev
 ```
 
-Visit `http://localhost:8000`.
+Visit `http://localhost:8000` and log in. Media conversions and imports run on the queue; for those, run `php artisan queue:work` in a third terminal. The public Astro site is set up separately, in `astro/` (see `astro/README.md`).
 
 ## GeoIP database (analytics country lookup)
 
@@ -171,14 +197,6 @@ git clone https://github.com/johnahlenhed/Alodium.git /var/www/alodium
 cd /var/www/alodium
 
 composer install --no-dev --optimize-autoloader
-```
-
-`storage/app/` and `storage/framework/` are not in git, so create them manually:
-
-```bash
-mkdir -p storage/app/public storage/framework/cache storage/framework/sessions \
-  storage/framework/views storage/logs
-
 cp .env.example .env
 php artisan key:generate
 ```
@@ -215,15 +233,23 @@ php artisan storage:link
 #### Create the admin account
 
 > **Registration is disabled and the seeder is blocked in production.**
-> `/register` redirects to the login page, the seeder exits with a
-> warning, and every account has full admin access. Create the first
-> admin user with:
+> `/register` redirects to the login page and the seeder exits with a
+> warning. Create the first admin with:
 > ```bash
-> php artisan tinker
-> App\Models\User::create(['name' => 'Your Name', 'email' => 'you@example.com', 'password' => bcrypt('a-strong-password')]);
+> php artisan user:set-password you@example.com
 > ```
-> To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env`
-> and run `php artisan config:cache`.
+> The email is new, so it asks to create an admin account, asks for the name,
+> and then for the password twice. The password is typed at a hidden prompt:
+> it isn't shown, and it isn't kept in the shell history.
+>
+> With `--generate` instead, it makes a strong random password and prints it
+> once, for handing a fresh login to the client without choosing it yourself.
+> Add `--name="Client Name"` to skip the name question. The command sends no
+> email, so it works before Resend is set up.
+>
+> To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env` and
+> run `php artisan config:cache`. Accounts made that way are editors; an
+> admin can change their role on the Users page.
 
 #### Email (Resend)
 
@@ -816,9 +842,19 @@ There are two roles:
 
 Admins create users on the **Users** page (name, email and role). The new user gets an invitation email with a link to set their password. The link is valid for 60 minutes. After that, "Forgot your password?" on the login page sends a new one. This needs working email (see [Email (Resend)](#email-resend) in step 3). Roles can be changed on the same page.
 
+**When email can't be delivered**, the invitation and "Forgot your password?" both fail, and the Users page says so. Set the password on the server instead. This works for an existing account (an invited user, or yourself), keeps its name and role, and sends no email:
+
+```bash
+cd /var/www/alodium
+php artisan user:set-password client@example.com              # type it, hidden
+php artisan user:set-password client@example.com --generate   # or print a random one once
+```
+
+Hand a generated password over securely, for example as a password manager share, and ask the user to change it under **Profile**. For an email with no account yet, the command creates an admin (it asks first).
+
 ### 14. WordPress import
 
-Admins import a WordPress export (**Tools > Export > All content**, an XML file of up to 20 MB) on the **Import** page. Published posts and pages stay published, drafts stay drafts, and items whose slug already exists are skipped, so an import can be run again.
+Admins import a WordPress export (**Tools > Export > All content**, an XML file of up to 20 MB) on the **Import** page. Published posts and pages stay published, drafts stay drafts, and items whose slug already exists are skipped, so an import can be run again. Pages called "Contact" or "Blog" (slugs `contact` and `blog`) are skipped too, because the public site has its own pages at those addresses; the result page lists them, with the reason.
 
 **Download images from the old site** (checked by default) copies the images used in posts and pages, and the featured images, into the media library, and points the content at the copies. Only images on the exported site's own addresses are copied (`base_site_url`, `base_blog_url` and the attachments' hosts); images hosted elsewhere stay where they are. Unchecked, only the text is imported, and featured images are not copied either. Links to attachment pages and other files on the old site are not changed.
 
@@ -905,7 +941,7 @@ Publishing, editing, unpublishing or deleting posts and pages in the admin panel
 | `git pull` fails with "dubious ownership" | The repo is owned by www-data. Run `git config --global --add safe.directory /var/www/alodium` once. |
 | Building assets on the server runs out of memory | Build them locally and copy them with `scp -r public/build/*`. |
 | Certbot: "Could not automatically find a matching server block" | `server_name` is an IP address or doesn't match the domain. Fix `server_name`, reload Nginx, then run `certbot install --cert-name SITE_DOMAIN`. |
-| Invitation or password reset emails only appear in `laravel.log` | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `php artisan config:cache` after fixing `.env`. |
+| Invitation or password reset emails only appear in `laravel.log` | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `php artisan config:cache` after fixing `.env`. Until it works, set the password with `php artisan user:set-password EMAIL` ([step 13](#13-users-and-roles)). |
 | Astro build fails with `astro: not found` | Dependencies are missing. Run `npm install --legacy-peer-deps` in `astro/` and make sure the files are owned by `www-data`. |
 
 ## License

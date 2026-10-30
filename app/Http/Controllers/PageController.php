@@ -10,6 +10,7 @@ use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
 use App\Traits\PresentsIndexRows;
 use App\Traits\SanitizesContent;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -118,7 +119,13 @@ class PageController extends Controller
         $blocks = $request->input('blocks');
 
         $validator = Validator::make($request->all(), [
-            'title' => ['required', 'string', 'max:255'],
+            // The slug comes from the title. One the public site uses for its own page
+            // would save, show as published here, and never be built (Page::RESERVED_SLUGS).
+            'title' => ['required', 'string', 'max:255', function (string $attribute, mixed $value, Closure $fail) {
+                if (is_string($value) && ($message = Page::reservedSlugMessage($value)) !== null) {
+                    $fail($message);
+                }
+            }],
             'content' => ['nullable', 'string'],
             ...$this->publishStatusRules(),
             'meta_title' => ['nullable', 'string', 'max:255'],
