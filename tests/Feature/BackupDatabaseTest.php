@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
@@ -183,7 +184,7 @@ class BackupDatabaseTest extends TestCase
     /** Cron expression the scheduler uses for a command (independent of schedule:list layout). */
     private function scheduleFor(string $command): ?string
     {
-        $event = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+        $event = collect(app(Schedule::class)->events())
             ->first(fn ($event) => str_contains((string) $event->command, $command));
 
         return $event?->expression;

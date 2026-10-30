@@ -26,7 +26,7 @@ export default function Create() {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     New post
                 </h2>
             }
@@ -34,7 +34,7 @@ export default function Create() {
             <Head title="New post" />
 
             <div className="py-12">
-                <div className="mx-auto max-w-3xl bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div className="mx-auto max-w-3xl bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     <PostForm form={form} onSubmit={submit} submitLabel="Create post" />
                 </div>
             </div>

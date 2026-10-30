@@ -5,7 +5,7 @@ export default function HeroBlockEditor({ blockId, data, errors, onChange, isFir
 
     return (
         <div className="space-y-4">
-            <p className="rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-800">
+            <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-800">
                 {isFirst
                     ? "This hero is the first block, so its heading is the page's main heading and the page title isn't shown on the site."
                     : "When a hero is the first block, its heading becomes the page's main heading and the page title isn't shown on the site."}
@@ -45,7 +45,7 @@ export default function HeroBlockEditor({ blockId, data, errors, onChange, isFir
                 onChange={set('image')}
                 error={errors['data.image']}
             />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field
                     id={`${blockId}-button-label`}
                     label="Button label"

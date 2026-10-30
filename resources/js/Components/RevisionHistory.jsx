@@ -12,7 +12,7 @@ const formatDateTime = (value) =>
  */
 export default function RevisionHistory({ revisions, restoreRoute, modelId }) {
     return (
-        <section className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+        <section className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
             <h3 className="text-lg font-medium text-gray-900">
                 Revision history <span className="text-gray-500">({revisions.length})</span>
             </h3>

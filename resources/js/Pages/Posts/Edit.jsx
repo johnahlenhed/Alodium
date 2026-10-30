@@ -29,7 +29,7 @@ export default function Edit({ post, revisions }) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     Edit post
                 </h2>
             }
@@ -37,7 +37,7 @@ export default function Edit({ post, revisions }) {
             <Head title="Edit post" />
 
             <div className="mx-auto max-w-3xl space-y-6 py-12">
-                <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     <PostForm form={form} onSubmit={submit} submitLabel="Save changes" />
                 </div>
 

@@ -4,7 +4,21 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        {{-- Light or dark before the first paint, so the page never flashes the wrong theme.
+             Same rule as resources/js/utils/theme.js: the stored choice, else the OS setting. --}}
+        <script>
+            (function () {
+                var stored = null;
+                try { stored = localStorage.getItem('alodium-theme'); } catch (e) {}
+                var dark = stored === 'dark' || (stored !== 'light' && !!window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+            })();
+        </script>
+
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <link rel="icon" href="/favicon.ico" sizes="32x32">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -23,7 +37,7 @@
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead
     </head>
-    <body class="font-sans antialiased">
+    <body class="bg-canvas font-sans text-gray-900 antialiased">
         @inertia
     </body>
 </html>

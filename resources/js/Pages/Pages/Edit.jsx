@@ -64,7 +64,7 @@ export default function Edit({ page, revisions, blocks, hasBlocks }) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     Edit page
                 </h2>
             }
@@ -72,7 +72,7 @@ export default function Edit({ page, revisions, blocks, hasBlocks }) {
             <Head title="Edit page" />
 
             <div className="mx-auto max-w-3xl space-y-6 py-12">
-                <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     {/* useForm keeps its initial data. Keyed on updated_at, so after a
                         revision restore the form starts again from the restored page. */}
                     <EditForm key={page.updated_at} page={page} blocks={blocks} hasBlocks={hasBlocks} />

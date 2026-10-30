@@ -25,8 +25,8 @@ export function displayStatus(item) {
 }
 
 export const STATUS_BADGE_CLASSES = {
-    published: 'bg-green-100 text-green-800',
-    scheduled: 'bg-orange-100 text-orange-800',
+    published: 'bg-success-100 text-success-800',
+    scheduled: 'bg-warning-100 text-warning-800',
     draft: 'bg-gray-100 text-gray-700',
 };
 

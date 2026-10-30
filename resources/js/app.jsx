@@ -39,6 +39,7 @@ createInertiaApp({
         root.render(<App {...props} />);
     },
     progress: {
-        color: '#4B5563',
+        // Inertia puts this into its own CSS, so a theme token works (resources/css/theme.css).
+        color: 'rgb(var(--color-primary))',
     },
 });

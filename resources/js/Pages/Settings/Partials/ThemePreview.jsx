@@ -5,7 +5,9 @@ import { HEX_PATTERN } from '@/utils/contrast';
  * primary and secondary button in the chosen button style. The colour and
  * corners are passed as CSS variables through the style prop; the derived
  * colours use the same color-mix() formulas as astro/src/styles/blocks.css.
- * It uses the admin's font: the font files aren't loaded here.
+ * It uses the admin's font: the font files aren't loaded here. The card is
+ * always light (data-theme="light"), like the public site, also when the admin
+ * is in dark mode; its caption follows the admin's theme.
  */
 export default function ThemePreview({ brand, radius, buttons, fontLabels }) {
     // Only a valid hex colour is ever put into a CSS value.
@@ -29,7 +31,7 @@ export default function ThemePreview({ brand, radius, buttons, fontLabels }) {
 
     return (
         <figure style={style} aria-labelledby="theme_preview_caption">
-            <div className="rounded-[calc(var(--preview-radius)*1.5)] border border-gray-200 bg-white p-6">
+            <div data-theme="light" className="rounded-[calc(var(--preview-radius)*1.5)] border border-gray-200 bg-white p-6">
                 <p className="text-lg font-semibold text-gray-900">A heading on your site</p>
                 <p className="mt-2 text-sm text-gray-600">
                     Body text looks like this, with{' '}

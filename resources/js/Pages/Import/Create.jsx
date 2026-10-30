@@ -12,11 +12,12 @@ function RecentRuns({ runs }) {
     if (runs.length === 0) return null;
 
     return (
-        <section aria-labelledby="recent-imports" className="mx-auto max-w-3xl overflow-hidden bg-white shadow sm:rounded-lg">
+        <section aria-labelledby="recent-imports" className="mx-auto max-w-3xl overflow-hidden bg-surface shadow sm:rounded-lg">
             <h3 id="recent-imports" className="px-6 pt-6 text-sm font-semibold text-gray-900">
                 Recent imports
             </h3>
-            <div className="mt-4 overflow-x-auto">
+            {/* relative: the table's sr-only texts are absolutely positioned and would otherwise escape this scroll box and widen the page. */}
+            <div className="relative mt-4 overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-50">
                         <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -51,7 +52,7 @@ function RecentRuns({ runs }) {
                                 <td className="px-4 py-3 text-right">
                                     <Link
                                         href={route('import.runs.show', run.id)}
-                                        className="rounded text-indigo-600 hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                        className="rounded text-brand-600 hover:text-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                                     >
                                         View<span className="sr-only"> import {run.id}</span>
                                     </Link>
@@ -78,7 +79,7 @@ export default function Create({ limits, recentRuns = [] }) {
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                <h2 className="text-page-title font-semibold text-gray-800">
                     Import from WordPress
                 </h2>
             }
@@ -86,7 +87,7 @@ export default function Create({ limits, recentRuns = [] }) {
             <Head title="Import from WordPress" />
 
             <div className="space-y-6 py-12">
-                <div className="mx-auto max-w-3xl space-y-6 bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div className="mx-auto max-w-3xl space-y-6 bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     <div className="space-y-2 text-sm text-gray-700">
                         <p>
                             Export your WordPress content from{' '}
@@ -100,7 +101,7 @@ export default function Create({ limits, recentRuns = [] }) {
                         </p>
                     </div>
 
-                    <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                    <div className="rounded-md border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800">
                         Plugin functionality is not imported — content only. WordPress&apos;s own
                         shortcodes (galleries, captions, audio, video, playlists, embeds) become
                         images and links; other shortcodes stay as text. HTML is cleaned to basic
@@ -119,7 +120,7 @@ export default function Create({ limits, recentRuns = [] }) {
                                 aria-describedby={sizeProblem || errors.file ? 'file-error' : undefined}
                                 aria-invalid={sizeProblem || errors.file ? true : undefined}
                                 onChange={(e) => setData('file', e.target.files[0] ?? null)}
-                                className="mt-1 block w-full rounded-md text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                className="mt-1 block w-full rounded-md text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                             />
                             <InputError id="file-error" message={sizeProblem ?? errors.file} className="mt-2" />
                         </div>
@@ -164,7 +165,7 @@ export default function Create({ limits, recentRuns = [] }) {
                             <div className="space-y-2" role="status">
                                 <div className="h-2 overflow-hidden rounded bg-gray-200">
                                     <div
-                                        className="h-full bg-indigo-600 transition-all"
+                                        className="h-full bg-primary transition-all"
                                         style={{ width: `${progress?.percentage ?? 100}%` }}
                                     />
                                 </div>

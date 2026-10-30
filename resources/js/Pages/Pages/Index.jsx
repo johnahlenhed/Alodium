@@ -10,12 +10,12 @@ export default function Index({ pages }) {
         <AuthenticatedLayout
             header={
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    <h2 className="text-page-title font-semibold text-gray-800">
                         Pages
                     </h2>
                     <Link
                         href={route('pages.create')}
-                        className="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700"
+                        className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-widest text-on-primary hover:bg-primary-hover"
                     >
                         New page
                     </Link>
@@ -26,7 +26,7 @@ export default function Index({ pages }) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-                    <div className="overflow-hidden bg-white shadow sm:rounded-lg">
+                    <div className="overflow-hidden bg-surface shadow sm:rounded-lg">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -75,7 +75,7 @@ export default function Index({ pages }) {
                                             {page.can.update && (
                                                 <Link
                                                     href={route('pages.edit', page.id)}
-                                                    className="text-indigo-600 hover:text-indigo-900"
+                                                    className="text-brand-600 hover:text-brand-900"
                                                 >
                                                     Edit
                                                 </Link>
@@ -85,7 +85,7 @@ export default function Index({ pages }) {
                                                     href={route('pages.destroy', page.id)}
                                                     method="delete"
                                                     as="button"
-                                                    className="text-red-600 hover:text-red-900"
+                                                    className="text-danger-600 hover:text-danger-900"
                                                     onBefore={() => confirm('Delete this page?')}
                                                 >
                                                     Delete

@@ -7,7 +7,7 @@ import { blockLabel, blockSummary, getBlockType } from './blockTypes';
 const EMPTY = {};
 
 const iconButton =
-    'inline-flex h-8 w-8 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent';
+    'inline-flex h-8 w-8 items-center justify-center rounded text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent';
 
 /**
  * One block in the editor: a header (drag handle, type, summary, collapse,
@@ -65,7 +65,7 @@ function BlockCard({ block, index, total, expanded, errors = EMPTY, warning = nu
         <li
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={`rounded-lg border bg-white ${errors !== EMPTY && Object.keys(errors).length ? 'border-red-300' : 'border-gray-200'} ${isDragging ? 'opacity-40' : ''}`}
+            className={`rounded-lg border bg-surface ${errors !== EMPTY && Object.keys(errors).length ? 'border-danger-300' : 'border-gray-200'} ${isDragging ? 'opacity-40' : ''}`}
         >
             <div className="flex items-center gap-1 px-2 py-2">
                 <button
@@ -84,7 +84,7 @@ function BlockCard({ block, index, total, expanded, errors = EMPTY, warning = nu
                     onClick={() => onToggle(block.id)}
                     aria-expanded={expanded}
                     aria-controls={bodyId}
-                    className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                     {expanded ? (
                         <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
@@ -103,17 +103,17 @@ function BlockCard({ block, index, total, expanded, errors = EMPTY, warning = nu
                 <button type="button" ref={refs.down} onClick={() => onMove(block.id, 1)} disabled={index === total - 1} aria-label={`Move ${label} block down`} className={iconButton}>
                     <ChevronDown className="h-4 w-4" aria-hidden="true" />
                 </button>
-                <button type="button" onClick={() => onRemove(block.id)} aria-label={`Delete ${label} block`} className={`${iconButton} hover:text-red-600`}>
+                <button type="button" onClick={() => onRemove(block.id)} aria-label={`Delete ${label} block`} className={`${iconButton} hover:text-danger-600`}>
                     <Trash className="h-4 w-4" aria-hidden="true" />
                 </button>
             </div>
 
             {warning && (
-                <p className="mx-4 mb-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">{warning}</p>
+                <p className="mx-4 mb-2 rounded-md bg-warning-50 px-3 py-2 text-sm text-warning-800">{warning}</p>
             )}
 
             {cardErrors.length > 0 && (
-                <ul className="mx-4 mb-2 list-disc space-y-1 ps-5 text-sm text-red-600">
+                <ul className="mx-4 mb-2 list-disc space-y-1 ps-5 text-sm text-danger-600">
                     {cardErrors.map(([key, message]) => (
                         <li key={key}>{message}</li>
                     ))}

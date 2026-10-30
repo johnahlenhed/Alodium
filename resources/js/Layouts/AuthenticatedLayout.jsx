@@ -2,6 +2,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import ThemeToggle from '@/Components/ThemeToggle';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -15,18 +16,22 @@ export default function AuthenticatedLayout({ header, children }) {
         useState(false);
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="border-b border-gray-100 bg-white">
+        <div className="min-h-screen bg-canvas">
+            <nav className="bg-nav">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
+                                    <ApplicationLogo className="block h-9 w-auto fill-current text-on-nav" />
                                 </Link>
                             </div>
 
-                            <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            {/* Desktop nav from lg (1024px); below that, the mobile menu. With all admin
+                                links it needs about 1,110px at the wide spacing, so from 1024 to 1279px the
+                                links sit closer together and a long user name is cut off sooner (account
+                                menu). Measured to fit at 1024px with a long name and the unread badge. */}
+                            <div className="hidden space-x-3 lg:-my-px lg:ms-4 lg:flex xl:ms-10 xl:space-x-8">
                                 <NavLink
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
@@ -57,7 +62,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Submissions
                                     {unreadSubmissions > 0 && (
-                                        <span className="ms-1.5 rounded-full bg-indigo-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white">
+                                        <span className="ms-1.5 rounded-full bg-on-nav px-1.5 py-0.5 text-xs font-semibold leading-none text-nav">
                                             {unreadSubmissions}
                                             <span className="sr-only"> unread</span>
                                         </span>
@@ -72,7 +77,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                             Analytics
                                         </NavLink>
                                         {/* Utilities are kept apart from content sections. */}
-                                        <span className="h-6 w-px self-center bg-gray-200" aria-hidden="true" />
+                                        <span className="h-6 w-px self-center bg-on-nav-muted/30" aria-hidden="true" />
                                         <NavLink
                                             href={route('import.create')}
                                             active={route().current('import.*')}
@@ -96,16 +101,20 @@ export default function AuthenticatedLayout({ header, children }) {
                             </div>
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden lg:ms-6 lg:flex lg:items-center">
+                            <ThemeToggle />
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
                                         <span className="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                className="inline-flex items-center rounded-md border border-transparent bg-nav px-3 py-2 text-sm font-medium leading-4 text-on-nav-muted transition duration-150 ease-in-out hover:text-on-nav focus:outline-none focus-visible:text-on-nav focus-visible:ring-2 focus-visible:ring-on-nav-muted"
                                             >
-                                                {user.name}
+                                                {/* Cut off with … so a long name can't push the bar wider than the screen. */}
+                                                <span className="max-w-24 truncate xl:max-w-32" title={user.name}>
+                                                    {user.name}
+                                                </span>
 
                                                 <svg
                                                     className="-me-0.5 ms-2 h-4 w-4"
@@ -141,14 +150,15 @@ export default function AuthenticatedLayout({ header, children }) {
                             </div>
                         </div>
 
-                        <div className="-me-2 flex items-center sm:hidden">
+                        <div className="-me-2 flex items-center gap-1 lg:hidden">
+                            <ThemeToggle />
                             <button
                                 onClick={() =>
                                     setShowingNavigationDropdown(
                                         (previousState) => !previousState,
                                     )
                                 }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                                className="inline-flex items-center justify-center rounded-md p-2 text-on-nav-muted transition duration-150 ease-in-out hover:bg-nav-hover hover:text-on-nav focus:bg-nav-hover focus:text-on-nav focus:outline-none"
                             >
                                 <svg
                                     className="h-6 w-6"
@@ -187,7 +197,7 @@ export default function AuthenticatedLayout({ header, children }) {
                 <div
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
+                        ' lg:hidden'
                     }
                 >
                     <div className="space-y-1 pb-3 pt-2">
@@ -230,7 +240,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                 >
                                     Analytics
                                 </ResponsiveNavLink>
-                                <div className="mt-2 border-t border-gray-200 px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                <div className="mt-2 border-t border-nav-hover px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-on-nav-muted">
                                     Tools
                                 </div>
                                 <ResponsiveNavLink
@@ -255,12 +265,12 @@ export default function AuthenticatedLayout({ header, children }) {
                         )}
                     </div>
 
-                    <div className="border-t border-gray-200 pb-1 pt-4">
+                    <div className="border-t border-nav-hover pb-1 pt-4">
                         <div className="px-4">
-                            <div className="text-base font-medium text-gray-800">
+                            <div className="text-base font-medium text-on-nav">
                                 {user.name}
                             </div>
-                            <div className="text-sm font-medium text-gray-500">
+                            <div className="text-sm font-medium text-on-nav-muted">
                                 {user.email}
                             </div>
                         </div>
@@ -282,7 +292,7 @@ export default function AuthenticatedLayout({ header, children }) {
             </nav>
 
             {header && (
-                <header className="bg-white shadow">
+                <header className="bg-surface shadow">
                     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                         {header}
                     </div>
@@ -292,12 +302,12 @@ export default function AuthenticatedLayout({ header, children }) {
             {(flash?.success || flash?.warning) && (
                 <div className="mx-auto max-w-7xl space-y-3 px-4 pt-6 sm:px-6 lg:px-8">
                     {flash.success && (
-                        <div role="status" className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                        <div role="status" className="rounded-md border border-success-200 bg-success-50 p-4 text-sm text-success-800">
                             {flash.success}
                         </div>
                     )}
                     {flash.warning && (
-                        <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        <div role="alert" className="rounded-md border border-warning-200 bg-warning-50 p-4 text-sm text-warning-800">
                             {flash.warning}
                         </div>
                     )}
