@@ -5,7 +5,7 @@ export default function ContactFormBlockEditor({ blockId, data, errors, onChange
 
     return (
         <div className="space-y-4">
-            <p className="rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-800">
+            <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-800">
                 Shows the site's contact form (name, email and message). Messages appear under Submissions in
                 the admin menu and are also emailed to the site's contact address.
             </p>

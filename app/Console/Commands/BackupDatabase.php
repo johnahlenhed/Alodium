@@ -205,7 +205,7 @@ class BackupDatabase extends Command
      */
     private function writeCredentialsFile(array $connection): string
     {
-        $quote = fn ($value) => '"'.addcslashes((string) $value, "\\\"").'"';
+        $quote = fn ($value) => '"'.addcslashes((string) $value, '\\"').'"';
 
         $file = tempnam(sys_get_temp_dir(), 'alodium-mysql-');
         chmod($file, 0600);

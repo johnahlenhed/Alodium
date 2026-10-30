@@ -18,7 +18,7 @@ export default function ColumnsBlockEditor({ blockId, data, errors, onChange }) 
     return (
         <div className="space-y-4">
             <InputError message={errors['data.columns']} />
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {columns.map((column, index) => (
                     <fieldset key={index} className="space-y-4 rounded-md border border-gray-200 p-3">
                         <legend className="px-1 text-sm font-medium text-gray-700">Column {index + 1}</legend>

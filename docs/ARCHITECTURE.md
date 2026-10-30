@@ -138,6 +138,28 @@ picker, session auth) and `GET /import/runs/{run}/status` (`status`,
 50 `failures` and `failures_recorded`), which the run page `/import/runs/{run}`
 polls. The old `/import/result` redirects to the latest run.
 
+### Tracker blockers (an accepted limitation)
+
+Visitors who block trackers are not counted, and nothing shows it. Ad and
+tracker blockers can intercept the tracker's `POST /api/collect` in the
+browser and answer it with a made-up success (seen in production: a `204 No
+Content` without nginx's `Server` and `Date` headers). Such blockers include
+browser extensions (uBlock Origin, AdGuard), built-in browser protection
+(Firefox's Enhanced Tracking Protection, Brave Shields) and VPN apps with
+ad blocking (NordVPN's Threat Protection). A common filter list, EasyPrivacy, has
+the rule `/api/collect|$ping,xmlhttprequest`, which matches this URL. The
+`PATCH` and the events need the `visit_id` that `POST` returns, so the whole
+visit is lost.
+
+- **Invisible by design.** `tracker.js` ignores every failed or unexpected
+  response, so a blocked request never breaks the host page. The request
+  never reaches the server, so nothing is logged or stored either.
+- **Accepted, not worked around.** A visitor who has chosen to block trackers
+  has made that choice, and a privacy-first tool respects it. Renaming the
+  endpoint or proxying it to get past filter lists would mean working around
+  that choice. Visitor numbers are a lower bound: real traffic can be higher.
+  The dashboard's Site status says so.
+
 ## 5. Blocks
 
 Block pages store `pages.blocks` as `{version: 1, blocks: [{id, type, data}]}`.
@@ -203,6 +225,91 @@ new type to offer them:
 The PHP and JS rules are kept in sync by tests: `SiteThemeSyncTest` loads
 `theme.js`/`fonts.js` with Node; `BrandColorTest` reads a fixture generated
 from `color.js`.
+
+### Admin colours
+
+The admin panel has its own fixed palette, separate from the public site's
+brand colour setting. It is derived from the default brand colour `#1B2A4A`.
+
+- **Tokens** are in `resources/css/theme.css`, as `--color-*` CSS variables
+  with "R G B" channels and the hex in a comment. `tailwind.config.js` only
+  maps them to class names. It replaces Tailwind's palette instead of
+  extending it, so `indigo-600` and the like no longer exist.
+- **Scales** `brand`, `gray` (neutrals tinted with the brand hue), `success`,
+  `warning` and `danger`, each with steps 50 to 950. Each step is an OKLCH
+  colour with the scale's hue, at a fixed contrast against the theme's surface
+  (white in the light theme), so a step has the same role in every scale and
+  in both themes:
+  - 50–300 are backgrounds and borders;
+  - 400 is icons and other non-text UI (3:1);
+  - 500 is the lightest text colour (5.1:1, so AA on the canvas too);
+  - 600–950 is text.
+  `#1B2A4A` is `brand-800`.
+- **Roles** cover what no single step expresses:
+  - `canvas` is the page background;
+  - `surface` is cards, nav, header, menus and modals;
+  - `primary`, `primary-hover` and `primary-active` are filled buttons,
+    selected toggles, badges and progress bars, and `primary` is `#1B2A4A`;
+  - `on-primary` is text on primary;
+  - `danger-fill`, `danger-fill-hover`, `danger-fill-active` and `on-danger`
+    are `DangerButton`;
+  - `nav`, `nav-hover`, `nav-accent`, `on-nav` and `on-nav-muted` are the navy
+    top bar and its mobile menu: the bar, hovered items, the current item's
+    underline, and the text.
+  Links, checked controls and focus rings use lighter brand steps
+  (`brand-600`, `brand-500`): navy text would be hard to tell apart from the
+  navy-tinted body text.
+- **Outside class names:** `@tailwindcss/forms` reads `colors.gray` and
+  `colors.blue.600`. That is why the neutral scale is still called `gray`, and
+  why `blue.600` exists, pointing at `brand-600`; it isn't for use in classes.
+  The chart (`VisitsChart.jsx`) and Inertia's progress bar use
+  `rgb(var(--color-…))` directly.
+- **Form controls** (inputs, selects, textareas, checkboxes, radios) have a
+  `gray-400` border, 3.1:1 against the surface, for WCAG 1.4.11. Buttons keep
+  `gray-300`: their text identifies them.
+- **Logo:** `ApplicationLogo.jsx` is the Alodium mark, the path from
+  `astro/src/assets/alodium-mark.svg`, drawn in `currentColor`. The public
+  site's copy is a placeholder until a client uploads their own logo; the admin
+  always shows Alodium's. `public/favicon.svg` and `favicon.ico` are copies of
+  the public site's favicons.
+- **`ThemePreview.jsx`** shows the public site, so it keeps its own colours
+  (white card, the chosen brand colour). Its card has `data-theme="light"`, so
+  it stays light in the dark theme.
+
+#### Dark theme and the toggle
+
+- **Tokens:** `theme.css` has three blocks. `:root, [data-theme='light']` is
+  the light theme and the default. `[data-theme='dark']` redefines every one of
+  those tokens. A last `:root` block holds the navigation bar's tokens: the bar
+  is navy in both themes, so they are fixed values, not references to the
+  brand scale.
+- **How the dark scales were made:** the same method, against the dark
+  surface (`#131927`). Each step is lighter than the one before, so
+  `text-gray-900` stays the strongest text and `bg-gray-50` a subtle tint.
+  Components therefore need no `dark:` classes, and `tailwind.config.js` has
+  no `darkMode` setting.
+- **Fills in the dark theme:** `primary` and `danger-fill` are lighter than in
+  the light theme, still with AA white text. `primary` is `brand-400`
+  (`#4465AC`, 5.7:1), because navy on near-black barely shows.
+- **Outside class names:** `@tailwindcss/forms` hard-codes white input
+  backgrounds and focus-ring gaps. `app.css` overrides them with the surface
+  colour. The chart tooltip uses tokens too.
+- **Which theme is shown:**
+  - The stored choice in `localStorage` under `alodium-theme` (`light` or
+    `dark`). It is per browser, not per account.
+  - Without one, the OS setting (`prefers-color-scheme`), followed live.
+  - `resources/js/utils/theme.js` sets `data-theme` on `<html>`. A small inline
+    script at the top of `app.blade.php` does the same before the first paint,
+    so a page never flashes the wrong theme. Other open tabs follow through
+    the `storage` event.
+- **Where to change it:** the moon/sun button in the navigation bar, next to
+  the account menu on desktop and next to the menu button on mobile, switches
+  between light and dark. Profile, "Appearance", also offers "Device setting",
+  which clears the stored choice. The login page uses the same theme but has
+  no toggle.
+- `node resources/js/theme.check.mjs` checks the contrast rules in both
+  themes, and catches classes that use a colour that isn't defined, or hex
+  colours in the admin source (section 10).
 
 ## 7. Roles and permissions
 
@@ -296,6 +403,21 @@ The README requires the worker to run with `--timeout=660` and
 - `node resources/js/utils/importRun.check.mjs` checks the import run page's
   state (poll timing and back-off, stall detection, milestones, reason
   mapping and grouping, formatting).
+- `node resources/js/theme.check.mjs` checks the admin colour tokens
+  (section 6, "Admin colours"), in the light and the dark theme:
+  - the dark theme redefines every token of the light one;
+  - the first-paint script in `app.blade.php` picks the same theme as
+    `utils/theme.js` for every stored value and OS setting (it runs the script
+    in `node:vm`);
+  - each hex comment matches its channels;
+  - the WCAG AA contrast rules of the steps and roles hold;
+  - no class names a colour the theme doesn't define (Tailwind would silently
+    leave it out);
+  - there are no hex colours in `resources/js`;
+  - text and background classes in the same string literal reach 4.5:1, and
+    form-control borders reach 3:1. Both are heuristics on string literals:
+    nested elements aren't paired, and a control is recognised by its focus
+    classes.
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
 - `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes and runs
   exactly what README sections 4 to 6 describe: the env block, the plain-HTTP
@@ -350,6 +472,9 @@ Astro (`astro/.env`, `astro/.env.production`):
 | `SITE_URL` | public site address for the sitemap, robots.txt and canonical links |
 
 ## 12. Known gaps
+
+- **Tracker blockers**: visitors who block trackers are never counted, by
+  design. The counts are a lower bound (section 4, "Tracker blockers").
 
 - **Sanitiser and relative images**: `allowRelativeMedias()` still keeps
   relative `<img src>` values other than `/storage/...` (e.g. `../x.jpg`);

@@ -50,9 +50,9 @@ function ToolbarButton({ icon: Icon, label, onClick, active = false, disabled = 
             onMouseDown={(e) => e.preventDefault()}
             onClick={onClick}
             className={
-                'inline-flex h-8 w-8 items-center justify-center rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ' +
+                'inline-flex h-8 w-8 items-center justify-center rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ' +
                 (active
-                    ? 'bg-gray-800 text-white'
+                    ? 'bg-primary text-on-primary'
                     : 'bg-transparent text-gray-700 hover:bg-gray-100') +
                 (disabled ? ' cursor-not-allowed opacity-40 hover:bg-transparent' : '')
             }
@@ -67,7 +67,7 @@ function Divider() {
 }
 
 const inputClass =
-    'block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500';
+    'block w-full rounded-md border-gray-400 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500';
 
 /**
  * Small form shown below the toolbar for links and images. It is a <div>, not a
@@ -105,7 +105,7 @@ function Popover({ fields, values, onChange, onConfirm, onCancel, confirmLabel, 
                 <button
                     type="button"
                     onClick={onConfirm}
-                    className="rounded-md bg-gray-800 px-3 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700"
+                    className="rounded-md bg-primary px-3 py-2 text-xs font-semibold uppercase tracking-widest text-on-primary hover:bg-primary-hover"
                 >
                     {confirmLabel}
                 </button>
@@ -117,7 +117,7 @@ function Popover({ fields, values, onChange, onConfirm, onCancel, confirmLabel, 
                     Cancel
                 </button>
             </div>
-            {error && <p className="w-full text-xs text-red-600">{error}</p>}
+            {error && <p className="w-full text-xs text-danger-600">{error}</p>}
         </div>
     );
 }
@@ -260,9 +260,9 @@ export default function RichTextEditor({ value, onChange }) {
     const setField = (name, fieldValue) => setPopover((p) => ({ ...p, [name]: fieldValue }));
 
     return (
-        <div className="mt-1 rounded-md border border-gray-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500">
+        <div className="mt-1 rounded-md border border-gray-400 bg-surface shadow-sm focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
             {/* Sticky so the toolbar stays reachable while editing long content. */}
-            <div className="sticky top-0 z-10 rounded-t-md border-b border-gray-200 bg-white">
+            <div className="sticky top-0 z-10 rounded-t-md border-b border-gray-200 bg-surface">
                 <div className="flex flex-wrap items-center gap-0.5 p-1.5" role="toolbar" aria-label="Formatting">
                     <ToolbarButton icon={Bold} label="Bold" active={state.bold} onClick={run((c) => c.toggleBold())} />
                     <ToolbarButton icon={Italic} label="Italic" active={state.italic} onClick={run((c) => c.toggleItalic())} />
@@ -331,7 +331,7 @@ export default function RichTextEditor({ value, onChange }) {
                 // sticky toolbar. TipTap v3 positions menus with Floating UI (the v2
                 // `tippyOptions` prop no longer exists); flip is off so it never moves back up.
                 options={{ placement: 'bottom', offset: 8, flip: false }}
-                className="z-50 flex items-center gap-0.5 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+                className="z-50 flex items-center gap-0.5 rounded-md border border-gray-200 bg-surface p-1 shadow-lg"
             >
                 <ToolbarButton icon={Bold} label="Bold" active={state.bold} onClick={run((c) => c.toggleBold())} />
                 <ToolbarButton icon={Italic} label="Italic" active={state.italic} onClick={run((c) => c.toggleItalic())} />

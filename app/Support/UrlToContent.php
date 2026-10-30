@@ -27,7 +27,7 @@ class UrlToContent
     /**
      * @param  iterable<string>  $urls  raw or normalised paths
      * @return array<string, array{title: string, type: string, id: int|null}> keyed by normalised path;
-     *                                                                          type is post, page, home, blog, contact or other
+     *                                                                         type is post, page, home, blog, contact or other
      */
     public function resolve(iterable $urls): array
     {

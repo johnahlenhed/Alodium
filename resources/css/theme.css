@@ -1,0 +1,205 @@
+/*
+ * Admin colour tokens: the only place the admin's colours are defined.
+ * tailwind.config.js maps them to class names (bg-brand-600, text-gray-500,
+ * bg-primary ...), so components use classes, never hex values.
+ *
+ * Values are "R G B" channels so Tailwind's opacity modifiers work
+ * (bg-gray-500/75). The hex in each comment is the same colour, for reading;
+ * resources/js/theme.check.mjs fails if the two disagree.
+ *
+ * Two themes with the same token names: light (below, the default) and dark
+ * ([data-theme='dark'], set on <html> by the script in app.blade.php and by
+ * resources/js/utils/theme.js). Components need no dark: classes: a step
+ * keeps its role in both themes, only its colour changes.
+ *
+ * How the scales were made (docs/ARCHITECTURE.md, "Admin colours"): every
+ * step is an OKLCH colour with the scale's hue, at a fixed contrast against
+ * the theme's surface, so a step means the same thing in every scale and in
+ * both themes:
+ *   50-300  backgrounds and borders
+ *   400     icons and other non-text UI, 3:1 (WCAG AA non-text)
+ *   500     the lightest text colour, 5.1:1: AA on the surface and the canvas
+ *   600-950 text
+ * Light: against white, getting darker. Dark: against the dark surface,
+ * getting lighter.
+ */
+/* Light theme (the default). Also used by [data-theme='light'] inside a dark page. */
+:root,
+[data-theme='light'] {
+    color-scheme: light;
+
+    /* Brand: #1B2A4A is brand-800, the primary colour. */
+    --color-brand-50: 247 250 254; /* #F7FAFE */
+    --color-brand-100: 236 242 255; /* #ECF2FF */
+    --color-brand-200: 213 227 254; /* #D5E3FE */
+    --color-brand-300: 183 205 248; /* #B7CDF8 */
+    --color-brand-400: 112 146 215; /* #7092D7 */
+    --color-brand-500: 71 108 186; /* #476CBA */
+    --color-brand-600: 56 89 159; /* #38599F */
+    --color-brand-700: 44 68 122; /* #2C447A */
+    --color-brand-800: 27 42 74; /* #1B2A4A */
+    --color-brand-900: 19 31 55; /* #131F37 */
+    --color-brand-950: 12 19 36; /* #0C1324 */
+
+    /* Neutrals, tinted with the brand hue. */
+    --color-gray-50: 248 249 252; /* #F8F9FC */
+    --color-gray-100: 240 242 246; /* #F0F2F6 */
+    --color-gray-200: 223 225 231; /* #DFE1E7 */
+    --color-gray-300: 200 205 213; /* #C8CDD5 */
+    --color-gray-400: 141 146 158; /* #8D929E */
+    --color-gray-500: 103 111 125; /* #676F7D */
+    --color-gray-600: 83 92 108; /* #535C6C */
+    --color-gray-700: 61 70 87; /* #3D4657 */
+    --color-gray-800: 34 42 61; /* #222A3D */
+    --color-gray-900: 22 31 48; /* #161F30 */
+    --color-gray-950: 13 19 33; /* #0D1321 */
+
+    /* Success (green). */
+    --color-success-50: 234 255 238; /* #EAFFEE */
+    --color-success-100: 211 252 221; /* #D3FCDD */
+    --color-success-200: 178 240 194; /* #B2F0C2 */
+    --color-success-300: 137 222 161; /* #89DEA1 */
+    --color-success-400: 48 166 94; /* #30A65E */
+    --color-success-500: 3 127 64; /* #037F40 */
+    --color-success-600: 20 114 59; /* #14723B */
+    --color-success-700: 25 97 52; /* #196134 */
+    --color-success-800: 28 79 45; /* #1C4F2D */
+    --color-success-900: 26 61 37; /* #1A3D25 */
+    --color-success-950: 19 43 26; /* #132B1A */
+
+    /* Warning (amber). */
+    --color-warning-50: 255 249 242; /* #FFF9F2 */
+    --color-warning-100: 255 240 223; /* #FFF0DF */
+    --color-warning-200: 255 220 181; /* #FFDCB5 */
+    --color-warning-300: 255 193 118; /* #FFC176 */
+    --color-warning-400: 205 130 0; /* #CD8200 */
+    --color-warning-500: 154 98 3; /* #9A6203 */
+    --color-warning-600: 140 88 1; /* #8C5801 */
+    --color-warning-700: 120 74 0; /* #784A00 */
+    --color-warning-800: 97 62 10; /* #613E0A */
+    --color-warning-900: 75 49 16; /* #4B3110 */
+    --color-warning-950: 54 35 12; /* #36230C */
+
+    /* Danger and errors (red). */
+    --color-danger-50: 255 247 247; /* #FFF7F7 */
+    --color-danger-100: 255 239 237; /* #FFEFED */
+    --color-danger-200: 255 217 214; /* #FFD9D6 */
+    --color-danger-300: 254 189 182; /* #FEBDB6 */
+    --color-danger-400: 249 94 90; /* #F95E5A */
+    --color-danger-500: 209 44 50; /* #D12C32 */
+    --color-danger-600: 187 44 47; /* #BB2C2F */
+    --color-danger-700: 157 43 43; /* #9D2B2B */
+    --color-danger-800: 122 44 41; /* #7A2C29 */
+    --color-danger-900: 91 38 35; /* #5B2623 */
+    --color-danger-950: 65 27 25; /* #411B19 */
+
+    /* Roles: what a colour is for, where no single scale step says it. */
+    --color-canvas: var(--color-gray-100); /* page background */
+    --color-surface: 255 255 255; /* cards, header, menus, modals, inputs */
+    --color-primary: var(--color-brand-800); /* filled buttons, selected toggles, badges, progress */
+    --color-primary-hover: var(--color-brand-700);
+    --color-primary-active: var(--color-brand-900);
+    --color-on-primary: 255 255 255; /* text and icons on primary */
+    --color-danger-fill: var(--color-danger-600); /* DangerButton */
+    --color-danger-fill-hover: var(--color-danger-500);
+    --color-danger-fill-active: var(--color-danger-700);
+    --color-on-danger: 255 255 255;
+}
+
+/*
+ * Dark theme. Same method, against the dark surface: each step is lighter
+ * than the one before. The fills are lighter than in the light theme (navy
+ * on near-black would barely show) but stay dark enough for white text.
+ */
+[data-theme='dark'] {
+    color-scheme: dark;
+
+    /* Brand. */
+    --color-brand-50: 25 32 47; /* #19202F */
+    --color-brand-100: 28 39 62; /* #1C273E */
+    --color-brand-200: 33 50 84; /* #213254 */
+    --color-brand-300: 40 63 112; /* #283F70 */
+    --color-brand-400: 68 101 172; /* #4465AC */
+    --color-brand-500: 102 137 212; /* #6689D4 */
+    --color-brand-600: 130 161 224; /* #82A1E0 */
+    --color-brand-700: 160 186 238; /* #A0BAEE */
+    --color-brand-800: 189 210 249; /* #BDD2F9 */
+    --color-brand-900: 213 227 254; /* #D5E3FE */
+    --color-brand-950: 232 239 255; /* #E8EFFF */
+
+    /* Neutrals, tinted with the brand hue. */
+    --color-gray-50: 26 33 46; /* #1A212E */
+    --color-gray-100: 33 40 54; /* #212836 */
+    --color-gray-200: 43 51 65; /* #2B3341 */
+    --color-gray-300: 57 64 79; /* #39404F */
+    --color-gray-400: 97 103 116; /* #616774 */
+    --color-gray-500: 132 138 151; /* #848A97 */
+    --color-gray-600: 156 161 173; /* #9CA1AD */
+    --color-gray-700: 180 186 195; /* #B4BAC3 */
+    --color-gray-800: 205 210 218; /* #CDD2DA */
+    --color-gray-900: 223 226 231; /* #DFE2E7 */
+    --color-gray-950: 238 239 243; /* #EEEFF3 */
+
+    /* Success (green). */
+    --color-success-50: 18 37 23; /* #122517 */
+    --color-success-100: 16 44 25; /* #102C19 */
+    --color-success-200: 13 58 30; /* #0D3A1E */
+    --color-success-300: 8 75 36; /* #084B24 */
+    --color-success-400: 5 119 59; /* #05773B */
+    --color-success-500: 49 157 89; /* #319D59 */
+    --color-success-600: 80 173 110; /* #50AD6E */
+    --color-success-700: 102 187 127; /* #66BB7F */
+    --color-success-800: 137 205 155; /* #89CD9B */
+    --color-success-900: 167 222 181; /* #A7DEB5 */
+    --color-success-950: 195 236 204; /* #C3ECCC */
+
+    /* Warning (amber). */
+    --color-warning-50: 43 29 13; /* #2B1D0D */
+    --color-warning-100: 55 35 8; /* #372308 */
+    --color-warning-200: 73 44 1; /* #492C01 */
+    --color-warning-300: 92 56 1; /* #5C3801 */
+    --color-warning-400: 145 91 2; /* #915B02 */
+    --color-warning-500: 192 123 3; /* #C07B03 */
+    --color-warning-600: 207 141 51; /* #CF8D33 */
+    --color-warning-700: 220 157 79; /* #DC9D4F */
+    --color-warning-800: 234 181 119; /* #EAB577 */
+    --color-warning-900: 244 201 153; /* #F4C999 */
+    --color-warning-950: 253 220 184; /* #FDDCB8 */
+
+    /* Danger and errors (red). */
+    --color-danger-50: 50 25 24; /* #321918 */
+    --color-danger-100: 66 27 25; /* #421B19 */
+    --color-danger-200: 89 32 30; /* #59201E */
+    --color-danger-300: 115 38 36; /* #732624 */
+    --color-danger-400: 188 54 54; /* #BC3636 */
+    --color-danger-500: 224 98 92; /* #E0625C */
+    --color-danger-600: 234 122 115; /* #EA7A73 */
+    --color-danger-700: 240 143 135; /* #F08F87 */
+    --color-danger-800: 253 169 162; /* #FDA9A2 */
+    --color-danger-900: 255 195 189; /* #FFC3BD */
+    --color-danger-950: 255 217 213; /* #FFD9D5 */
+
+    /* Roles */
+    --color-canvas: 9 14 25; /* #090E19, darker than the surface */
+    --color-surface: 19 25 39; /* #131927 */
+    --color-primary: var(--color-brand-400); /* white text 5.7:1 */
+    --color-primary-hover: 77 114 193; /* #4D72C1, lighter, white text 4.7:1 */
+    --color-primary-active: var(--color-brand-300);
+    --color-on-primary: 255 255 255;
+    --color-danger-fill: var(--color-danger-400); /* white text 5.6:1 */
+    --color-danger-fill-hover: 207 65 64; /* #CF4140, white text 4.7:1 */
+    --color-danger-fill-active: var(--color-danger-300);
+    --color-on-danger: 255 255 255;
+}
+
+/*
+ * The navigation bar is navy in both themes, so these are fixed values, not
+ * references to the brand scale (that changes with the theme).
+ */
+:root {
+    --color-nav: 27 42 74; /* #1B2A4A, the brand colour */
+    --color-nav-hover: 44 68 122; /* #2C447A: hovered and current items in the mobile menu */
+    --color-nav-accent: 112 146 215; /* #7092D7: underline of the current item */
+    --color-on-nav: 255 255 255; /* current item, logo, names */
+    --color-on-nav-muted: 213 227 254; /* #D5E3FE: the other items */
+}

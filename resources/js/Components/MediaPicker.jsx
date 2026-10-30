@@ -83,7 +83,7 @@ export default function MediaPicker({
                     <button
                         type="button"
                         onClick={() => onChange('')}
-                        className="text-sm text-red-600 hover:text-red-900"
+                        className="text-sm text-danger-600 hover:text-danger-900"
                     >
                         Remove
                     </button>
@@ -111,7 +111,7 @@ export default function MediaPicker({
                         </SecondaryButton>
                     </div>
 
-                    {problem && <p className="mt-4 text-sm text-red-600">{problem}</p>}
+                    {problem && <p className="mt-4 text-sm text-danger-600">{problem}</p>}
 
                     {media === null && !problem && (
                         <p className="mt-6 text-sm text-gray-500">Loading…</p>
@@ -131,7 +131,7 @@ export default function MediaPicker({
                                         type="button"
                                         onClick={() => choose(item)}
                                         title={item.original_filename}
-                                        className="block w-full overflow-hidden rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:ring-2 hover:ring-indigo-300"
+                                        className="block w-full overflow-hidden rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500 hover:ring-2 hover:ring-brand-300"
                                     >
                                         <img
                                             src={item.thumb_url}

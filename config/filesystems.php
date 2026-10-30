@@ -60,7 +60,6 @@ return [
             'report' => false,
         ],
 
-
         // Off-server copies of database backups (php artisan db:backup). Any
         // S3-compatible provider: Cloudflare R2, Hetzner, DigitalOcean Spaces, B2...
         // Only encrypted files are ever written here (App\Services\OffsiteBackup).

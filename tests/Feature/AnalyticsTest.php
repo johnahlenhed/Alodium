@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\Visit;
+use Database\Seeders\VisitSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Stevebauman\Location\Facades\Location;
 use Stevebauman\Location\Position;
@@ -115,7 +116,7 @@ class AnalyticsTest extends TestCase
 
     public function test_visit_seeder_generates_visits_within_30_days_and_some_events(): void
     {
-        $this->seed(\Database\Seeders\VisitSeeder::class);
+        $this->seed(VisitSeeder::class);
 
         $this->assertSame(200, Visit::count());
         $this->assertSame(0, Visit::where('created_at', '<', now()->subDays(31))->count());

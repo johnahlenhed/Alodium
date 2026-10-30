@@ -8,14 +8,14 @@ import { useEffect, useRef, useState } from 'react';
 
 function Stat({ label, value }) {
     return (
-        <div className="bg-white p-6 shadow sm:rounded-lg">
+        <div className="bg-surface p-6 shadow sm:rounded-lg">
             <div className="text-sm font-medium text-gray-500">{label}</div>
             <div className="mt-2 text-3xl font-semibold text-gray-900">{value}</div>
         </div>
     );
 }
 
-const linkClass = 'rounded text-indigo-600 hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
+const linkClass = 'rounded text-brand-600 hover:text-brand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500';
 
 /**
  * Polls the status endpoint while the run is going: every 3 s, every 10 s after
@@ -106,7 +106,7 @@ function ProgressBar({ status }) {
                 aria-valuetext={label}
                 className="mt-2 h-3 overflow-hidden rounded bg-gray-200"
             >
-                <div className="h-full bg-indigo-600 transition-all" style={{ width: `${percent}%` }} />
+                <div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} />
             </div>
         </div>
     );
@@ -185,14 +185,14 @@ function ImagePanel({ initialStatus, statusUrl, errors }) {
     const nothingFound = status.status === 'done' && status.images_found === 0;
 
     return (
-        <section aria-labelledby="images-heading" className="space-y-6 bg-white p-6 shadow sm:rounded-lg">
+        <section aria-labelledby="images-heading" className="space-y-6 bg-surface p-6 shadow sm:rounded-lg">
             <h3 id="images-heading" className="text-base font-semibold text-gray-900">Images</h3>
 
             {/* Milestones only (started, finished, failed), not every poll. */}
             <p className="sr-only" aria-live="polite">{announcement}</p>
 
             {status.status === 'failed' ? (
-                <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <div className="rounded-md border border-danger-200 bg-danger-50 p-4 text-sm text-danger-800">
                     <p className="font-medium">The import failed, so no images were downloaded.</p>
                     {errors[0] && <p className="mt-1">Reason: {errors[0]}</p>}
                 </div>
@@ -213,7 +213,7 @@ function ImagePanel({ initialStatus, statusUrl, errors }) {
                     <Counters status={status} />
 
                     {active && connectionLost(failedPolls) && (
-                        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+                        <p className="rounded-md border border-warning-200 bg-warning-50 p-3 text-sm text-warning-900" role="status">
                             Connection lost, retrying…
                         </p>
                     )}
@@ -227,7 +227,7 @@ function ImagePanel({ initialStatus, statusUrl, errors }) {
                     )}
 
                     {status.status === 'done' && (
-                        <div className="space-y-2 rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+                        <div className="space-y-2 rounded-md border border-success-200 bg-success-50 p-4 text-sm text-success-900">
                             <p className="font-medium">
                                 Done: {status.images_downloaded} downloaded, {status.images_reused} reused
                                 and {status.images_skipped} skipped, {formatMegabytes(status.bytes_downloaded)} in total.
@@ -265,7 +265,7 @@ export default function Run({ run, status, statusUrl }) {
                 <h2
                     ref={heading}
                     tabIndex={-1}
-                    className="rounded text-xl font-semibold leading-tight text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    className="rounded text-page-title font-semibold text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                 >
                     Import result
                 </h2>
@@ -275,7 +275,7 @@ export default function Run({ run, status, statusUrl }) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-5xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="grid gap-6 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         <Stat label="Posts imported" value={imported_posts} />
                         <Stat label="Pages imported" value={imported_pages} />
                         <Stat label="Skipped" value={skipped.length} />
@@ -289,11 +289,11 @@ export default function Run({ run, status, statusUrl }) {
                     </p>
 
                     {errors.length > 0 && (
-                        <div className="rounded-md border border-red-200 bg-red-50 p-6">
-                            <h3 className="text-sm font-semibold text-red-800">
+                        <div className="rounded-md border border-danger-200 bg-danger-50 p-6">
+                            <h3 className="text-sm font-semibold text-danger-800">
                                 Errors ({errors.length})
                             </h3>
-                            <ul className="mt-2 list-disc space-y-1 ps-5 text-sm text-red-700">
+                            <ul className="mt-2 list-disc space-y-1 ps-5 text-sm text-danger-700">
                                 {errors.map((error, i) => (
                                     <li key={i}>{error}</li>
                                 ))}
@@ -302,24 +302,24 @@ export default function Run({ run, status, statusUrl }) {
                     )}
 
                     {warnings.length > 0 && (
-                        <div className="overflow-hidden rounded-md border border-yellow-200 bg-yellow-50">
-                            <h3 className="px-6 pt-6 text-sm font-semibold text-yellow-900">
+                        <div className="overflow-hidden rounded-md border border-warning-200 bg-warning-50">
+                            <h3 className="px-6 pt-6 text-sm font-semibold text-warning-900">
                                 Imported with warnings ({warnings.length})
                             </h3>
-                            <p className="mt-1 px-6 text-sm text-yellow-800">
+                            <p className="mt-1 px-6 text-sm text-warning-800">
                                 These posts and pages were imported, but something in them was converted, lost
                                 or repaired. Check them before publishing.
                             </p>
-                            <div className="overflow-x-auto">
-                                <table className="mt-4 min-w-full divide-y divide-yellow-200 text-sm">
-                                    <thead className="bg-yellow-100/60">
-                                        <tr className="text-left text-xs font-medium uppercase tracking-wider text-yellow-900">
+                            <div className="relative overflow-x-auto">
+                                <table className="mt-4 min-w-full divide-y divide-warning-200 text-sm">
+                                    <thead className="bg-warning-100/60">
+                                        <tr className="text-left text-xs font-medium uppercase tracking-wider text-warning-900">
                                             <th scope="col" className="px-6 py-3">Title</th>
                                             <th scope="col" className="px-6 py-3">Type</th>
                                             <th scope="col" className="px-6 py-3">Warning</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-yellow-200">
+                                    <tbody className="divide-y divide-warning-200">
                                         {warnings.map((warning, i) => (
                                             <tr key={i}>
                                                 <td className="px-6 py-3 text-gray-900">
@@ -337,9 +337,9 @@ export default function Run({ run, status, statusUrl }) {
                     )}
 
                     {skipped.length > 0 && (
-                        <div className="overflow-hidden bg-white shadow sm:rounded-lg">
+                        <div className="overflow-hidden bg-surface shadow sm:rounded-lg">
                             <h3 className="px-6 pt-6 text-sm font-semibold text-gray-900">Skipped items</h3>
-                            <div className="overflow-x-auto">
+                            <div className="relative overflow-x-auto">
                                 <table className="mt-4 min-w-full divide-y divide-gray-200 text-sm">
                                     <thead className="bg-gray-50">
                                         <tr className="text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -375,7 +375,7 @@ export default function Run({ run, status, statusUrl }) {
                         <Link href={route('media.index')} className={linkClass}>
                             Media library →
                         </Link>
-                        <Link href={route('import.create')} className="ms-auto rounded text-gray-600 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                        <Link href={route('import.create')} className="ms-auto rounded text-gray-600 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                             Import another file
                         </Link>
                     </nav>
