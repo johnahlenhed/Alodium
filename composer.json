@@ -46,7 +46,7 @@
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
-            "@php artisan key:generate",
+            "@php artisan app:ensure-key",
             "npm install --ignore-scripts --legacy-peer-deps",
             "npm run build",
             "@php -r \"echo PHP_EOL, 'Next: create a MySQL database, set DB_DATABASE, DB_USERNAME and DB_PASSWORD in .env, then run php artisan migrate and php artisan storage:link (README, Installation).', PHP_EOL;\""

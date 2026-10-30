@@ -51,7 +51,8 @@ observer fires.
 app/
   Blocks/            BlockRegistry + BlockType, one class per block type in Types/
   Console/Commands/  db:backup, media:backup-remote, content:publish-scheduled,
-                     content:sanitize, db:backup-test-remote, user:set-password
+                     content:sanitize, db:backup-test-remote, user:set-password,
+                     app:ensure-key
   Http/Controllers/  admin pages (Inertia) and API controllers; Auth/ is Breeze
   Http/Middleware/   RequireAdmin ("admin" alias), HandleInertiaRequests, EnsureRegistrationIsEnabled
   Http/Requests/     UpdateSiteSettingsRequest, ProfileUpdateRequest, Auth/LoginRequest
@@ -353,6 +354,7 @@ forgot-password page, which fails the same way.
 | `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) warns when the file is missing, unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
+| `app:ensure-key` | `composer setup` | runs `key:generate` only when `.env` has no `APP_KEY`; otherwise explains why it skipped (a new key logs everyone out and makes encrypted data unreadable) |
 | `user:set-password` | manually | sets a user's password (hidden prompt or `--generate`), creating an admin for a new email; sends no email (section 7) |
 
 The README requires the worker to run with `--timeout=660` and
