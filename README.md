@@ -467,7 +467,7 @@ Test both sites in a browser: `https://SITE_DOMAIN` and `https://ADMIN_DOMAIN`. 
 
 ### 6. GeoIP database (visitor countries)
 
-The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** warns while the file is missing.
+The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** notes it while the file is missing (as information, since nothing else is affected; the technical detail is under "Details for your developer").
 
 **One MaxMind account per client.** Every deployment uses a free MaxMind account and license key of its own, belonging to that client, never a key shared between clients: each install is then the client's own use of the GeoLite2 data, under MaxMind's terms.
 
@@ -938,7 +938,7 @@ Update the domain settings as described in steps 4 and 5, then trigger an Astro 
 
 **Content changes**
 
-Publishing, editing, unpublishing or deleting posts and pages in the admin panel triggers an Astro rebuild automatically. No manual steps are needed. Changes appear on the public site once the build finishes, usually within a few minutes.
+Publishing, editing, unpublishing or deleting posts and pages in the admin panel triggers an Astro rebuild automatically. No manual steps are needed. Changes appear on the public site once the build finishes, usually within a few minutes. A page's editor shows whether it's live yet, and links to it once it is ("On the public site"). Admins can add the page to the menu from there.
 
 ### Troubleshooting
 

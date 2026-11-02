@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\DashboardController;
+use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\Post;
+use App\Models\SiteSetting;
 use App\Models\Submission;
 use App\Models\User;
 use App\Models\Visit;
@@ -12,6 +15,7 @@ use App\Services\SiteStatus;
 use App\Support\TrafficSource;
 use App\Support\UrlToContent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -21,7 +25,7 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ADMIN_ONLY = ['visitors', 'topContent', 'sources', 'siteStatus'];
+    private const ADMIN_ONLY = ['visitors', 'topContent', 'sources', 'siteStatus', 'gettingStarted'];
 
     private User $admin;
 
@@ -46,8 +50,22 @@ class DashboardTest extends TestCase
             'location.maxmind.local.path' => $this->dir.'/geoip/GeoLite2-Country.mmdb',
         ]);
         $this->travelTo(Carbon::parse('2026-10-22 12:00:00', 'UTC'));
+        // An established site (set up weeks ago), unless a test says otherwise.
+        $this->siteSetUpHoursAgo(24 * 50);
         // A healthy site has the GeoIP database (MaxMind's test file), updated recently.
         $this->installGeoIp(daysAgo: 3);
+    }
+
+    /** How long ago the site was set up: when its first account was created. */
+    private function siteSetUpHoursAgo(int $hours): void
+    {
+        DB::table('users')->update(['created_at' => now()->subHours($hours)]);
+    }
+
+    /** The notices' messages, or one field of each. */
+    private function notices(string $field = 'message'): array
+    {
+        return array_column(app(SiteStatus::class)->summary()['notices'], $field);
     }
 
     private function installGeoIp(int $daysAgo): void
@@ -143,7 +161,7 @@ class DashboardTest extends TestCase
             ->where('submissions.latest', [])
             ->where('siteStatus.lastRebuild', null)
             ->where('siteStatus.lastBackup', null)
-            ->where('siteStatus.warnings', []));
+            ->where('siteStatus.notices', []));
     }
 
     public function test_query_count_for_a_dashboard_load(): void
@@ -331,7 +349,7 @@ class DashboardTest extends TestCase
 
         $this->assertSame('complete', $rebuild['status']);
         $this->assertSame('2026-10-22T02:00:05+00:00', $rebuild['at']);
-        $this->assertSame([], app(SiteStatus::class)->summary()['warnings']);
+        $this->assertSame([], $this->notices());
 
         // A wrong weekday doesn't shift the date (2026-10-22 is a Thursday).
         $this->log("Rebuild complete at Wed Oct 22 02:00:05 UTC 2026\n");
@@ -348,7 +366,9 @@ class DashboardTest extends TestCase
         $summary = app(SiteStatus::class)->summary();
 
         $this->assertSame('failed', $summary['lastRebuild']['status']);
-        $this->assertStringContainsString('rebuild of the public site failed', $summary['warnings'][0]);
+        $this->assertSame('warning', $summary['notices'][0]['level']);
+        $this->assertStringContainsString("didn't reach the public site", $summary['notices'][0]['message']);
+        $this->assertStringContainsString('storage/logs/astro-rebuild.log', $summary['notices'][0]['detail']);
     }
 
     public function test_missing_log_and_malformed_date(): void
@@ -379,7 +399,12 @@ class DashboardTest extends TestCase
 
         $this->actingAs($this->admin)->get('/dashboard')->assertInertia(fn ($page) => $page
             ->where('siteStatus.geoip', ['present' => false, 'readable' => false, 'updatedAt' => null, 'ageHours' => null])
-            ->where('siteStatus.warnings', ['The GeoIP database is missing, so visits are recorded without a country. Install it as described in the README (deployment step 6).']));
+            // Normal until the developer installs it: information, not a warning.
+            ->where('siteStatus.notices', [[
+                'level' => 'info',
+                'message' => "Visitor countries aren't shown yet. The other visitor statistics are recorded as normal.",
+                'detail' => 'The GeoIP database is missing (storage/app/geoip/GeoLite2-Country.mmdb), so visits are recorded without a country. Install it as in README deployment step 6, or with deploy/add-domain.sh geoip.',
+            ]]));
     }
 
     public function test_a_geoip_file_that_is_not_a_database_warns(): void
@@ -389,7 +414,9 @@ class DashboardTest extends TestCase
 
         $summary = app(SiteStatus::class)->summary();
         $this->assertSame(['present' => true, 'readable' => false, 'updatedAt' => null, 'ageHours' => null], $summary['geoip']);
-        $this->assertStringContainsString("can't be read", $summary['warnings'][0]);
+        $this->assertSame('warning', $summary['notices'][0]['level']);
+        $this->assertStringContainsString("can't be looked up", $summary['notices'][0]['message']);
+        $this->assertStringContainsString('php artisan location:update', $summary['notices'][0]['detail']);
     }
 
     public function test_geoip_database_age_threshold(): void
@@ -399,13 +426,12 @@ class DashboardTest extends TestCase
         $this->assertTrue($summary['geoip']['readable']);
         $this->assertSame('2026-09-08T12:00:00+00:00', $summary['geoip']['updatedAt']);
         $this->assertSame(44.0 * 24, $summary['geoip']['ageHours']);
-        $this->assertSame([], $summary['warnings']);
+        $this->assertSame([], $summary['notices']);
 
         $this->installGeoIp(daysAgo: 46);
-        $this->assertSame(
-            ['The GeoIP database has not been updated for more than 45 days. Check MAXMIND_LICENSE_KEY and the scheduler.'],
-            app(SiteStatus::class)->summary()['warnings'],
-        );
+        $this->assertSame(['warning'], $this->notices('level'));
+        $this->assertSame(['The country lookup for visitors is out of date, so some countries may be wrong.'], $this->notices());
+        $this->assertStringContainsString('MAXMIND_LICENSE_KEY', $this->notices('detail')[0]);
     }
 
     public function test_backup_age_threshold_and_failed_jobs_warnings(): void
@@ -414,18 +440,19 @@ class DashboardTest extends TestCase
         file_put_contents($file, 'x');
 
         touch($file, now()->subHours(35)->getTimestamp());
-        $this->assertSame([], app(SiteStatus::class)->summary()['warnings']);
+        $this->assertSame([], $this->notices());
 
         touch($file, now()->subHours(37)->getTimestamp());
         $summary = app(SiteStatus::class)->summary();
         $this->assertSame('alodium-backup-2026-10-21-0200.sql.gz', $summary['lastBackup']['file']);
         $this->assertGreaterThan(36, $summary['lastBackup']['age_hours']);
-        $this->assertStringContainsString('more than 36 hours old', $summary['warnings'][0]);
+        $this->assertSame("The automatic backup of your site hasn't run for more than a day and a half.", $summary['notices'][0]['message']);
+        $this->assertStringContainsString('more than 36 hours old', $summary['notices'][0]['detail']);
 
         DB::table('failed_jobs')->insert(['uuid' => 'u1', 'connection' => 'database', 'queue' => 'default', 'payload' => '{}', 'exception' => 'x']);
         $summary = app(SiteStatus::class)->summary();
         $this->assertSame(1, $summary['failedJobs']);
-        $this->assertStringContainsString('1 queued job has failed', implode(' ', $summary['warnings']));
+        $this->assertContains('1 background task failed, such as updating the public site or copying images.', array_column($summary['notices'], 'message'));
     }
 
     private function configureOffsite(): void
@@ -459,7 +486,7 @@ class DashboardTest extends TestCase
         $summary = app(SiteStatus::class)->summary();
 
         $this->assertFalse($summary['offsite']['configured']);
-        $this->assertSame([], $summary['warnings']);
+        $this->assertSame([], $summary['notices']);
     }
 
     public function test_offsite_configured_but_never_uploaded_warns(): void
@@ -470,7 +497,12 @@ class DashboardTest extends TestCase
         $summary = app(SiteStatus::class)->summary();
 
         $this->assertNull($summary['offsite']['lastUploadAt']);
-        $this->assertSame(['Off-server copies are configured, but no successful upload has been recorded.'], $summary['warnings']);
+        $this->assertSame(['warning'], array_column($summary['notices'], 'level'));
+        $this->assertSame(["Your backups aren't being copied to off-site storage."], array_column($summary['notices'], 'message'));
+
+        // Set up today: the first upload happens overnight, so that's normal.
+        $this->siteSetUpHoursAgo(5);
+        $this->assertSame(['info'], $this->notices('level'));
     }
 
     public function test_offsite_upload_age_threshold(): void
@@ -480,11 +512,11 @@ class DashboardTest extends TestCase
 
         $this->recordUploadHoursAgo(35);
         $summary = app(SiteStatus::class)->summary();
-        $this->assertSame([], $summary['warnings']);
+        $this->assertSame([], $summary['notices']);
         $this->assertEqualsWithDelta(35, $summary['offsite']['ageHours'], 0.1);
 
         $this->recordUploadHoursAgo(37);
-        $this->assertSame(['The last off-server copy was uploaded more than 36 hours ago.'], app(SiteStatus::class)->summary()['warnings']);
+        $this->assertSame(["Your backups haven't been copied to off-site storage for more than a day and a half."], $this->notices());
     }
 
     public function test_offsite_status_reaches_the_dashboard(): void
@@ -496,18 +528,119 @@ class DashboardTest extends TestCase
         $this->actingAs($this->admin)->get('/dashboard')->assertInertia(fn ($page) => $page
             ->where('siteStatus.offsite.configured', true)
             ->where('siteStatus.offsite.lastUploadAt', '2026-10-22T10:00:00+00:00')
-            ->where('siteStatus.warnings', []));
+            ->where('siteStatus.notices', []));
     }
 
     public function test_no_backup_at_all_warns_only_in_production(): void
     {
-        $this->assertSame([], app(SiteStatus::class)->summary()['warnings']); // local: "No data", no warning
+        $this->assertSame([], $this->notices()); // local: "None yet", no notice
 
         $this->app->detectEnvironment(fn () => 'production');
-        $this->assertSame(['No database backup was found in storage/app/backups.'], app(SiteStatus::class)->summary()['warnings']);
+        $this->assertSame(['warning'], $this->notices('level'));
+        $this->assertSame(['No backup of your site has been made yet.'], $this->notices());
 
         $this->freshBackup();
-        $this->assertSame([], app(SiteStatus::class)->summary()['warnings']);
+        $this->assertSame([], $this->notices());
+    }
+
+    /** Day one of a new site: no backup yet is expected (the first runs at 02:00 UTC), so it's information. */
+    public function test_no_backup_on_a_site_set_up_today_is_information_not_a_warning(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+
+        foreach ([0, 30, 36] as $hours) {
+            $this->siteSetUpHoursAgo($hours);
+            $this->assertSame(['info'], $this->notices('level'), "set up {$hours} hours ago");
+            $this->assertSame(["Your site's first automatic backup is made overnight, at 02:00 UTC."], $this->notices());
+        }
+
+        $this->siteSetUpHoursAgo(37);
+        $this->assertSame(['warning'], $this->notices('level'));
+    }
+
+    /**
+     * Every notice can show at once; the owner's text has no paths, commands,
+     * variables or README references (those are in the developer's detail), and
+     * warnings come before information.
+     */
+    public function test_notices_are_in_the_site_owners_words_with_the_technical_part_in_the_detail(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->log("Rebuild FAILED at Wed Oct 22 02:00:09 UTC 2026\n");
+        DB::table('failed_jobs')->insert(['uuid' => 'u1', 'connection' => 'database', 'queue' => 'default', 'payload' => '{}', 'exception' => 'x']);
+        $this->configureOffsite();
+        unlink(config('location.maxmind.local.path'));
+
+        $notices = app(SiteStatus::class)->summary()['notices'];
+
+        $this->assertSame(['warning', 'warning', 'warning', 'warning', 'info'], array_column($notices, 'level'));
+        foreach ($notices as $notice) {
+            $this->assertDoesNotMatchRegularExpression('/storage\/|README|php artisan|[A-Z]{3,}_[A-Z_]+|\.log\b|db:backup|GeoIP|crontab/', $notice['message']);
+            $this->assertNotSame('', $notice['detail']);
+        }
+    }
+
+    // ------------------------------------------------------------------ getting started
+
+    public function test_a_new_site_gets_the_getting_started_list_with_nothing_done(): void
+    {
+        $this->actingAs($this->admin)->get('/dashboard')->assertInertia(fn ($page) => $page
+            ->has('gettingStarted', 4)
+            ->where('gettingStarted.0.key', 'identity')
+            ->where('gettingStarted.0.done', false)
+            ->where('gettingStarted.0.href', route('settings.edit').'#section-identity')
+            ->where('gettingStarted.1.key', 'logo')
+            ->where('gettingStarted.2.key', 'page')
+            ->where('gettingStarted.2.href', route('pages.create'))
+            ->where('gettingStarted.3.key', 'home')
+            ->where('gettingStarted.3.done', false));
+    }
+
+    /** @return array<string, bool> key => done; empty once the list is gone */
+    private function gettingStarted(): array
+    {
+        $items = app(DashboardController::class)->build($this->admin, 30)['gettingStarted'];
+
+        return $items === null ? [] : array_column($items, 'done', 'key');
+    }
+
+    public function test_each_item_is_ticked_off_by_the_sites_state_and_the_list_goes_away_when_all_are(): void
+    {
+        $this->assertSame(['identity' => false, 'logo' => false, 'page' => false, 'home' => false], $this->gettingStarted());
+
+        // A description alone isn't enough while the site still has the placeholder name.
+        SiteSetting::forceCreate(['id' => SiteSetting::ID, ...SiteSetting::defaults(), 'site_name' => 'Alodium', 'site_description' => 'Bread, baked daily.']);
+        $this->assertFalse($this->gettingStarted()['identity']);
+        SiteSetting::current()->update(['site_name' => 'Bakery Ltd']);
+        $this->assertTrue($this->gettingStarted()['identity']);
+
+        SiteSetting::current()->addMedia(UploadedFile::fake()->image('logo.png', 200, 100))->toMediaCollection('logo');
+        $this->assertTrue($this->gettingStarted()['logo']);
+
+        // A draft doesn't count; a published page does.
+        $page = $this->content(Page::class, ['title' => 'About', 'slug' => 'about', 'status' => 'draft', 'published_at' => null]);
+        $this->assertFalse($this->gettingStarted()['page']);
+        $page->update(['status' => 'published', 'published_at' => now()->subMinute()]);
+        $this->assertTrue($this->gettingStarted()['page']);
+
+        // The menu: links such as Blog (what a new site has) don't count; a page does.
+        NavigationItem::create(['label' => 'Blog', 'url' => '/blog', 'sort_order' => 1]);
+        $this->assertFalse($this->gettingStarted()['home']);
+        NavigationItem::create(['page_id' => $page->id, 'sort_order' => 2]);
+
+        $this->assertSame([], $this->gettingStarted(), 'All done: no list at all.');
+    }
+
+    public function test_choosing_a_front_page_also_ticks_off_the_home_page_item(): void
+    {
+        $page = $this->content(Page::class, ['title' => 'Welcome', 'slug' => 'welcome']);
+        SiteSetting::forceCreate(['id' => SiteSetting::ID, ...SiteSetting::defaults(), 'front_page_id' => $page->id]);
+
+        $this->assertTrue($this->gettingStarted()['home']);
+
+        // A front page that is no longer on the site doesn't count.
+        $page->update(['status' => 'draft']);
+        $this->assertFalse($this->gettingStarted()['home']);
     }
 
     public function test_missing_tables_and_folders_give_no_data(): void

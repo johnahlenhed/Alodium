@@ -26,6 +26,9 @@ return [
         'rebuild_script' => env('ASTRO_REBUILD_SCRIPT'),
         // Written by deploy/rebuild-astro.sh; read (never written) by the dashboard.
         'rebuild_log' => storage_path('logs/astro-rebuild.log'),
+        // Written by RebuildAstroJob: which pages the last successful build put on
+        // the site (PublicSiteBuilds), for the page editor's "View on site".
+        'build_record' => storage_path('app/astro-last-build.json'),
     ],
 
     'resend' => [

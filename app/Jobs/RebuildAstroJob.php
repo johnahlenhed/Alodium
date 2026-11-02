@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Services\PublicSiteBuilds;
+use Carbon\CarbonImmutable;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -59,7 +61,7 @@ class RebuildAstroJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         ];
     }
 
-    public function handle(): void
+    public function handle(PublicSiteBuilds $builds): void
     {
         $script = config('services.astro.rebuild_script');
 
@@ -75,6 +77,11 @@ class RebuildAstroJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
             return;
         }
 
+        // What is on the public site before the build reads the API: the build has
+        // at least these versions (PublicSiteBuilds, the page editor's "View on site").
+        $snapshot = $builds->snapshot();
+        $startedAt = CarbonImmutable::now();
+
         // Runs as the queue worker's user (www-data). No sudo, no shell interpolation.
         $result = Process::timeout($this->timeout - 30)->run([$script]);
 
@@ -83,6 +90,7 @@ class RebuildAstroJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 
         if ($result->successful()) {
             Log::info('Astro rebuild succeeded.', ['output' => $output]);
+            $builds->recordSuccess($startedAt, $snapshot);
 
             return;
         }
@@ -99,5 +107,6 @@ class RebuildAstroJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         Log::critical('Astro rebuild gave up after retrying. The public site was not updated.', [
             'error' => $exception?->getMessage(),
         ]);
+        app(PublicSiteBuilds::class)->recordFailure();
     }
 }

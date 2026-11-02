@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Blocks\BlockRegistry;
+use App\Http\Requests\UpdateSiteSettingsRequest;
+use App\Jobs\RebuildAstroJob;
+use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\Revision;
+use App\Models\SiteSetting;
+use App\Services\PublicSiteBuilds;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
@@ -47,17 +52,18 @@ class PageController extends Controller
     {
         $validated = $this->validatePage($request);
 
-        Page::create([
+        $page = Page::create([
             ...$validated,
             ...$this->publishStatusAttributes($validated),
             'slug' => $this->uniqueSlug(Page::class, $validated['title']),
             'author_id' => $request->user()->id,
         ]);
 
-        return redirect()->route('pages.index');
+        // Back to the page itself: its "On the public site" panel shows when it is live.
+        return redirect()->route('pages.edit', $page)->with('success', $this->savedMessage($page, created: true));
     }
 
-    public function edit(Page $page): Response
+    public function edit(Request $request, Page $page, PublicSiteBuilds $builds): Response
     {
         Gate::authorize('update', $page);
 
@@ -67,6 +73,15 @@ class PageController extends Controller
             // For a legacy page: its content as one text block, used if it is converted.
             'blocks' => $page->blocksOrLegacy(),
             'hasBlocks' => $page->hasBlocks(),
+            // Whether the page is live yet (rebuilds take a minute or two), and where.
+            'publicSite' => $builds->pageStatus($page),
+            // The menu and the front page are on the Settings page, which only admins can use.
+            'menu' => [
+                'inMenu' => NavigationItem::where('page_id', $page->id)->exists(),
+                'full' => NavigationItem::count() >= UpdateSiteSettingsRequest::MAX_NAVIGATION_ITEMS,
+                'isFrontPage' => SiteSetting::current()->front_page_id === $page->id,
+                'canEdit' => $request->user()->isAdmin(),
+            ],
         ]);
     }
 
@@ -76,13 +91,71 @@ class PageController extends Controller
 
         $validated = $this->validatePage($request);
 
+        $oldSlug = $page->slug;
         $page->update([
             ...$validated,
             ...$this->publishStatusAttributes($validated, $page),
             'slug' => $this->uniqueSlug(Page::class, $validated['title'], $page->id),
         ]);
 
-        return redirect()->route('pages.index');
+        return redirect()->route('pages.edit', $page)->with('success', $this->savedMessage($page, created: false, oldSlug: $oldSlug));
+    }
+
+    /** JSON for the page editor, polled while a rebuild is pending: PublicSiteBuilds::pageStatus(). */
+    public function siteStatus(Page $page, PublicSiteBuilds $builds): JsonResponse
+    {
+        Gate::authorize('update', $page);
+
+        return response()->json($builds->pageStatus($page));
+    }
+
+    /**
+     * Admins: adds a published page to the end of the menu, from the page editor,
+     * so nobody has to know to look under Settings. The order is changed there.
+     * Checked like the Settings page's own list: published pages only, at most
+     * MAX_NAVIGATION_ITEMS entries.
+     */
+    public function addToNavigation(Page $page): RedirectResponse
+    {
+        if (! Page::onPublicSite()->whereKey($page->id)->exists()) {
+            return back()->with('warning', 'Only a published page can be in the menu. Publish it first, then add it.');
+        }
+        if (NavigationItem::where('page_id', $page->id)->exists()) {
+            return back()->with('success', "\"{$page->title}\" is already in the menu.");
+        }
+        $max = UpdateSiteSettingsRequest::MAX_NAVIGATION_ITEMS;
+        if (NavigationItem::count() >= $max) {
+            return back()->with('warning', "The menu is full ({$max} links). Remove one under Settings, Navigation, then add this page.");
+        }
+
+        // Label null: the menu shows the page's title, and follows it when it changes.
+        NavigationItem::create(['page_id' => $page->id, 'sort_order' => (int) NavigationItem::max('sort_order') + 1]);
+        // The menu isn't page content, so the page observer doesn't queue this one.
+        RebuildAstroJob::dispatch();
+
+        return back()->with('success', "Added \"{$page->title}\" to the end of the menu. The public site shows it in a minute or two; change the order under Settings, Navigation.");
+    }
+
+    /**
+     * After a save: what happened and the page's address on the public site. Whether
+     * it is live yet is the editor's "On the public site" panel's job (a rebuild
+     * takes a minute or two).
+     */
+    private function savedMessage(Page $page, bool $created, ?string $oldSlug = null): string
+    {
+        $path = '/'.$page->slug;
+        $message = ($created ? "Page \"{$page->title}\" created" : "Changes to \"{$page->title}\" saved").match (true) {
+            $page->status === 'published' => ". Its address is {$path}.",
+            $page->publish_at !== null => ". It's scheduled: it goes on the public site, at {$path}, at the time you chose.",
+            default => ". It's a draft, so it isn't on the public site. When it's published, its address is {$path}.",
+        };
+
+        // The slug follows the title, so renaming moves the page.
+        if ($oldSlug !== null && $oldSlug !== $page->slug) {
+            $message .= " The new title changed its address from /{$oldSlug}: the menu follows, but links to the old address elsewhere won't.";
+        }
+
+        return $message;
     }
 
     public function revisions(Page $page): JsonResponse

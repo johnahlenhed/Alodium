@@ -28,6 +28,13 @@ class SiteSetting extends Model implements HasMedia
     /** The logo conversion's maximum height; the width follows the aspect ratio. */
     public const LOGO_HEIGHT = 128;
 
+    /**
+     * The name a new site has until it is renamed: the product's own, which is
+     * APP_NAME in .env.example (the default site_name). The dashboard's Getting
+     * started list asks for a real one.
+     */
+    public const PLACEHOLDER_NAME = 'Alodium';
+
     protected $fillable = [
         'site_name',
         'site_description',

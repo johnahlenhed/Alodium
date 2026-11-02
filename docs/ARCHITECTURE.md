@@ -321,7 +321,33 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
 | Delete posts, pages, media, submissions | yes | no (`admin` route group) |
 | Media library upload and list, read submissions | yes | yes |
 | Analytics, WordPress import, users, site settings | yes | no |
-| Dashboard visitor, traffic and system data | yes | no (`DashboardController::build`) |
+| Add a page to the menu from the page editor (`pages.navigation.add`) | yes | no (the menu is site settings; editors see where it is) |
+| Dashboard visitor, traffic and system data, and the Getting started list | yes | no (`DashboardController::build`) |
+
+**After saving a page.** Saving returns to the page's editor, with a message naming the page's address (and, after a rename, its old one). The editor's "On the public site" panel (`PublicSiteBuilds::pageStatus()`) shows one of these states:
+
+- draft or scheduled;
+- pending: being published, with a link to the version on the site now, at the address where it actually is;
+- live, with "View on site";
+- failed;
+- unknown or not configured: no build recorded yet, or no rebuild script.
+
+A page counts as live only when the last successful build's snapshot has its current `updated_at`. The snapshot is taken before the build reads the API, so a page saved during a build stays pending until the next one. While pending, the editor polls `pages.site-status`: every 5 s, then 15 s after two minutes, stopping after 15 minutes. Admins add a published page to the end of the menu there, with the same checks as the Settings page (published only, at most `MAX_NAVIGATION_ITEMS`). The front page links to Settings, which explains what it replaces.
+
+**The dashboard for a client.** The client who receives a site is an admin, as
+is the developer, so the role can't tell them apart. The Site status therefore
+speaks to the site owner: each notice (`SiteStatus::summary()`) has a `message`
+without paths, commands or variable names, and a `detail` for the developer,
+folded away under "Details for your developer". Its `level` is `warning` for
+something to fix, `info` for something normal for now: no backup or off-site
+copy yet on a site set up less than 36 hours ago (the first runs at 02:00 UTC;
+the site's age is the first account's), and a missing GeoIP database. Editors
+see none of it. The **Getting started** list (`DashboardController::gettingStarted()`,
+admins only, since its steps are on the Settings page) asks for a site name other
+than the placeholder "Alodium" with a description, a logo, a published page, and
+a front page or a page in the menu. Each item is ticked off by the site's state,
+and the list is gone once all are; "Hide this list" hides it sooner, per user and
+browser (localStorage).
 
 Self-registered accounts are always editors; registration is closed by default
 in production (`AUTH_REGISTRATION`). Admins create users with an invitation
@@ -345,13 +371,13 @@ forgot-password page, which fails the same way.
 
 | Job / command | When | What |
 |---|---|---|
-| `RebuildAstroJob` | see section 1 | runs the rebuild script; timeout 600 s, retried once, gives up after an hour |
+| `RebuildAstroJob` | see section 1 | runs the rebuild script; timeout 600 s, retried once, gives up after an hour. Before the build it snapshots the pages on the public site (id, `updated_at`, slug), and records the snapshot when the build succeeds, or the failure when it gives up (`PublicSiteBuilds`, `storage/app/astro-last-build.json`). The page editor's "On the public site" panel reads it. |
 | `DownloadContentImages` | per imported item with images (in the content or as its featured image), when the import runs with `download_images` | attaches the featured image first (a copy when the same image is already in the media library), then downloads content images and rewrites `src` to `/storage/...`; never saves the model (no revision, no per-item rebuild); requeues itself after `import.job_time_budget`; the last item marks the run done and queues one rebuild |
 | Spatie conversions | on upload | `thumb` and `og` during the request; `medium` and `webp` queued |
 | `content:publish-scheduled` | every minute | publishes due drafts with `publish_at` |
 | `db:backup` | daily 02:00 | `mysqldump` to `storage/app/backups`, keeps 30; optional encrypted off-server copy |
 | `media:backup-remote` | daily 02:30 | copies new/changed files from `storage/app/public` off-server (when configured) |
-| `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) warns when the file is missing, unreadable or more than 45 days old |
+| `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) notes a missing file (information) and warns when it is unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
 | `app:ensure-key` | `composer setup`, README step 3 | runs `key:generate` only when `.env` has no `APP_KEY`; otherwise explains why it skipped (a new key logs everyone out and makes encrypted data unreadable) |
