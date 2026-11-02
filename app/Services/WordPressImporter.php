@@ -276,6 +276,16 @@ class WordPressImporter
         $model = self::TYPES[$type];
         $baseSlug = Str::slug($title) ?: 'untitled';
 
+        // WordPress sites often have a "Contact" or "Blog" page. Imported, it would
+        // show as published here but never be built (Page::RESERVED_SLUGS). Skipped,
+        // not renamed: a renamed copy would be imported again on every re-run,
+        // since the check below looks for the original slug.
+        if ($type === 'page' && ($owner = Page::reservedSlugOwner($baseSlug)) !== null) {
+            $this->skip($title, $type, "The address /{$baseSlug} is {$owner}, so this page would never be shown. To keep its content, create a page with another title and copy the text across.");
+
+            return;
+        }
+
         // Re-running an import must not create copies: an existing slug means "already imported".
         if ($model::where('slug', $baseSlug)->exists()) {
             $this->skip($title, $type, "A {$type} with the slug \"{$baseSlug}\" already exists.");

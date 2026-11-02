@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\Post;
+use App\Models\SiteSetting;
 use App\Models\Submission;
 use App\Models\User;
 use App\Services\SiteStatus;
@@ -61,7 +63,61 @@ class DashboardController extends Controller
             'topContent' => $this->topContent($since),
             'sources' => TrafficSource::top($this->stats->sourcePairs($since), 5, TrafficSource::ownHost()),
             'siteStatus' => $this->siteStatus->summary(),
+            'gettingStarted' => $this->gettingStarted(),
         ];
+    }
+
+    /**
+     * The first things to do on a new site, for admins: they need the Settings
+     * page, which editors can't use. Each item is done by the site's state, not
+     * by a click, so the list goes away by itself; null once everything is done.
+     * (Hiding it earlier is per browser, in the page.)
+     *
+     * @return list<array{key: string, label: string, description: string, done: bool, href: string, action: string}>|null
+     */
+    private function gettingStarted(): ?array
+    {
+        $settings = SiteSetting::current();
+        $publicPages = Page::onPublicSite();
+
+        $items = [
+            [
+                'key' => 'identity',
+                'label' => 'Name and describe your site',
+                'description' => 'The name is shown in the site\'s header and browser tabs; the description in search results and when links are shared.',
+                // The placeholder is the product's name, which a new site has until renamed.
+                'done' => filled($settings->site_description) && filled($settings->site_name) && $settings->site_name !== SiteSetting::PLACEHOLDER_NAME,
+                'href' => route('settings.edit').'#section-identity',
+                'action' => 'Go to Settings',
+            ],
+            [
+                'key' => 'logo',
+                'label' => 'Add your logo',
+                'description' => 'Shown in the site\'s header. Until you add one, the site shows a placeholder mark.',
+                'done' => $settings->logo() !== null,
+                'href' => route('settings.edit').'#section-identity',
+                'action' => 'Go to Settings',
+            ],
+            [
+                'key' => 'page',
+                'label' => 'Publish your first page',
+                'description' => 'For example About or Services. Set its status to Published; it appears on the site a minute or two later.',
+                'done' => (clone $publicPages)->exists(),
+                'href' => route('pages.create'),
+                'action' => 'Create a page',
+            ],
+            [
+                'key' => 'home',
+                'label' => 'Choose your home page and menu',
+                'description' => 'Show one of your pages on the home page instead of the latest blog posts, or add your pages to the menu.',
+                'done' => ($settings->front_page_id && (clone $publicPages)->whereKey($settings->front_page_id)->exists())
+                    || NavigationItem::whereIn('page_id', (clone $publicPages)->select('id'))->exists(),
+                'href' => route('settings.edit').'#section-navigation',
+                'action' => 'Go to Settings',
+            ],
+        ];
+
+        return collect($items)->every('done') ? null : $items;
     }
 
     /** Page views in the period, compared with the period of the same length before it. */

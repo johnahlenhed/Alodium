@@ -6,6 +6,7 @@ use App\Jobs\RebuildAstroJob;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\PublicSiteBuilds;
 use Illuminate\Bus\UniqueLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Process\PendingProcess;
@@ -133,7 +134,7 @@ class AstroRebuildTest extends TestCase
         Process::fake(['*' => Process::result('Build complete')]);
         Log::spy();
 
-        (new RebuildAstroJob)->handle();
+        (new RebuildAstroJob)->handle(app(PublicSiteBuilds::class));
 
         Process::assertRan(fn (PendingProcess $process) => $process->command === [$script] && $process->timeout === 570);
         Log::shouldHaveReceived('info')->withArgs(fn ($message, $context = []) => $message === 'Astro rebuild succeeded.'
@@ -150,7 +151,7 @@ class AstroRebuildTest extends TestCase
         Log::spy();
 
         try {
-            (new RebuildAstroJob)->handle();
+            (new RebuildAstroJob)->handle(app(PublicSiteBuilds::class));
             $this->fail('Expected the job to throw.');
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('exit code 1', $e->getMessage());
@@ -167,10 +168,10 @@ class AstroRebuildTest extends TestCase
         Process::fake();
 
         config(['services.astro.rebuild_script' => null]);
-        (new RebuildAstroJob)->handle();
+        (new RebuildAstroJob)->handle(app(PublicSiteBuilds::class));
 
         config(['services.astro.rebuild_script' => '/nonexistent/rebuild-astro.sh']);
-        (new RebuildAstroJob)->handle();
+        (new RebuildAstroJob)->handle(app(PublicSiteBuilds::class));
 
         Process::assertNothingRan();
     }

@@ -58,9 +58,11 @@ class UserController extends Controller
             $sent = false;
         }
 
+        // Not "Forgot password?": that sends email too, so it fails the same way.
         if (! $sent) {
             return redirect()->route('users.index')->with('warning',
-                'User created but the welcome email failed to send. Share the login URL manually: '.route('password.request'));
+                "User created, but the invitation email couldn't be sent, so {$user->email} can't set a password yet. "
+                ."Until email works, someone with access to the server (usually your developer) can set one with: php artisan user:set-password {$user->email}");
         }
 
         return redirect()->route('users.index')->with('success',
