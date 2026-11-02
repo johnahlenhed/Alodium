@@ -447,6 +447,15 @@ The README requires the worker to run with `--timeout=660` and
 - `node resources/js/utils/importRun.check.mjs` checks the import run page's
   state (poll timing and back-off, stall detection, milestones, reason
   mapping and grouping, formatting).
+- `node resources/js/Pages/Dashboard.check.mjs` renders the real `Dashboard.jsx`
+  with React's server renderer. Inertia, the layout and the chart are stand-ins.
+  It checks the admin's and the editor's props, and data from a server of
+  another release: the old `warnings` list, no `notices`, an empty or missing
+  `siteStatus`. A render error there blanks the whole page in the browser.
+  `tests/Feature/DashboardRenderTest.php` logs in as each role and runs it with
+  the props the server actually sends. Each dashboard section sits in a
+  `SectionBoundary`, so a section that fails anyway shows a note (reported to
+  Sentry) instead of blanking the page.
 - `node resources/js/theme.check.mjs` checks the admin colour tokens
   (section 6, "Admin colours"), in the light and the dark theme:
   - the dark theme redefines every token of the light one;

@@ -100,6 +100,7 @@ php artisan test           # Run the PHPUnit tests (in-memory SQLite, no network
 node resources/js/Components/Blocks/blocksReducer.check.mjs   # Block editor list operations
 node resources/js/utils/importRun.check.mjs                    # Import run page state
 node resources/js/theme.check.mjs                              # Admin colour tokens, light and dark: contrast, no undefined colours
+node resources/js/Pages/Dashboard.check.mjs                    # Renders the real dashboard for each role and for mismatched data (DashboardRenderTest runs it too)
 
 # Background work
 php artisan queue:work     # Astro rebuilds, import image downloads, media conversions
