@@ -1,3 +1,4 @@
+import SectionBoundary from '@/Components/SectionBoundary';
 import VisitsChart from '@/Components/VisitsChart';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -330,17 +331,32 @@ function Notice({ notice }) {
                     {warning && <span className="font-semibold">Needs attention: </span>}
                     {notice.message}
                 </p>
-                <details className="mt-1">
-                    <summary className="cursor-pointer text-xs underline underline-offset-2">Details for your developer</summary>
-                    <p className="mt-1 break-words text-xs">{notice.detail}</p>
-                </details>
+                {notice.detail && (
+                    <details className="mt-1">
+                        <summary className="cursor-pointer text-xs underline underline-offset-2">Details for your developer</summary>
+                        <p className="mt-1 break-words text-xs">{notice.detail}</p>
+                    </details>
+                )}
             </div>
         </li>
     );
 }
 
+/**
+ * The notices, whatever the server sent. `notices` is current; `warnings` (plain
+ * strings) is what servers before the notices sent. The two only meet when the
+ * admin assets and the server's PHP are from different releases; then the
+ * dashboard still works instead of crashing.
+ */
+export function noticesFrom(status) {
+    if (Array.isArray(status?.notices)) return status.notices;
+    if (Array.isArray(status?.warnings)) return status.warnings.map((message) => ({ level: 'warning', message: String(message), detail: '' }));
+    return [];
+}
+
 function SiteStatus({ status }) {
-    const { lastRebuild, lastBackup, offsite, geoip, queuedJobs, failedJobs, notices } = status;
+    const { lastRebuild = null, lastBackup = null, offsite = {}, geoip = {}, queuedJobs = null, failedJobs = null } = status;
+    const notices = noticesFrom(status);
     const hasWarnings = notices.some((notice) => notice.level === 'warning');
 
     return (
@@ -369,14 +385,14 @@ function SiteStatus({ status }) {
                 <StatusRow icon={Database} label="Last database backup">
                     {lastBackup === null ? 'None yet' : `${formatDateTime(lastBackup.at)} (${formatAge(lastBackup.age_hours)})`}
                     <br />
-                    {!offsite.configured
+                    {!offsite?.configured
                         ? 'Off-server copies: not configured'
                         : offsite.lastUploadAt
                           ? `Off-server copy: last uploaded ${formatAge(offsite.ageHours)}`
                           : 'Off-server copy: no upload recorded yet'}
                 </StatusRow>
                 <StatusRow icon={Globe} label="Visitor countries (GeoIP database)">
-                    {!geoip.present
+                    {!geoip?.present
                         ? 'Missing: visits are recorded without a country'
                         : !geoip.readable
                           ? "Can't be read: visits are recorded without a country"
@@ -473,27 +489,53 @@ function GettingStarted({ items }) {
 }
 
 export default function Dashboard({ userName, publicSiteUrl, content, submissions, visitors, topContent, sources, siteStatus, gettingStarted }) {
-    // visitors, topContent, sources, siteStatus and gettingStarted are only sent to admins;
-    // gettingStarted is null once everything on it is done.
-    const isAdminView = visitors !== undefined;
+    // visitors, topContent, sources, siteStatus and gettingStarted are only sent to
+    // admins (DashboardController::build); gettingStarted is null once all of it is
+    // done. Each section shows only when its own data came, and a section that
+    // fails anyway shows a note instead of blanking the page (SectionBoundary).
+    const days = visitors?.days ?? 30;
 
     return (
-        <AuthenticatedLayout header={<Header userName={userName} publicSiteUrl={publicSiteUrl} unread={submissions.unread} />}>
+        <AuthenticatedLayout header={<Header userName={userName} publicSiteUrl={publicSiteUrl} unread={submissions?.unread ?? 0} />}>
             <Head title="Dashboard" />
 
             <div className="py-8">
                 <div className="mx-auto grid grid-cols-1 max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
-                    {isAdminView && gettingStarted && <GettingStarted items={gettingStarted} />}
-                    {isAdminView && (
-                        <>
-                            <Visitors summary={visitors} />
-                            <SiteStatus status={siteStatus} />
-                            <TopContent rows={topContent} days={visitors.days} />
-                            <Sources rows={sources} days={visitors.days} />
-                        </>
+                    {Array.isArray(gettingStarted) && (
+                        <SectionBoundary name="Getting started" className="lg:col-span-3">
+                            <GettingStarted items={gettingStarted} />
+                        </SectionBoundary>
                     )}
-                    <ContentStatus content={content} />
-                    <Submissions submissions={submissions} />
+                    {visitors && (
+                        <SectionBoundary name="Page views" className="lg:col-span-2">
+                            <Visitors summary={visitors} />
+                        </SectionBoundary>
+                    )}
+                    {siteStatus && (
+                        <SectionBoundary name="Site status">
+                            <SiteStatus status={siteStatus} />
+                        </SectionBoundary>
+                    )}
+                    {topContent && (
+                        <SectionBoundary name="Top content">
+                            <TopContent rows={topContent} days={days} />
+                        </SectionBoundary>
+                    )}
+                    {sources && (
+                        <SectionBoundary name="Traffic sources">
+                            <Sources rows={sources} days={days} />
+                        </SectionBoundary>
+                    )}
+                    {content && (
+                        <SectionBoundary name="Content">
+                            <ContentStatus content={content} />
+                        </SectionBoundary>
+                    )}
+                    {submissions && (
+                        <SectionBoundary name="Submissions">
+                            <Submissions submissions={submissions} />
+                        </SectionBoundary>
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>
