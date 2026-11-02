@@ -41,6 +41,9 @@ Route::middleware('auth')->group(function () {
             ->name('pages.revisions.restore');
     });
 
+    // Whether a page is live yet, polled by the page editor while a rebuild is pending.
+    Route::get('/pages/{page}/site-status', [PageController::class, 'siteStatus'])->name('pages.site-status');
+
     Route::get('/media', [MediaController::class, 'index'])->name('media.index');
     // JSON for the OG image picker. In web.php (not api.php) so it uses the admin session login.
     Route::get('/api/media', [MediaController::class, 'list'])->name('media.list');
@@ -56,6 +59,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
+    // The menu is site settings: the page editor's shortcut is admin-only too.
+    Route::post('/pages/{page}/navigation', [PageController::class, 'addToNavigation'])->name('pages.navigation.add');
     Route::delete('/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
     Route::delete('/submissions/{submission}', [SubmissionController::class, 'destroy'])->name('submissions.destroy');
 

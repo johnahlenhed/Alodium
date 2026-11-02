@@ -83,8 +83,9 @@ class UserRolesTest extends TestCase
 
         $othersPublished = $this->content(Page::class, $this->admin);
         $this->actingAs($this->editor)->get("/pages/{$othersPublished->id}/edit")->assertOk();
+        // Back to the page's editor, which shows whether it is live yet.
         $this->actingAs($this->editor)->put("/pages/{$othersPublished->id}", ['title' => 'Edited', 'status' => 'published'])
-            ->assertRedirect(route('pages.index'));
+            ->assertRedirect(route('pages.edit', $othersPublished));
         $this->assertSame('Edited', $othersPublished->fresh()->title);
     }
 

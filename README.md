@@ -47,6 +47,10 @@ Run `php --ini` to find which `php.ini` is loaded. The CLI (`php artisan serve`)
 
 ## Installation
 
+For local development. A server deployment is described under [Deployment](#deployment).
+
+**1. Get the code and dependencies:**
+
 ```bash
 git clone https://github.com/johnahlenhed/Alodium.git
 cd Alodium
@@ -54,17 +58,46 @@ composer install
 npm install --legacy-peer-deps
 cp .env.example .env
 php artisan key:generate
-php artisan migrate
 ```
 
-Configure your `.env` with database credentials and Resend API key, then:
+**2. Create a MySQL database and a user for it**, with a password you choose. On Ubuntu, run this in `sudo mysql`:
+
+```sql
+CREATE DATABASE alodium CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'alodium'@'localhost' IDENTIFIED BY 'the-password-you-chose';
+GRANT ALL PRIVILEGES ON alodium.* TO 'alodium'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+**3. Edit `.env`:**
+
+```ini
+DB_DATABASE=alodium
+DB_USERNAME=alodium
+DB_PASSWORD=the-password-you-chose
+# Locally, write emails (invitations, password resets) to storage/logs/laravel.log
+# instead of sending them. Or keep resend and set RESEND_API_KEY.
+MAIL_MAILER=log
+```
+
+**4. Create the tables, the public link for uploads, and a login:**
+
+```bash
+php artisan migrate
+php artisan storage:link
+php artisan db:seed      # an admin login, admin@example.com with password "password", and sample visits
+```
+
+Instead of the seeded login, `php artisan user:set-password you@example.com` creates an admin with a password of your choice.
+
+**5. Run it**, in two terminals:
 
 ```bash
 php artisan serve
 npm run dev
 ```
 
-Visit `http://localhost:8000`.
+Visit `http://localhost:8000` and log in. Media conversions and imports run on the queue; for those, run `php artisan queue:work` in a third terminal. The public Astro site is set up separately, in `astro/` (see `astro/README.md`).
 
 ## GeoIP database (analytics country lookup)
 
@@ -122,7 +155,7 @@ apt install -y mysql-server
 mysql_secure_installation
 ```
 
-Create the database and a dedicated user:
+Create the database. Its user comes in step 3: `php artisan app:configure-env` generates the password and prints the SQL that creates the user with it, so you never type the password yourself.
 
 ```bash
 mysql
@@ -132,9 +165,6 @@ On Ubuntu, MySQL's root account uses socket authentication, so run `mysql` as ro
 
 ```sql
 CREATE DATABASE alodium CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'alodium'@'localhost' IDENTIFIED BY 'a-strong-password';
-GRANT ALL PRIVILEGES ON alodium.* TO 'alodium'@'localhost';
-FLUSH PRIVILEGES;
 ```
 
 ```bash
@@ -171,39 +201,42 @@ git clone https://github.com/johnahlenhed/Alodium.git /var/www/alodium
 cd /var/www/alodium
 
 composer install --no-dev --optimize-autoloader
-```
-
-`storage/app/` and `storage/framework/` are not in git, so create them manually:
-
-```bash
-mkdir -p storage/app/public storage/framework/cache storage/framework/sessions \
-  storage/framework/views storage/logs
-
 cp .env.example .env
-php artisan key:generate
+php artisan app:ensure-key    # generates APP_KEY, but never replaces one already in .env
 ```
 
-Edit `.env` for production. At minimum:
+Edit `.env` for production:
 
 ```ini
 APP_ENV=production
 APP_DEBUG=false
+```
+
+The values that follow from the domains are set by `deploy/add-domain.sh setup` in step 4. It fills in each one that is still empty or still `.env.example`'s placeholder (`http://localhost:8000`, `hello@alodium.dev`), and keeps a value of your own. Without the script, set them here:
+
+```ini
 APP_URL=https://ADMIN_DOMAIN
 # The public site: the dashboard's "View site" link, and visits from its own pages
 # count as navigation within the site, not as referrals (analytics).
 PUBLIC_SITE_URL=https://SITE_DOMAIN
-
-DB_CONNECTION=mysql
-DB_DATABASE=alodium
-DB_USERNAME=alodium
-DB_PASSWORD=a-strong-password
-
-MAIL_MAILER=resend
-RESEND_API_KEY=re_...
+# An address on the domain you verify in Resend (Email, below)
 MAIL_FROM_ADDRESS=hello@SITE_DOMAIN
-
-QUEUE_CONNECTION=database
 ```
+
+The rest of `.env.example` is already right for production: MySQL, the database queue, Resend as the mailer and `DB_QUEUE_RETRY_AFTER=720`.
+
+Then fill in the secrets and service credentials:
+
+```bash
+php artisan app:configure-env
+```
+
+It writes everything to `.env` in one go and then runs `php artisan config:cache` once.
+
+- **Generated, nothing to type:** `WEBHOOK_SECRET` (step 9) and `BACKUP_ENCRYPTION_PASSPHRASE` (step 10). Copy the passphrase from `.env` into a password manager now; without it, off-server backups can't be restored.
+- **The database:** it asks for the user name (`alodium` by default) and generates its password when you leave the password empty. At the end it prints the SQL that creates that user. Run it in `sudo mysql`. If you type a password of your own instead, create the user with that password: the same SQL as step 1's, with `CREATE USER` and `GRANT`.
+- **Asked for, each can be skipped:** the Resend API key (Email, below), the Sentry DSN (step 11) and the off-server backup bucket (step 10). Leave an answer empty to skip it. The summary says what won't work until it is set.
+- **Safe to run again:** it never replaces a value that is already set, so it only asks for what is still missing. Run it again when you have the Resend key or the bucket.
 
 Then:
 
@@ -215,25 +248,29 @@ php artisan storage:link
 #### Create the admin account
 
 > **Registration is disabled and the seeder is blocked in production.**
-> `/register` redirects to the login page, the seeder exits with a
-> warning, and every account has full admin access. Create the first
-> admin user with:
+> `/register` redirects to the login page and the seeder exits with a
+> warning. Create the first admin with:
 > ```bash
-> php artisan tinker
-> App\Models\User::create(['name' => 'Your Name', 'email' => 'you@example.com', 'password' => bcrypt('a-strong-password')]);
+> php artisan user:set-password you@example.com
 > ```
-> To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env`
-> and run `php artisan config:cache`.
+> The email is new, so it asks to create an admin account, asks for the name,
+> and then for the password twice. The password is typed at a hidden prompt:
+> it isn't shown, and it isn't kept in the shell history.
+>
+> With `--generate` instead, it makes a strong random password and prints it
+> once, for handing a fresh login to the client without choosing it yourself.
+> Add `--name="Client Name"` to skip the name question. The command sends no
+> email, so it works before Resend is set up.
+>
+> To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env` and
+> run `php artisan config:cache`. Accounts made that way are editors; an
+> admin can change their role on the Users page.
 
 #### Email (Resend)
 
 Add and verify the sending domain in Resend **before any mail is sent**, otherwise sending fails. In the Resend dashboard, add the domain under *Domains* and add the DNS records it shows (DKIM, plus SPF and the return-path records) at your DNS provider. Wait until Resend shows the domain as verified.
 
-Create an API key with **Sending access** only, and put it in `RESEND_API_KEY`. Set `MAIL_FROM_ADDRESS` to an address on the verified domain, then:
-
-```bash
-php artisan config:cache
-```
+Create an API key with **Sending access** only. `php artisan app:configure-env` asks for it, so run it again if you skipped the key earlier. `MAIL_FROM_ADDRESS` must be an address on the verified domain. `add-domain.sh` sets it to `hello@SITE_DOMAIN` in step 4. If you verify another domain, set it to an address on that one.
 
 Set file ownership so PHP-FPM and the queue worker (both `www-data`) can write to storage:
 
@@ -257,7 +294,13 @@ Visitor countries in the analytics need the MaxMind database: that is [step 6](#
 
 ### 4. Astro public site
 
-`deploy/add-domain.sh` automates this section, the next one and step 6 (GeoIP) on a new server (`--help` explains it). Its `setup` step writes `.env.production` and creates `astro-public`, but doesn't run `npm install`.
+`deploy/add-domain.sh` automates this section and steps 5 (Nginx and HTTPS), 6 (GeoIP), 7 (queue worker) and 8 (scheduler) on a new server, plus step 3's domain values (`--help` explains it). Its `setup` step runs the commands below and writes `.env.production`. It also sets `APP_URL`, `PUBLIC_SITE_URL` and `MAIL_FROM_ADDRESS`, writes the Nginx config, installs the worker and adds the cron entry, then refreshes the config cache.
+
+- **Safe to run again:** it changes nothing that's already right, and never adds the cron entry twice.
+- **Refuses rather than overwrites:** it won't replace a different Nginx or Supervisor config or cron line, or `.env` values of your own, unless you add `--force`.
+- **Dry run:** `--dry-run` shows what it would do without changing anything.
+
+The sections below are what it does, and how to do it by hand.
 
 ```bash
 cd /var/www/alodium/astro
@@ -424,7 +467,7 @@ Test both sites in a browser: `https://SITE_DOMAIN` and `https://ADMIN_DOMAIN`. 
 
 ### 6. GeoIP database (visitor countries)
 
-The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** warns while the file is missing.
+The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** notes it while the file is missing (as information, since nothing else is affected; the technical detail is under "Details for your developer").
 
 **One MaxMind account per client.** Every deployment uses a free MaxMind account and license key of its own, belonging to that client, never a key shared between clients: each install is then the client's own use of the GeoLite2 data, under MaxMind's terms.
 
@@ -456,7 +499,7 @@ This product includes GeoLite2 data created by MaxMind, available from [https://
 
 ### 7. Queue worker (Supervisor)
 
-The queue runs Astro rebuilds and other background work.
+The queue runs Astro rebuilds and other background work. `deploy/add-domain.sh setup` (step 4) does this step: it writes the file below, creates the log file and runs `supervisorctl reread` and `update`. Check the worker afterwards with `supervisorctl status`.
 
 `/etc/supervisor/conf.d/alodium-worker.conf`:
 
@@ -489,6 +532,8 @@ supervisorctl status   # alodium-worker_00 should be RUNNING
 
 ### 8. Scheduler (cron)
 
+`deploy/add-domain.sh setup` (step 4) adds this line to `www-data`'s crontab, once. By hand:
+
 ```bash
 crontab -u www-data -e
 ```
@@ -516,21 +561,13 @@ mkdir -p /var/www/.config /var/www/.npm
 chown -R www-data:www-data /var/www/.config /var/www/.npm
 ```
 
-Generate a webhook secret:
-
-```bash
-openssl rand -hex 32
-```
-
 Add to `.env`:
 
 ```ini
 ASTRO_REBUILD_SCRIPT=/var/www/alodium/rebuild-astro.sh
-WEBHOOK_SECRET=the-generated-secret
-# Must be higher than the worker's --timeout (660), or a second worker
-# starts the same build while the first is still running.
-DB_QUEUE_RETRY_AFTER=720
 ```
+
+`WEBHOOK_SECRET` was generated in step 3. `DB_QUEUE_RETRY_AFTER=720` comes from `.env.example`. It must stay higher than the worker's `--timeout` (660), or a second worker starts the same build while the first is still running.
 
 ```bash
 php artisan config:cache
@@ -539,10 +576,11 @@ supervisorctl restart alodium-worker:*
 
 The script runs as `www-data` (the queue worker's user) and needs no `sudo`.
 
-Run the first build by calling the webhook:
+Run the first build by calling the webhook, with the secret read from `.env`:
 
 ```bash
-curl -X POST https://ADMIN_DOMAIN/api/webhook/rebuild -H "X-Webhook-Secret: the-generated-secret"
+cd /var/www/alodium
+curl -X POST https://ADMIN_DOMAIN/api/webhook/rebuild -H "X-Webhook-Secret: $(sed -n 's/^WEBHOOK_SECRET=//p' .env)"
 ```
 
 The response is `202 Accepted`, and the build runs in the background. Check progress in:
@@ -589,33 +627,33 @@ Local backups don't survive the loss of the server. When object storage is confi
 
 **1. Create a bucket and an API key.** Any S3-compatible provider works: Cloudflare R2, Hetzner Object Storage, DigitalOcean Spaces or Backblaze B2. Create a private bucket, for example `alodium-backups`. Then create an API key that can read, write and delete objects **in that bucket only**. Pruning needs delete, and `db:backup-test-remote` needs read. Never use an account-wide admin key. For Cloudflare R2: *R2 → Manage API tokens → Object Read & Write*, limited to the bucket. The endpoint is `https://<account-id>.r2.cloudflarestorage.com` and the region is `auto`. Buckets created with the EU jurisdiction use `https://<account-id>.eu.r2.cloudflarestorage.com` instead. Copy the exact endpoint from the bucket settings. Other providers show their endpoint and region in the bucket settings.
 
-**2. Generate an encryption passphrase:**
-
-```bash
-openssl rand -base64 32
-```
+**2. The encryption passphrase** is already in `.env`: `php artisan app:configure-env` generated `BACKUP_ENCRYPTION_PASSPHRASE` in step 3. That's the same as `openssl rand -base64 32`, written to `.env` for you.
 
 **Store the passphrase outside the server too**, for example in a password manager. Copy it from the server's `.env` into the password manager as soon as it is generated, and test a restore using the password manager copy. It's needed to decrypt any remote backup. If the server is lost and the passphrase only existed in its `.env`, the remote backups can't be restored. The encryption protects backups if the bucket or the provider is compromised. It does not protect against someone with access to the server itself, since the passphrase is in `.env`.
 
-**3. Add to `.env`:**
+**3. Add the bucket** by running the setup command again and answering *yes* to off-server backups. It asks only for what is still missing, then caches the config:
+
+```bash
+php artisan app:configure-env
+```
+
+It asks for the access key ID, the secret (hidden), the bucket, the endpoint and the region. For Cloudflare R2 the endpoint is `https://<account-id>.r2.cloudflarestorage.com` (EU jurisdiction: `https://<account-id>.eu.r2.cloudflarestorage.com`) and the region is `auto`. The result in `.env`:
 
 ```ini
 BACKUP_S3_KEY=...
 BACKUP_S3_SECRET=...
 BACKUP_S3_REGION=auto
 BACKUP_S3_BUCKET=alodium-backups
-# EU jurisdiction buckets: https://<account-id>.eu.r2.cloudflarestorage.com
 BACKUP_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 BACKUP_S3_USE_PATH_STYLE=true
-BACKUP_ENCRYPTION_PASSPHRASE="the-generated-passphrase"
+BACKUP_ENCRYPTION_PASSPHRASE="..."
 ```
 
 The quotes only protect characters like `=`, `+` and `/` in the `.env` file and are not part of the passphrase. When decrypting, type the passphrase without quotes.
 
-**4. Apply and test:**
+**4. Test:**
 
 ```bash
-php artisan config:cache
 sudo -u www-data php artisan db:backup-test-remote
 ```
 
@@ -665,11 +703,16 @@ rm alodium-backup-YYYY-MM-DD-0200.sql.gz          # the decrypted copy
 If the server is lost:
 
 1. Create a new droplet.
-2. Follow deployment steps 1–9 and 12, and point the DNS records at the new server's IP address (Certbot then issues a new certificate).
+2. Follow deployment steps 1–9 and 12, and point the DNS records at the new server's IP address (Certbot then issues a new certificate). In step 3, right after `cp .env.example .env`, put the old values from the password manager into `.env`, **before** running `app:ensure-key` and `app:configure-env`. That's `APP_KEY`, `BACKUP_ENCRYPTION_PASSPHRASE`, the S3 credentials, `RESEND_API_KEY`, the Sentry DSN, `WEBHOOK_SECRET` and `MAXMIND_LICENSE_KEY`. Both commands keep values that are already set:
+   - With the old `APP_KEY`, sessions stay valid and data Laravel encrypted stays readable.
+   - With the old passphrase, the existing remote backups can be decrypted. A newly generated passphrase can't decrypt them.
+
+   `DB_PASSWORD` can stay empty: the command generates a new one and prints the SQL for the new server's database user.
 3. Restore the latest backup as described in "Restoring from a remote backup" above.
-4. Re-add the `.env` values from the password manager: `APP_KEY`, the database password (`DB_PASSWORD`), S3 credentials, encryption passphrase, Resend, Sentry, the webhook secret and `MAXMIND_LICENSE_KEY`. Then run `php artisan config:cache`. Use the old `APP_KEY`, not the one `key:generate` created on the new server. Without it, every session is invalidated and anything Laravel encrypted becomes unreadable. Save these values outside the server, so they survive its loss.
-5. Restore uploaded media (see below).
-6. Trigger an Astro rebuild with the webhook (step 9).
+4. Restore uploaded media (see below).
+5. Trigger an Astro rebuild with the webhook (step 9).
+
+Save the `.env` values outside the server, so they survive its loss.
 
 #### What the backups don't cover
 
@@ -719,17 +762,15 @@ Sentry collects unhandled errors from production in a dashboard, with stack trac
 
 1. Create a free account at [sentry.io](https://sentry.io) and create a Laravel project.
 2. Copy the DSN from the project settings (Client Keys).
-3. Add it to `.env` on the server:
-
-   ```ini
-   SENTRY_LARAVEL_DSN=https://...@....ingest.sentry.io/...
-   SENTRY_TRACES_SAMPLE_RATE=0.1
-   ```
-
-4. Apply and verify:
+3. Add it by running the setup command again, and paste the DSN when it asks. It asks only for what is still missing, then caches the config. `SENTRY_TRACES_SAMPLE_RATE=0.1` is already in `.env.example`.
 
    ```bash
-   php artisan config:cache
+   php artisan app:configure-env
+   ```
+
+4. Verify:
+
+   ```bash
    php artisan sentry:test   # sends a test event; it should appear in Sentry within a minute
    ```
 
@@ -816,9 +857,19 @@ There are two roles:
 
 Admins create users on the **Users** page (name, email and role). The new user gets an invitation email with a link to set their password. The link is valid for 60 minutes. After that, "Forgot your password?" on the login page sends a new one. This needs working email (see [Email (Resend)](#email-resend) in step 3). Roles can be changed on the same page.
 
+**When email can't be delivered**, the invitation and "Forgot your password?" both fail, and the Users page says so. Set the password on the server instead. This works for an existing account (an invited user, or yourself), keeps its name and role, and sends no email:
+
+```bash
+cd /var/www/alodium
+php artisan user:set-password client@example.com              # type it, hidden
+php artisan user:set-password client@example.com --generate   # or print a random one once
+```
+
+Hand a generated password over securely, for example as a password manager share, and ask the user to change it under **Profile**. For an email with no account yet, the command creates an admin (it asks first).
+
 ### 14. WordPress import
 
-Admins import a WordPress export (**Tools > Export > All content**, an XML file of up to 20 MB) on the **Import** page. Published posts and pages stay published, drafts stay drafts, and items whose slug already exists are skipped, so an import can be run again.
+Admins import a WordPress export (**Tools > Export > All content**, an XML file of up to 20 MB) on the **Import** page. Published posts and pages stay published, drafts stay drafts, and items whose slug already exists are skipped, so an import can be run again. Pages called "Contact" or "Blog" (slugs `contact` and `blog`) are skipped too, because the public site has its own pages at those addresses; the result page lists them, with the reason.
 
 **Download images from the old site** (checked by default) copies the images used in posts and pages, and the featured images, into the media library, and points the content at the copies. Only images on the exported site's own addresses are copied (`base_site_url`, `base_blog_url` and the attachments' hosts); images hosted elsewhere stay where they are. Unchecked, only the text is imported, and featured images are not copied either. Links to attachment pages and other files on the old site are not changed.
 
@@ -887,7 +938,7 @@ Update the domain settings as described in steps 4 and 5, then trigger an Astro 
 
 **Content changes**
 
-Publishing, editing, unpublishing or deleting posts and pages in the admin panel triggers an Astro rebuild automatically. No manual steps are needed. Changes appear on the public site once the build finishes, usually within a few minutes.
+Publishing, editing, unpublishing or deleting posts and pages in the admin panel triggers an Astro rebuild automatically. No manual steps are needed. Changes appear on the public site once the build finishes, usually within a few minutes. A page's editor shows whether it's live yet, and links to it once it is ("On the public site"). Admins can add the page to the menu from there.
 
 ### Troubleshooting
 
@@ -905,7 +956,7 @@ Publishing, editing, unpublishing or deleting posts and pages in the admin panel
 | `git pull` fails with "dubious ownership" | The repo is owned by www-data. Run `git config --global --add safe.directory /var/www/alodium` once. |
 | Building assets on the server runs out of memory | Build them locally and copy them with `scp -r public/build/*`. |
 | Certbot: "Could not automatically find a matching server block" | `server_name` is an IP address or doesn't match the domain. Fix `server_name`, reload Nginx, then run `certbot install --cert-name SITE_DOMAIN`. |
-| Invitation or password reset emails only appear in `laravel.log` | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `php artisan config:cache` after fixing `.env`. |
+| Invitation or password reset emails only appear in `laravel.log` | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `php artisan config:cache` after fixing `.env`. Until it works, set the password with `php artisan user:set-password EMAIL` ([step 13](#13-users-and-roles)). |
 | Astro build fails with `astro: not found` | Dependencies are missing. Run `npm install --legacy-peer-deps` in `astro/` and make sure the files are owned by `www-data`. |
 
 ## License

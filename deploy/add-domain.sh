@@ -1,16 +1,22 @@
 #!/bin/bash
 # README.md "Deployment", sections 4 (Astro public site), 5 (DNS, Nginx and
-# HTTPS) and 6 (GeoIP database), as a script: astro/.env.production, the
-# plain-HTTP Nginx config, the Let's Encrypt certificate, and the client's own
-# MaxMind licence key with the GeoIP download. (robots.txt needs nothing: the
-# Astro build writes it, with the Sitemap line from SITE_URL.)
+# HTTPS), 6 (GeoIP database), 7 (queue worker) and 8 (scheduler), and the
+# domain values of section 3, as a script: astro/.env.production and the Astro
+# dependencies, APP_URL, PUBLIC_SITE_URL and MAIL_FROM_ADDRESS in Laravel's
+# .env, the plain-HTTP Nginx config, the Supervisor worker, the cron entry, the
+# Let's Encrypt certificate, and the client's own MaxMind licence key with the
+# GeoIP download. (robots.txt needs nothing: the Astro build writes it, with
+# the Sitemap line from SITE_URL.)
 #
 # Only for a NEW Alodium deployment, on a fresh server for a new client, after
-# README sections 1-3 (packages, swap, the app cloned to /var/www/alodium).
-# It is NOT for the site already running in this repository's production: do
-# not run it there. On a configured server it refuses to replace
-# astro/.env.production, the Nginx config or its sites-enabled link unless
-# --force is given.
+# README sections 1-3 (packages, swap, the app cloned to /var/www/alodium, its
+# .env). It is NOT for the site already running in this repository's
+# production: do not run it there. On a configured server it refuses to replace
+# astro/.env.production, the Nginx config, its sites-enabled link, the
+# Supervisor config or a different schedule:run cron line unless --force is
+# given, and it keeps APP_URL, PUBLIC_SITE_URL and MAIL_FROM_ADDRESS values of
+# their own (only empty ones and .env.example's placeholders are filled in).
+# Running it again changes nothing that is already right.
 #
 # Usage, as root:
 #   add-domain.sh setup   --admin-domain admin.client.example --site-domain client.example
@@ -18,9 +24,14 @@
 #   add-domain.sh geoip   --maxmind-key -
 #   add-domain.sh all     (the options of certbot, and --maxmind-key)
 #
-#   setup    Section 4 and section 5 up to HTTPS: writes astro/.env.production,
-#            creates astro-public/, writes the Nginx config, links it, removes
-#            the default site, runs nginx -t and reloads only if the test passes.
+#   setup    Sections 4, 5 up to HTTPS, 7 and 8, and section 3's domain values:
+#            writes astro/.env.production, creates astro-public/, writes the
+#            Nginx config, links it, removes the default site, runs nginx -t and
+#            reloads only if the test passes; sets APP_URL, PUBLIC_SITE_URL and
+#            MAIL_FROM_ADDRESS in .env; writes the Supervisor worker config,
+#            creates its log and runs supervisorctl reread and update; adds the
+#            scheduler line to www-data's crontab (once); runs npm install in
+#            astro/. Ends with php artisan config:cache if the config is cached.
 #            Needs no DNS.
 #   certbot  Section 5 "HTTPS": checks that SITE, www.SITE and ADMIN resolve to
 #            this server, then runs Certbot. Run it (again) once DNS has propagated.
@@ -33,8 +44,11 @@
 # Options:
 #   --email ADDRESS    for Let's Encrypt (expiry notices); needed by certbot and
 #                      all. Running Certbot accepts the Let's Encrypt terms.
-#   --force            replace an existing astro/.env.production, Nginx config or
-#                      sites-enabled link; old files are kept as *.bak-TIMESTAMP
+#   --force            replace an existing astro/.env.production, Nginx config,
+#                      sites-enabled link, Supervisor config, a different
+#                      schedule:run line in www-data's crontab, and APP_URL,
+#                      PUBLIC_SITE_URL or MAIL_FROM_ADDRESS values of their own;
+#                      old files are kept as *.bak-TIMESTAMP
 #   --dry-run          print what would be written and run, and change nothing
 #                      (the DNS lookups are still made: they only read)
 #   --skip-dns-check   run Certbot without checking DNS first
@@ -49,17 +63,25 @@
 # isn't ready (certbot) or no MaxMind key was given (geoip). Everything else is
 # done and kept; run that step again later.
 #
-# ALODIUM_APP_DIR and ALODIUM_NGINX_DIR replace /var/www/alodium and /etc/nginx,
-# so the script can be tested against a scratch directory.
+# ALODIUM_APP_DIR, ALODIUM_NGINX_DIR and ALODIUM_SUPERVISOR_DIR replace
+# /var/www/alodium, /etc/nginx and /etc/supervisor/conf.d, and ALODIUM_WEB_USER
+# replaces www-data (whose crontab and log file these are), so the script can be
+# tested against a scratch directory (tests/Unit/AddDomainSetupTest.php). The
+# files it writes keep the README's paths and user whatever these are.
 
 set -euo pipefail
 
 APP_DIR=${ALODIUM_APP_DIR:-/var/www/alodium}
 NGINX_DIR=${ALODIUM_NGINX_DIR:-/etc/nginx}
+SUPERVISOR_DIR=${ALODIUM_SUPERVISOR_DIR:-/etc/supervisor/conf.d}
+WEB_USER=${ALODIUM_WEB_USER:-www-data}
 ENV_FILE="$APP_DIR/astro/.env.production"
+LARAVEL_ENV="$APP_DIR/.env"
 SITE_CONF="$NGINX_DIR/sites-available/alodium"
 SITE_LINK="$NGINX_DIR/sites-enabled/alodium"
 DEFAULT_LINK="$NGINX_DIR/sites-enabled/default"
+WORKER_CONF="$SUPERVISOR_DIR/alodium-worker.conf"
+WORKER_LOG="$APP_DIR/storage/logs/worker.log"
 STAMP=$(date +%Y%m%d-%H%M%S)
 
 usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; }
@@ -158,10 +180,41 @@ NGINX
     printf '%s' "${template//SITE_DOMAIN/"$2"}"
 }
 
+# README section 3: the values in Laravel's .env that follow from the domains.
+# $1 admin domain, $2 site domain. Comments in the README's block are ignored.
+laravel_env_lines() {
+    printf 'APP_URL=https://%s\nPUBLIC_SITE_URL=https://%s\nMAIL_FROM_ADDRESS=hello@%s' "$1" "$2" "$2"
+}
+
+# README section 4: installs the Astro site's dependencies, run in astro/.
+astro_install_command() { printf '%s' 'npm install --legacy-peer-deps'; }
+
 # README section 6: the .env line for this client's MaxMind key ($1), and the
 # download commands, run from the app directory (after "cd /var/www/alodium").
 maxmind_env_line() { printf 'MAXMIND_LICENSE_KEY=%s' "$1"; }
 geoip_commands() { printf '%s\n' 'sudo -u www-data mkdir -p storage/app/geoip' 'sudo -u www-data php artisan location:update'; }
+
+# README section 7: the queue worker's Supervisor program.
+supervisor_content() {
+    local conf
+    read -r -d '' conf <<'CONF' || true
+[program:alodium-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/alodium/artisan queue:work --sleep=3 --tries=3 --timeout=660
+user=www-data
+numprocs=1
+autostart=true
+autorestart=true
+; Longer than --timeout, so a running Astro build finishes when the worker restarts
+stopwaitsecs=670
+redirect_stderr=true
+stdout_logfile=/var/www/alodium/storage/logs/worker.log
+CONF
+    printf '%s' "$conf"
+}
+
+# README section 8: the scheduler's line in www-data's crontab.
+cron_line() { printf '%s' '* * * * * cd /var/www/alodium && php artisan schedule:run >> /dev/null 2>&1'; }
 
 # Sourced (by the check): stop here, with only the functions above defined.
 [[ ${BASH_SOURCE[0]} == "$0" ]] || return 0
@@ -178,6 +231,8 @@ DRY_RUN=false
 SKIP_DNS=false
 MAXMIND_KEY=
 GEOIP_DEFERRED=false
+# Set when this run changed Laravel's .env, so a cached config is refreshed (once).
+CONFIG_STALE=false
 
 case ${1:-} in
     setup | certbot | geoip | all) COMMAND=$1; shift ;;
@@ -254,6 +309,8 @@ fi
 
 ENV_CONTENT=$(env_content "$ADMIN" "$SITE")
 NGINX_CONTENT=$(nginx_content "$ADMIN" "$SITE")
+WORKER_CONTENT=$(supervisor_content)
+CRON_LINE=$(cron_line)
 
 # ---------------------------------------------------------------- setup
 
@@ -310,26 +367,169 @@ rollback_nginx() {
     echo "Put the previous Nginx configuration back. Nginx was not reloaded." >&2
 }
 
+# ---------------------------------------------------------------- Laravel .env, worker, cron, npm
+
+# The value of $2 in the env file $1: its first line, without surrounding quotes. Empty if none.
+env_value() {
+    [[ -f $1 ]] || return 0
+    awk -v key="$2" 'index($0, key "=") == 1 { v = substr($0, length(key) + 2); gsub(/^["\047]|["\047]$/, "", v); print v; exit }' "$1"
+}
+
+# Section 3's domain values: which to write (empty, or still .env.example's
+# placeholder, such as APP_URL=http://localhost:8000 or MAIL_FROM_ADDRESS=hello@alodium.dev),
+# and which are kept because they are values of their own (--force replaces them).
+declare -A LARAVEL_SET=()
+LARAVEL_NAMES=()
+LARAVEL_NOTES=()
+LARAVEL_REPLACES_OWN=false
+plan_laravel_env() {
+    local line name want have placeholder
+    while IFS= read -r line; do
+        [[ -n $line ]] || continue
+        name=${line%%=*}
+        want=${line#*=}
+        have=$(env_value "$LARAVEL_ENV" "$name")
+        placeholder=$(env_value "$APP_DIR/.env.example" "$name")
+        if [[ $have == "$want" ]]; then
+            LARAVEL_NOTES+=("Unchanged: $name in $LARAVEL_ENV")
+            continue
+        fi
+        if [[ -n $have && $have != "$placeholder" ]]; then
+            if ! $FORCE; then
+                LARAVEL_NOTES+=("Kept $name=$have in $LARAVEL_ENV: a value of its own. These domains would give $name=$want; run again with --force to replace it.")
+                continue
+            fi
+            LARAVEL_REPLACES_OWN=true
+        fi
+        LARAVEL_SET[$name]=$want
+        LARAVEL_NAMES+=("$name")
+    done < <(laravel_env_lines "$ADMIN" "$SITE"; echo)
+}
+
+write_laravel_env() {
+    local note name lines=() content
+    for note in ${LARAVEL_NOTES[@]+"${LARAVEL_NOTES[@]}"}; do echo "$note"; done
+    [[ ${#LARAVEL_NAMES[@]} -gt 0 ]] || return 0
+    CONFIG_STALE=true
+    if $DRY_RUN; then
+        for name in "${LARAVEL_NAMES[@]}"; do echo "  would set $name=${LARAVEL_SET[$name]} in $LARAVEL_ENV"; done
+        return 0
+    fi
+    if $LARAVEL_REPLACES_OWN; then
+        cp -p -- "$LARAVEL_ENV" "$LARAVEL_ENV.bak-$STAMP"
+        echo "Kept the old $LARAVEL_ENV as $LARAVEL_ENV.bak-$STAMP. It holds the app's secrets: delete it once the new values work."
+    fi
+    for name in "${LARAVEL_NAMES[@]}"; do lines+=("$name=${LARAVEL_SET[$name]}"); done
+    # One pass: each name's first line is replaced, or the line is added at the end.
+    # In place (">"), so .env keeps its owner and mode.
+    content=$(SET_LINES="$(printf '%s\n' "${lines[@]}")" awk '
+        BEGIN { n = split(ENVIRON["SET_LINES"], l, "\n"); for (i = 1; i <= n; i++) if (l[i] != "") { k = substr(l[i], 1, index(l[i], "=") - 1); want[k] = l[i]; order[++m] = k } }
+        { for (k in want) if (!(k in done) && index($0, k "=") == 1) { print want[k]; done[k] = 1; next } print }
+        END { for (i = 1; i <= m; i++) if (!(order[i] in done)) print want[order[i]] }' "$LARAVEL_ENV")
+    printf '%s\n' "$content" > "$LARAVEL_ENV"
+    for name in "${LARAVEL_NAMES[@]}"; do echo "Set $name=${LARAVEL_SET[$name]} in $LARAVEL_ENV"; done
+}
+
+# Section 7: the Supervisor program, its log file, and Supervisor told about it.
+# reread and update are safe to repeat: they change nothing when nothing changed.
+write_worker() {
+    write_file "$WORKER_CONF" "$WORKER_CONTENT" "$WORKER_STATE"
+    # Supervisor won't start the program if it can't open its log.
+    [[ -e $WORKER_LOG ]] || run touch "$WORKER_LOG"
+    run chown "$WEB_USER:$WEB_USER" "$WORKER_LOG"
+    run supervisorctl reread
+    run supervisorctl update
+}
+
+# Section 8: www-data's crontab now (empty if it has none), and what to do with it:
+# same (the line is there, once), new (no schedule:run line), or differs (a
+# schedule:run line of another form, or more than one).
+CRON_NOW=
+CRON_STATE=
+plan_cron() {
+    CRON_NOW=$(crontab -u "$WEB_USER" -l 2> /dev/null || true)
+    local count
+    count=$(grep -c 'artisan schedule:run' <<< "$CRON_NOW" || true)
+    if [[ $count -eq 1 ]] && grep -qxF -- "$CRON_LINE" <<< "$CRON_NOW"; then CRON_STATE=same
+    elif [[ $count -eq 0 ]]; then CRON_STATE=new
+    else CRON_STATE=differs
+    fi
+}
+
+write_cron() {
+    if [[ $CRON_STATE == same ]]; then
+        echo "Unchanged: the schedule:run line in $WEB_USER's crontab"
+    else
+        # Every other line stays. With --force, schedule:run lines of another form go.
+        local kept
+        kept=$(grep -v 'artisan schedule:run' <<< "$CRON_NOW" || true)
+        if [[ $CRON_STATE == differs ]]; then echo "Replacing in $WEB_USER's crontab: $(grep 'artisan schedule:run' <<< "$CRON_NOW" | paste -sd '|')"; fi
+        if $DRY_RUN; then
+            echo "  would add to $WEB_USER's crontab: $CRON_LINE"
+        else
+            { [[ -z $kept ]] || printf '%s\n' "$kept"; printf '%s\n' "$CRON_LINE"; } | crontab -u "$WEB_USER" -
+            echo "Added to $WEB_USER's crontab: $CRON_LINE"
+        fi
+    fi
+    # README section 12: in root's crontab as well, every scheduled job would run twice.
+    if [[ $WEB_USER != root ]]; then
+        local root_cron
+        root_cron=$(crontab -l 2> /dev/null || true)
+        if grep -q 'artisan schedule:run' <<< "$root_cron"; then
+            echo "Warning: root's crontab runs schedule:run too, so scheduled jobs (publishing, backups) run twice. Remove it there: crontab -e" >&2
+        fi
+    fi
+}
+
+# Section 4: the Astro dependencies. As root, npm leaves root-owned files the
+# rebuild (as www-data) can't replace, so astro/ gets its owner back afterwards.
+# Only astro/: the admin panel's assets are built elsewhere (README section 3).
+install_astro() {
+    local words
+    read -ra words <<< "$(astro_install_command)"
+    run_in "$APP_DIR/astro" "${words[@]}" || die "\"$(astro_install_command)\" in $APP_DIR/astro failed (output above). Fix it and run setup again."
+    run chown -R --reference="$APP_DIR/astro" "$APP_DIR/astro"
+}
+
+# Once per run: a cached config (php artisan config:cache) doesn't see .env changes.
+refresh_config_cache() {
+    $CONFIG_STALE || return 0
+    CONFIG_STALE=false
+    [[ -f $APP_DIR/bootstrap/cache/config.php ]] || return 0
+    run_in "$APP_DIR" php artisan config:cache
+}
+
 setup_step() {
-    echo "== Setup: README section 4 and section 5 (Nginx) for $ADMIN and $SITE"
+    echo "== Setup: README sections 3 (domain values), 4, 5 (Nginx), 7 and 8 for $ADMIN and $SITE"
     [[ -f $APP_DIR/astro/package.json ]] || die "$APP_DIR/astro/package.json not found. Clone the app to $APP_DIR first (README section 3)."
+    [[ -f $LARAVEL_ENV ]] || die "$LARAVEL_ENV not found. Create it first (README section 3: cp .env.example .env)."
+    [[ -d $APP_DIR/storage/logs ]] || die "$APP_DIR/storage/logs not found. Is $APP_DIR a complete clone (README section 3)?"
     [[ -d $NGINX_DIR/sites-available && -d $NGINX_DIR/sites-enabled ]] || die "$NGINX_DIR/sites-available or sites-enabled not found. Install Nginx first (README section 1)."
-    command -v nginx > /dev/null || die "nginx is not installed (README section 1)."
+    [[ -d $SUPERVISOR_DIR ]] || die "$SUPERVISOR_DIR not found. Install Supervisor first (README section 1)."
+    local tool
+    for tool in nginx npm supervisorctl crontab; do
+        command -v "$tool" > /dev/null || die "$tool is not installed (README section 1)."
+    done
+    id "$WEB_USER" > /dev/null 2>&1 || die "user $WEB_USER not found. Installing PHP-FPM and Nginx creates it (README section 1)."
 
     # Check everything before changing anything, so a refusal leaves the server as it was.
     local env_state refused=()
     env_state=$(file_state "$ENV_FILE" "$ENV_CONTENT")
     SITE_STATE=$(file_state "$SITE_CONF" "$NGINX_CONTENT")
+    WORKER_STATE=$(file_state "$WORKER_CONF" "$WORKER_CONTENT")
     if [[ ! -e $SITE_LINK && ! -L $SITE_LINK ]]; then LINK_STATE=new
     elif [[ -L $SITE_LINK && "$(readlink -f -- "$SITE_LINK")" == "$(readlink -f -- "$SITE_CONF")" ]]; then LINK_STATE=same
     else LINK_STATE=differs
     fi
+    plan_laravel_env
+    plan_cron
 
     if ! $FORCE; then
         local path
-        for path in "$ENV_FILE" "$SITE_CONF"; do
+        for path in "$ENV_FILE" "$SITE_CONF" "$WORKER_CONF"; do
             local state=$env_state content=$ENV_CONTENT
             [[ $path == "$SITE_CONF" ]] && state=$SITE_STATE content=$NGINX_CONTENT
+            [[ $path == "$WORKER_CONF" ]] && state=$WORKER_STATE content=$WORKER_CONTENT
             if [[ $state == differs ]]; then
                 refused+=("$path exists with other content. Differences (- now, + this script):")
                 refused+=("$(diff -u --label "$path (now)" --label "$path (new)" -- "$path" <(printf '%s\n' "$content") || true)")
@@ -337,6 +537,10 @@ setup_step() {
         done
         if [[ $LINK_STATE == differs ]]; then
             refused+=("$SITE_LINK exists and is not a link to $SITE_CONF ($(ls -ld -- "$SITE_LINK")).")
+        fi
+        if [[ $CRON_STATE == differs ]]; then
+            refused+=("$WEB_USER's crontab runs schedule:run, but not exactly once as README section 8 has it:")
+            refused+=("$(grep 'artisan schedule:run' <<< "$CRON_NOW")")
         fi
         if [[ ${#refused[@]} -gt 0 ]]; then
             printf '%s\n' "${refused[@]}" >&2
@@ -391,12 +595,26 @@ setup_step() {
         die "nginx -t failed (output above). See README section 5."
     fi
 
+    # Section 3: the domain values in Laravel's .env.
+    write_laravel_env
+    # Section 7: the queue worker.
+    write_worker
+    # Section 8: the scheduler.
+    write_cron
+    # Section 4: the Astro dependencies. Last, as it takes longest and nothing above needs it.
+    install_astro
+    # On its own, setup refreshes a cached config here. In "all" that waits for
+    # the geoip step, so config:cache runs once.
+    [[ $COMMAND == all ]] || refresh_config_cache
+
     echo
     if $DRY_RUN; then echo "Dry run of setup done: nothing was changed."; else echo "Setup done."; fi
-    echo "Still to do by hand (README section 4 and 5):"
-    echo "  cd $APP_DIR/astro && npm install --legacy-peer-deps"
+    $DRY_RUN || echo "Check the worker with: supervisorctl status (alodium-worker_00 should be RUNNING)"
+    echo "Still to do by hand:"
     echo "  If a firewall is active, open ports 22, 80 and 443 (README section 12)."
+    [[ $COMMAND == setup ]] && echo "  HTTPS, once DNS points here: $0 certbot --admin-domain $ADMIN --site-domain $SITE --email ADDRESS (README section 5)."
     [[ $COMMAND == setup ]] && echo "  Visitor countries: $0 geoip --maxmind-key - (README section 6)."
+    echo "  Automatic rebuilds of the public site: README section 9."
     return 0
 }
 
@@ -568,10 +786,10 @@ EOF
         echo "Set MAXMIND_LICENSE_KEY in $env_file ($(key_hint "$MAXMIND_KEY"))"
     fi
 
-    # A cached config (php artisan config:cache, README section 3) doesn't see .env changes.
-    if [[ $state != same && -f $APP_DIR/bootstrap/cache/config.php ]]; then
-        run_in "$APP_DIR" php artisan config:cache
-    fi
+    # The download reads the key from the config: a cached one is refreshed first
+    # (together with setup's .env changes in "all", so config:cache runs once).
+    [[ $state == same ]] || CONFIG_STALE=true
+    refresh_config_cache
 
     # The README's commands, word for word (fixed strings, so splitting them is safe).
     local command words
@@ -590,14 +808,15 @@ EOF
 # ---------------------------------------------------------------- main
 
 if $DRY_RUN; then
-    echo "DRY RUN: nothing is written, Nginx is not tested or reloaded, and neither Certbot nor the GeoIP download is run."
+    echo "DRY RUN: nothing is written, Nginx is not tested or reloaded, Supervisor, npm and php artisan are not run, crontabs are only read, and neither Certbot nor the GeoIP download is run."
 fi
 case $COMMAND in
     setup) setup_step ;;
     certbot) certbot_step ;;
     geoip) geoip_step ;;
-    # geoip before certbot: certbot stops the script while DNS isn't ready.
-    all) setup_step; echo; geoip_step; echo; certbot_step ;;
+    # geoip before certbot: certbot stops the script while DNS isn't ready. The
+    # config cache is refreshed before it too, for the same reason.
+    all) setup_step; echo; geoip_step; refresh_config_cache; echo; certbot_step ;;
 esac
 # No key yet: everything else is done; the geoip step can run again later.
 if $GEOIP_DEFERRED; then exit 2; fi

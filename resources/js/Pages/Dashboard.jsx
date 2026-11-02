@@ -1,10 +1,12 @@
 import VisitsChart from '@/Components/VisitsChart';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import {
     ArrowDown,
     ArrowUp,
     CalendarClock,
+    Circle,
     CircleCheck,
     Database,
     ExternalLink,
@@ -14,6 +16,7 @@ import {
     Globe,
     Inbox,
     Info,
+    ListChecks,
     Minus,
     RefreshCw,
     Server,
@@ -305,39 +308,66 @@ function StatusRow({ icon: Icon, label, children }) {
     );
 }
 
+/**
+ * One site status notice. The message is for the site owner; the technical
+ * detail (paths, commands, README steps) is folded away for their developer.
+ * "info" is something normal for now, such as no backup yet on a new site.
+ */
+function Notice({ notice }) {
+    const warning = notice.level === 'warning';
+    const Icon = warning ? TriangleAlert : Info;
+
+    return (
+        <li
+            className={
+                'flex items-start gap-2 rounded-md border px-3 py-2 text-sm ' +
+                (warning ? 'border-warning-300 bg-warning-50 text-warning-900' : 'border-gray-200 bg-gray-50 text-gray-700')
+            }
+        >
+            <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+                <p>
+                    {warning && <span className="font-semibold">Needs attention: </span>}
+                    {notice.message}
+                </p>
+                <details className="mt-1">
+                    <summary className="cursor-pointer text-xs underline underline-offset-2">Details for your developer</summary>
+                    <p className="mt-1 break-words text-xs">{notice.detail}</p>
+                </details>
+            </div>
+        </li>
+    );
+}
+
 function SiteStatus({ status }) {
-    const { lastRebuild, lastBackup, offsite, geoip, queuedJobs, failedJobs, warnings } = status;
+    const { lastRebuild, lastBackup, offsite, geoip, queuedJobs, failedJobs, notices } = status;
+    const hasWarnings = notices.some((notice) => notice.level === 'warning');
 
     return (
         <Section title="Site status" icon={Server}>
-            {warnings.length > 0 ? (
-                <ul className="mb-3 space-y-2" aria-label="Warnings">
-                    {warnings.map((warning) => (
-                        <li key={warning} className="flex items-start gap-2 rounded-md border border-warning-300 bg-warning-50 px-3 py-2 text-sm text-warning-900">
-                            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                            <span>
-                                <span className="font-semibold">Warning: </span>
-                                {warning}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
+            {!hasWarnings && (
                 <p className="mb-3 flex items-center gap-2 text-sm text-gray-700">
                     <CircleCheck className="h-4 w-4 text-success-700" aria-hidden="true" />
                     No problems found.
                 </p>
             )}
+            {notices.length > 0 && (
+                <ul className="mb-3 space-y-2" aria-label="Notices">
+                    {notices.map((notice) => (
+                        <Notice key={notice.message} notice={notice} />
+                    ))}
+                </ul>
+            )}
             <dl className="divide-y divide-gray-100">
                 <StatusRow icon={RefreshCw} label="Last public site rebuild">
                     {lastRebuild === null
-                        ? 'No data'
+                        ? 'None yet'
                         : lastRebuild.at
                           ? `${lastRebuild.status === 'complete' ? 'Completed' : 'Failed'} ${formatDateTime(lastRebuild.at)}`
                           : lastRebuild.line}
                 </StatusRow>
                 <StatusRow icon={Database} label="Last database backup">
-                    {lastBackup === null ? 'No data' : `${formatDateTime(lastBackup.at)} (${formatAge(lastBackup.age_hours)})`}
+                    {lastBackup === null ? 'None yet' : `${formatDateTime(lastBackup.at)} (${formatAge(lastBackup.age_hours)})`}
                     <br />
                     {!offsite.configured
                         ? 'Off-server copies: not configured'
@@ -370,8 +400,81 @@ function SiteStatus({ status }) {
     );
 }
 
-export default function Dashboard({ userName, publicSiteUrl, content, submissions, visitors, topContent, sources, siteStatus }) {
-    // visitors, topContent, sources and siteStatus are only sent to admins.
+/** Per user and browser: someone else (the developer, say) hiding it doesn't hide it for the client. */
+const hiddenKey = (userId) => `alodium-getting-started-hidden:${userId}`;
+
+/**
+ * The first things to do on a new site. Each item is ticked off by the site's
+ * state (DashboardController::gettingStarted), and the card goes away once all
+ * are done. "Hide" puts it away sooner, in this browser only (localStorage, so
+ * there is nothing to save on the server).
+ */
+function GettingStarted({ items }) {
+    const userId = usePage().props.auth.user.id;
+    const [hidden, setHidden] = useState(() => {
+        try {
+            return localStorage.getItem(hiddenKey(userId)) === '1';
+        } catch {
+            return false;
+        }
+    });
+    if (hidden) return null;
+
+    const done = items.filter((item) => item.done).length;
+    const hide = () => {
+        try {
+            localStorage.setItem(hiddenKey(userId), '1');
+        } catch {
+            // Private mode and the like: hidden until the page is loaded again.
+        }
+        setHidden(true);
+    };
+
+    return (
+        <Section
+            title="Getting started"
+            icon={ListChecks}
+            className="lg:col-span-3"
+            action={
+                <button type="button" onClick={hide} className="text-sm text-gray-600 underline underline-offset-2 hover:text-gray-900">
+                    Hide this list
+                </button>
+            }
+        >
+            <p className="mb-4 text-sm text-gray-600">
+                A few things to do before the site is ready for visitors: {done} of {items.length} done. This list goes away
+                by itself once they are.
+            </p>
+            <ol className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {items.map((item) => (
+                    <li key={item.key} className="flex items-start gap-3 rounded-md border border-gray-200 p-3">
+                        {item.done ? (
+                            <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-success-700" aria-hidden="true" />
+                        ) : (
+                            <Circle className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
+                        )}
+                        <div className="min-w-0">
+                            <p className={`text-sm font-medium ${item.done ? 'text-gray-600' : 'text-gray-900'}`}>
+                                {item.label}
+                                <span className="sr-only">{item.done ? ' (done)' : ' (not done yet)'}</span>
+                            </p>
+                            <p className="mt-0.5 text-sm text-gray-600">{item.description}</p>
+                            {!item.done && (
+                                <Link href={item.href} className="mt-1 inline-block text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900">
+                                    {item.action}
+                                </Link>
+                            )}
+                        </div>
+                    </li>
+                ))}
+            </ol>
+        </Section>
+    );
+}
+
+export default function Dashboard({ userName, publicSiteUrl, content, submissions, visitors, topContent, sources, siteStatus, gettingStarted }) {
+    // visitors, topContent, sources, siteStatus and gettingStarted are only sent to admins;
+    // gettingStarted is null once everything on it is done.
     const isAdminView = visitors !== undefined;
 
     return (
@@ -380,6 +483,7 @@ export default function Dashboard({ userName, publicSiteUrl, content, submission
 
             <div className="py-8">
                 <div className="mx-auto grid grid-cols-1 max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
+                    {isAdminView && gettingStarted && <GettingStarted items={gettingStarted} />}
                     {isAdminView && (
                         <>
                             <Visitors summary={visitors} />

@@ -51,7 +51,8 @@ observer fires.
 app/
   Blocks/            BlockRegistry + BlockType, one class per block type in Types/
   Console/Commands/  db:backup, media:backup-remote, content:publish-scheduled,
-                     content:sanitize, db:backup-test-remote
+                     content:sanitize, db:backup-test-remote, user:set-password,
+                     app:ensure-key, app:configure-env
   Http/Controllers/  admin pages (Inertia) and API controllers; Auth/ is Breeze
   Http/Middleware/   RequireAdmin ("admin" alias), HandleInertiaRequests, EnsureRegistrationIsEnabled
   Http/Requests/     UpdateSiteSettingsRequest, ProfileUpdateRequest, Auth/LoginRequest
@@ -87,8 +88,8 @@ tests/
   Unit/              pure tests (PublicAddressTest, AddDomainScriptTest)
   Fakes/             fake DNS and HTTP for the image downloader
   Fixtures/          brand-colours.json and the script that generates it
-deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-6 on a
-                     new server) and check-add-domain.sh
+deploy/              rebuild-astro.sh; add-domain.sh (README sections 4-8 and
+                     section 3's domain values, on a new server) and check-add-domain.sh
 docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 ```
 
@@ -320,25 +321,68 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
 | Delete posts, pages, media, submissions | yes | no (`admin` route group) |
 | Media library upload and list, read submissions | yes | yes |
 | Analytics, WordPress import, users, site settings | yes | no |
-| Dashboard visitor, traffic and system data | yes | no (`DashboardController::build`) |
+| Add a page to the menu from the page editor (`pages.navigation.add`) | yes | no (the menu is site settings; editors see where it is) |
+| Dashboard visitor, traffic and system data, and the Getting started list | yes | no (`DashboardController::build`) |
+
+**After saving a page.** Saving returns to the page's editor, with a message naming the page's address (and, after a rename, its old one). The editor's "On the public site" panel (`PublicSiteBuilds::pageStatus()`) shows one of these states:
+
+- draft or scheduled;
+- pending: being published, with a link to the version on the site now, at the address where it actually is;
+- live, with "View on site";
+- failed;
+- unknown or not configured: no build recorded yet, or no rebuild script.
+
+A page counts as live only when the last successful build's snapshot has its current `updated_at`. The snapshot is taken before the build reads the API, so a page saved during a build stays pending until the next one. While pending, the editor polls `pages.site-status`: every 5 s, then 15 s after two minutes, stopping after 15 minutes. Admins add a published page to the end of the menu there, with the same checks as the Settings page (published only, at most `MAX_NAVIGATION_ITEMS`). The front page links to Settings, which explains what it replaces.
+
+**The dashboard for a client.** The client who receives a site is an admin, as
+is the developer, so the role can't tell them apart. The Site status therefore
+speaks to the site owner: each notice (`SiteStatus::summary()`) has a `message`
+without paths, commands or variable names, and a `detail` for the developer,
+folded away under "Details for your developer". Its `level` is `warning` for
+something to fix, `info` for something normal for now: no backup or off-site
+copy yet on a site set up less than 36 hours ago (the first runs at 02:00 UTC;
+the site's age is the first account's), and a missing GeoIP database. Editors
+see none of it. The **Getting started** list (`DashboardController::gettingStarted()`,
+admins only, since its steps are on the Settings page) asks for a site name other
+than the placeholder "Alodium" with a description, a logo, a published page, and
+a front page or a page in the menu. Each item is ticked off by the site's state,
+and the list is gone once all are; "Hide this list" hides it sooner, per user and
+browser (localStorage).
 
 Self-registered accounts are always editors; registration is closed by default
 in production (`AUTH_REGISTRATION`). Admins create users with an invitation
 mail; they cannot change their own role or delete themselves there.
 
+**Without email.** The invitation and "Forgot your password?" both send mail;
+when it fails, the user is created but can't set a password. The way in that
+needs no mail is `php artisan user:set-password EMAIL` on the server
+(`SetUserPassword`). It also creates the first admin on a fresh install. For an
+existing account it sets a new password and a new remember token, and keeps
+the name and role. For a new email it asks, then creates an admin. The password
+is typed at a hidden prompt with no visible fallback: on a terminal that can't
+hide input, it fails instead of echoing. Input piped in, for example from a
+password manager's CLI, is read as it is. Or the password is made with
+`--generate` and printed once. It is never an argument,
+so it doesn't end up in shell history. The Users page's warning when an
+invitation fails points to this command. It no longer points to the
+forgot-password page, which fails the same way.
+
 ## 8. Jobs and scheduled commands
 
 | Job / command | When | What |
 |---|---|---|
-| `RebuildAstroJob` | see section 1 | runs the rebuild script; timeout 600 s, retried once, gives up after an hour |
+| `RebuildAstroJob` | see section 1 | runs the rebuild script; timeout 600 s, retried once, gives up after an hour. Before the build it snapshots the pages on the public site (id, `updated_at`, slug), and records the snapshot when the build succeeds, or the failure when it gives up (`PublicSiteBuilds`, `storage/app/astro-last-build.json`). The page editor's "On the public site" panel reads it. |
 | `DownloadContentImages` | per imported item with images (in the content or as its featured image), when the import runs with `download_images` | attaches the featured image first (a copy when the same image is already in the media library), then downloads content images and rewrites `src` to `/storage/...`; never saves the model (no revision, no per-item rebuild); requeues itself after `import.job_time_budget`; the last item marks the run done and queues one rebuild |
 | Spatie conversions | on upload | `thumb` and `og` during the request; `medium` and `webp` queued |
 | `content:publish-scheduled` | every minute | publishes due drafts with `publish_at` |
 | `db:backup` | daily 02:00 | `mysqldump` to `storage/app/backups`, keeps 30; optional encrypted off-server copy |
 | `media:backup-remote` | daily 02:30 | copies new/changed files from `storage/app/public` off-server (when configured) |
-| `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) warns when the file is missing, unreadable or more than 45 days old |
+| `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) notes a missing file (information) and warns when it is unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
+| `app:ensure-key` | `composer setup`, README step 3 | runs `key:generate` only when `.env` has no `APP_KEY`; otherwise explains why it skipped (a new key logs everyone out and makes encrypted data unreadable) |
+| `app:configure-env` | README step 3, again to add skipped values | generates `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` and (if left empty) `DB_PASSWORD`, asks for the database user, Resend key, Sentry DSN and S3 bucket; never replaces a value already set; writes `.env` once, then `config:cache` once (section 11) |
+| `user:set-password` | manually | sets a user's password (hidden prompt or `--generate`), creating an admin for a new email; sends no email (section 7) |
 
 The README requires the worker to run with `--timeout=660` and
 `DB_QUEUE_RETRY_AFTER` above it in production.
@@ -420,8 +464,19 @@ The README requires the worker to run with `--timeout=660` and
     classes.
 - `node tests/Fixtures/generate-brand-colours.mjs` regenerates the colour fixture.
 - `deploy/check-add-domain.sh` checks that `deploy/add-domain.sh` writes and runs
-  exactly what README sections 4 to 6 describe: the env block, the plain-HTTP
-  Nginx config, the `MAXMIND_LICENSE_KEY` line and the GeoIP download commands. `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
+  exactly what README sections 3 to 8 describe:
+  - section 3: the domain values for Laravel's `.env`;
+  - section 4: `astro/.env.production` and the npm install command;
+  - section 5: the plain-HTTP Nginx config;
+  - section 6: the `MAXMIND_LICENSE_KEY` line and the GeoIP download commands;
+  - sections 7 and 8: the Supervisor worker config and the cron line.
+
+  `php artisan test` runs it (`tests/Unit/AddDomainScriptTest.php`).
+  `tests/Unit/AddDomainSetupTest.php` runs `add-domain.sh setup` itself in a
+  sandbox, as root in a user namespace with stub system commands. It checks the
+  `.env` values (placeholders replaced, values of their own kept, `--force`),
+  that a second run changes nothing and adds no second cron line, that
+  `--dry-run` changes and runs nothing, and the refusals.
 - In `astro/` (no test framework):
 
 | Script | npm command | Checks |
@@ -440,13 +495,31 @@ Laravel (`.env`), project-specific ones; standard Laravel and package
 variables (`APP_*`, `DB_*`, `MAIL_*`, `SESSION_*`, `CACHE_STORE`,
 `QUEUE_CONNECTION`, `LOG_*`, ...) have their usual meaning.
 
+**Who sets what on a server.** Each value has one place it comes from, and none
+of these steps replaces a value that is already set:
+
+| Values | Set by |
+|---|---|
+| `APP_KEY` | `php artisan app:ensure-key` (also in `composer setup`) |
+| `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` (generated); `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (generated if left empty, with the SQL for the user printed); `RESEND_API_KEY`, `SENTRY_LARAVEL_DSN`, `BACKUP_S3_*` (asked for, each can be skipped) | `php artisan app:configure-env` (`ConfigureEnv`); run it again to add what was skipped |
+| `APP_URL`, `PUBLIC_SITE_URL`, `MAIL_FROM_ADDRESS` (`hello@` the site domain) | `deploy/add-domain.sh setup`, from the domains; it fills in only empty values and `.env.example`'s placeholders, and keeps values of their own unless `--force` |
+| `MAXMIND_LICENSE_KEY` | `deploy/add-domain.sh geoip` |
+| `APP_ENV`, `APP_DEBUG`, `ASTRO_REBUILD_SCRIPT` | by hand, README steps 3 and 9 |
+| everything else, including `DB_QUEUE_RETRY_AFTER` | the defaults in `.env.example` |
+
+`app:configure-env` writes `.env` in one pass, checks that every value reads back
+as written (the same `.env` parser Laravel uses), quotes values only where `.env` needs it,
+then runs `config:cache` once. Secrets are asked at hidden prompts and never
+printed; the exception is a generated database password, inside the SQL that
+creates its user.
+
 | Variable | Purpose |
 |---|---|
 | `APP_URL` | Laravel origin; also makes `/storage/` image paths absolute in the API |
 | `PUBLIC_SITE_URL` | public site address: the dashboard's links, and its host (with or without `www.`) marks referrers as navigation within the site ("Your own site" in Traffic sources, left out of Top referrers on `/analytics`). Unset: nothing counts as internal |
 | `ASTRO_REBUILD_SCRIPT` | path to the rebuild script; empty skips rebuilds |
 | `WEBHOOK_SECRET` | secret for `POST /api/webhook/rebuild`; empty disables it |
-| `DB_QUEUE_RETRY_AFTER` | must exceed the worker timeout (660) |
+| `DB_QUEUE_RETRY_AFTER` | must exceed the worker timeout (660); `.env.example` sets 720 (Laravel's default is 90) |
 | `AUTH_REGISTRATION` | allow public registration (default: off in production) |
 | `CONTACT_NOTIFY_EMAIL` | recipient of contact form mails (falls back to the from address) |
 | `RESEND_API_KEY` | Resend mail transport |
@@ -522,6 +595,12 @@ Astro (`astro/.env`, `astro/.env.production`):
   `show_in_nav` flag was cleared).
 - **Reserved slugs** (`blog`, `contact`, `404`, `index`) are listed in both
   `Page::RESERVED_SLUGS` and `astro/src/pages/[slug].astro` (kept equal by a test).
+  The page form refuses a title that would get one, with the reason
+  (`Page::reservedSlugMessage()`), and the WordPress import skips such pages,
+  listing them in the run's report. Pages saved before that check keep their slug
+  until they are edited, and saving them then asks for another title. Posts are
+  not affected: they live under `/blog/`, where a post called "Index" is built at
+  `/blog/index/`, next to the blog's own `/blog/index.html`.
 - **Role default**: `users.role` defaults to `admin` at the database level;
   every code path that creates users sets the role explicitly.
 - **Default test**: `tests/Unit/ExampleTest.php` is still the framework

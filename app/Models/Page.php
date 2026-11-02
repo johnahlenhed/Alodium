@@ -21,7 +21,15 @@ class Page extends Model implements HasMedia
     /**
      * Slugs the public site uses for its own routes; a CMS page with one of them
      * is never built (RESERVED in astro/src/pages/[slug].astro, checked by
-     * SiteSettingsTest). Such a page can't be in the navigation or the front page.
+     * SiteThemeSyncTest). Such a page can't be in the navigation or the front page,
+     * so the page form refuses a title that would get one (reservedSlugMessage())
+     * and the WordPress import skips such pages.
+     *
+     * These are all the top-level routes of astro/src/pages. Files there and in
+     * astro/public (robots.txt, favicon.svg, _astro/, ...) can't clash: a slug
+     * from Str::slug() has no dots or underscores. A folder in astro/public, such
+     * as fonts/, doesn't clash either: the page is built as fonts/index.html next
+     * to the files.
      */
     public const RESERVED_SLUGS = ['blog', 'contact', '404', 'index'];
 
@@ -64,6 +72,41 @@ class Page extends Model implements HasMedia
         $query->where('status', 'published')
             ->where(fn (Builder $q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))
             ->whereNotIn('slug', self::RESERVED_SLUGS);
+    }
+
+    /** What the public site shows at /$slug instead of a CMS page, or null if the slug is free. */
+    public static function reservedSlugOwner(string $slug): ?string
+    {
+        return match ($slug) {
+            'blog' => "the site's built-in blog (the list of posts)",
+            'contact' => "the site's built-in contact page",
+            '404' => "the site's \"page not found\" page",
+            'index' => "the site's home page",
+            // A slug added to RESERVED_SLUGS without a description here.
+            default => in_array($slug, self::RESERVED_SLUGS, true) ? 'a page the site builds itself' : null,
+        };
+    }
+
+    /**
+     * Why a page can't have this title, or null if it can. The slug comes from the
+     * title (GeneratesUniqueSlug), so the title is what has to change.
+     */
+    public static function reservedSlugMessage(string $title): ?string
+    {
+        $slug = Str::slug($title) ?: 'untitled';
+        $owner = self::reservedSlugOwner($slug);
+        if ($owner === null) {
+            return null;
+        }
+
+        $hint = match ($slug) {
+            'contact' => ', such as "Contact us". The built-in contact page is at /contact, and Settings can put it in the menu',
+            'blog' => ', such as "Our blog". The built-in blog is at /blog, and Settings can put it in the menu',
+            'index' => ', such as "Home". To choose which page the home page shows, use Front page under Settings',
+            default => '',
+        };
+
+        return "A page titled \"{$title}\" would get the address /{$slug}, which is {$owner}, so it would never be shown. Choose another title{$hint}.";
     }
 
     public function author(): BelongsTo

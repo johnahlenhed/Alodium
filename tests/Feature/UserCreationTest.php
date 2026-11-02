@@ -161,8 +161,10 @@ class UserCreationTest extends TestCase
 
         $this->create()
             ->assertRedirect(route('users.index'))
-            ->assertSessionHas('warning', fn ($message) => str_contains($message, 'welcome email failed to send')
-                && str_contains($message, route('password.request')));
+            ->assertSessionHas('warning', fn ($message) => str_contains($message, "invitation email couldn't be sent")
+                // The no-email way in, not the forgot-password page (which needs mail too).
+                && str_contains($message, 'php artisan user:set-password grace@example.com')
+                && ! str_contains($message, route('password.request')));
 
         $this->assertNotNull(User::where('email', 'grace@example.com')->first());
     }

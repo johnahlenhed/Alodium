@@ -139,44 +139,97 @@ class SiteStatus
         }
     }
 
-    /** @return array{lastRebuild: ?array, lastBackup: ?array, offsite: array, geoip: array, queuedJobs: ?int, failedJobs: ?int, warnings: list<string>} */
+    /**
+     * Hours since the first account was created: how long this site has been
+     * set up. Null if it can't be told.
+     */
+    public function siteAgeHours(): ?float
+    {
+        try {
+            $first = DB::table('users')->min('created_at');
+        } catch (Throwable) {
+            return null;
+        }
+
+        // A first account "in the future" (a clock set back) counts as just created.
+        return $first ? round(max(0, CarbonImmutable::parse($first)->diffInMinutes(now(), false)) / 60, 1) : null;
+    }
+
+    /**
+     * The dashboard's notices, warnings first. Admins see them, and on a client's
+     * site the client is an admin too, so each one has two parts: `message` in
+     * the site owner's words (no paths, commands or variable names), and `detail`
+     * for the developer, shown folded away. `level` is "warning" for something
+     * that needs fixing, "info" for something that is normal for now (such as no
+     * backup yet on a site set up today).
+     *
+     * @return array{lastRebuild: ?array, lastBackup: ?array, offsite: array, geoip: array, queuedJobs: ?int, failedJobs: ?int, notices: list<array{level: 'warning'|'info', message: string, detail: string}>}
+     */
     public function summary(): array
     {
         $rebuild = $this->lastRebuild();
         $backup = $this->lastBackup();
         $failed = $this->countRows('failed_jobs');
+        // The first backup runs at 02:00 UTC after setup: until then, none is normal.
+        $siteAge = $this->siteAgeHours();
+        $isNew = $siteAge !== null && $siteAge <= self::BACKUP_MAX_AGE_HOURS;
+        $maxHours = self::BACKUP_MAX_AGE_HOURS;
 
-        $warnings = [];
+        $notices = [];
+        $add = function (string $level, string $message, string $detail) use (&$notices) {
+            $notices[] = ['level' => $level, 'message' => $message, 'detail' => $detail];
+        };
+
         if (($rebuild['status'] ?? null) === 'failed') {
-            $warnings[] = 'The last rebuild of the public site failed. The site still shows the previous version.';
+            $add('warning', "Your latest changes didn't reach the public site: updating it failed. Visitors still see the previous version.",
+                'The last rebuild failed (storage/logs/astro-rebuild.log; the build output is in laravel.log). A failed build is retried once; publishing or saving the settings starts a new one.');
         }
         if ($failed > 0) {
-            $warnings[] = "{$failed} queued ".($failed === 1 ? 'job has' : 'jobs have').' failed.';
+            $add('warning', $failed === 1 ? '1 background task failed, such as updating the public site or copying images.' : "{$failed} background tasks failed, such as updating the public site or copying images.",
+                "{$failed} ".($failed === 1 ? 'row' : 'rows').' in failed_jobs. List them with php artisan queue:failed, then php artisan queue:retry all or queue:flush.');
         }
-        if ($backup !== null && $backup['age_hours'] > self::BACKUP_MAX_AGE_HOURS) {
-            $warnings[] = 'The last database backup is more than '.self::BACKUP_MAX_AGE_HOURS.' hours old.';
+        if ($backup !== null && $backup['age_hours'] > $maxHours) {
+            $add('warning', "The automatic backup of your site hasn't run for more than a day and a half.",
+                "The newest file in storage/app/backups is more than {$maxHours} hours old. db:backup runs daily at 02:00 UTC from the scheduler: check www-data's crontab (README step 8) and laravel.log.");
         }
-        // On a live site no backup at all is a problem; locally it usually just means none was made.
+        // On a live site no backup at all is a problem, unless it was set up today;
+        // locally it usually just means none was made.
         if ($backup === null && app()->isProduction()) {
-            $warnings[] = 'No database backup was found in storage/app/backups.';
+            $isNew
+                ? $add('info', "Your site's first automatic backup is made overnight, at 02:00 UTC.",
+                    'No file in storage/app/backups yet, as expected on a new site. db:backup runs daily from the scheduler (README step 8).')
+                : $add('warning', 'No backup of your site has been made yet.',
+                    "No file in storage/app/backups, and the site was set up more than {$maxHours} hours ago. db:backup should run daily at 02:00 UTC: check the scheduler (README step 8) and laravel.log.");
         }
 
         $offsite = $this->offsite();
         if ($offsite['configured'] && $offsite['lastUploadAt'] === null) {
-            $warnings[] = 'Off-server copies are configured, but no successful upload has been recorded.';
-        } elseif ($offsite['configured'] && $offsite['ageHours'] > self::BACKUP_MAX_AGE_HOURS) {
-            $warnings[] = 'The last off-server copy was uploaded more than '.self::BACKUP_MAX_AGE_HOURS.' hours ago.';
+            $isNew
+                ? $add('info', 'The first copy of your backups to off-site storage is made overnight, with the first backup.',
+                    'Off-server copies are configured (BACKUP_S3_*); db:backup uploads after each nightly backup. Nothing uploaded yet, as expected on a new site.')
+                : $add('warning', "Your backups aren't being copied to off-site storage.",
+                    'Off-server copies are configured (BACKUP_S3_*), but no successful upload has been recorded. php artisan db:backup-test-remote shows what fails.');
+        } elseif ($offsite['configured'] && $offsite['ageHours'] > $maxHours) {
+            $add('warning', "Your backups haven't been copied to off-site storage for more than a day and a half.",
+                "The last off-server upload is more than {$maxHours} hours old. Check laravel.log; php artisan db:backup-test-remote shows what fails.");
         }
 
         // In every environment: without the file, visitor countries are silently empty.
         $geoip = $this->geoip();
         if (! $geoip['present']) {
-            $warnings[] = 'The GeoIP database is missing, so visits are recorded without a country. Install it as described in the README (deployment step 6).';
+            // Normal until the developer installs it; nothing else is affected.
+            $add('info', "Visitor countries aren't shown yet. The other visitor statistics are recorded as normal.",
+                'The GeoIP database is missing (storage/app/geoip/GeoLite2-Country.mmdb), so visits are recorded without a country. Install it as in README deployment step 6, or with deploy/add-domain.sh geoip.');
         } elseif (! $geoip['readable']) {
-            $warnings[] = "The GeoIP database can't be read, so visits are recorded without a country. Download it again with: php artisan location:update";
+            $add('warning', "Visitor countries can't be looked up at the moment. The other visitor statistics are recorded as normal.",
+                "The GeoIP database can't be read, so visits are recorded without a country. Download it again with: php artisan location:update");
         } elseif ($geoip['ageHours'] > self::GEOIP_MAX_AGE_DAYS * 24) {
-            $warnings[] = 'The GeoIP database has not been updated for more than '.self::GEOIP_MAX_AGE_DAYS.' days. Check MAXMIND_LICENSE_KEY and the scheduler.';
+            $add('warning', 'The country lookup for visitors is out of date, so some countries may be wrong.',
+                'The GeoIP database has not been updated for more than '.self::GEOIP_MAX_AGE_DAYS.' days. Check MAXMIND_LICENSE_KEY and the scheduler (README steps 6 and 8).');
         }
+
+        // Warnings first; otherwise in the order above.
+        usort($notices, fn ($a, $b) => ($a['level'] === 'warning' ? 0 : 1) <=> ($b['level'] === 'warning' ? 0 : 1));
 
         return [
             'lastRebuild' => $rebuild,
@@ -185,7 +238,7 @@ class SiteStatus
             'geoip' => $geoip,
             'queuedJobs' => $this->countRows('jobs'),
             'failedJobs' => $failed,
-            'warnings' => $warnings,
+            'notices' => $notices,
         ];
     }
 
