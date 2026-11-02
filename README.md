@@ -904,13 +904,17 @@ php artisan config:cache
 supervisorctl restart alodium-worker:*
 ```
 
-Admin panel assets are always built locally:
+Admin panel assets are always built locally, **from the same commit the server has just pulled**, and copied up in the same update:
 
 ```bash
 # locally, in the project root (npm install --legacy-peer-deps first if package.json changed)
+git rev-parse --short HEAD                                     # must match the server's
+ssh root@SERVER "cd /var/www/alodium && git rev-parse --short HEAD"
 npm run build
 scp -r public/build/* root@SERVER:/var/www/alodium/public/build/
 ```
+
+The server's PHP and the admin panel's JavaScript must come from the same release. New PHP with old assets is how the dashboard once broke for admins: the PHP sent `siteStatus.notices`, the old page read `siteStatus.warnings`. The dashboard now survives such a mismatch section by section, but other pages may not.
 
 If the Astro project itself changed (templates, styles), trigger a rebuild with the webhook `curl` command above.
 
