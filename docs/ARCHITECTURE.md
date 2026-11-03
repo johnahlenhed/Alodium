@@ -218,7 +218,10 @@ offer them:
    gives `aria-current` to paths on the site only (`currentState()`), so
    `/blog` and `/contact` keep it and an http(s) link never gets it. The logo
    is the `logo` collection on `SiteSetting`, with a PNG conversion at most
-   128 px high.
+   128 px high. An SVG logo has no conversion: the sanitised file itself is
+   served, sized from its `width`/`height` or `viewBox` to 128 px high
+   (`SiteSetting::logoImage()`, `App\Support\SvgSize`); one without either is
+   refused.
 3. A rebuild is queued only if `PublicSiteSettings::payload()` differs before
    and after the save.
 4. Astro: `getSite()` in `api.js` fetches `/public/site` once per build. A
@@ -420,7 +423,9 @@ The README requires the worker to run with `--timeout=660` and
   of the guard. Delete the draft afterwards (a second import would skip it as
   a duplicate and find no images). `SsrfSmokeTest` runs the same file.
 - **XML**: the importer parses with `LIBXML_NONET` and without entity substitution.
-- **Uploads**: the logo is checked by content type and dimensions; the media
+- **Uploads**: the logo is checked by content type (PNG, JPEG, WebP or SVG) and
+  dimensions; an SVG logo goes through the same `SvgSanitizer` as the library
+  before it is stored, as `logo.svg`. The media
   library accepts jpg, png, gif, webp and svg up to 10 MB (`App\Rules\ImageUpload`).
   The type comes from the file's bytes, and the uploaded name must end in an
   extension of that type ("x.html" holding a GIF is refused). The stored name is

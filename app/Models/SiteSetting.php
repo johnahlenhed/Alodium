@@ -23,10 +23,13 @@ class SiteSetting extends Model implements HasMedia
     public const ID = 1;
 
     /** Uploaded logos: content-checked by the form request, and again by Spatie. */
-    public const LOGO_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+    public const LOGO_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 
-    /** The logo conversion's maximum height; the width follows the aspect ratio. */
+    /** The logo's maximum height as shown; the width follows the aspect ratio. */
     public const LOGO_HEIGHT = 128;
+
+    /** ... and its maximum width (the public site accepts at most 4000). */
+    public const LOGO_MAX_WIDTH = 4000;
 
     /**
      * The name a new site has until it is renamed: the product's own, which is
@@ -101,6 +104,42 @@ class SiteSetting extends Model implements HasMedia
         return $this->exists ? $this->getFirstMedia('logo') : null;
     }
 
+    /**
+     * The logo as the site shows it, with its size: the PNG conversion, or for an
+     * SVG (sanitised on upload) the file itself. The URL is relative. null without
+     * a logo, and while a raster logo's conversion is missing.
+     *
+     * @return array{url: string, width: int, height: int}|null
+     */
+    public function logoImage(): ?array
+    {
+        $media = $this->logo();
+        $conversion = $media?->mime_type === 'image/svg+xml' ? '' : 'logo';
+        if (! $media || ($conversion !== '' && ! $media->hasGeneratedConversion($conversion))) {
+            return null;
+        }
+
+        return [
+            'url' => $media->getUrl($conversion),
+            'width' => (int) $media->getCustomProperty('logo_width'),
+            'height' => (int) $media->getCustomProperty('logo_height'),
+        ];
+    }
+
+    /**
+     * The size an SVG logo is shown at: scaled to fit LOGO_MAX_WIDTH x LOGO_HEIGHT,
+     * as the raster conversion is (Fit::Max), but also scaled up, since a vector
+     * loses nothing by it.
+     *
+     * @return array{int, int}
+     */
+    public static function svgLogoSize(float $width, float $height): array
+    {
+        $scale = min(self::LOGO_HEIGHT / $height, self::LOGO_MAX_WIDTH / $width);
+
+        return [max(1, (int) round($width * $scale)), max(1, (int) round($height * $scale))];
+    }
+
     public function registerMediaCollections(): void
     {
         // One logo; uploading a new one replaces (and deletes) the old.
@@ -111,11 +150,17 @@ class SiteSetting extends Model implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
+        // An SVG logo is shown as it is (see logoImage()). Imagick, if installed,
+        // would otherwise let Spatie rasterise it.
+        if ($media?->mime_type === 'image/svg+xml') {
+            return;
+        }
+
         // At most 128px high, never upscaled (Fit::Max). PNG, so transparency is
         // kept whatever was uploaded. Generated during the upload, so its URL and
         // size are known before the rebuild that the save queues.
         $this->addMediaConversion('logo')
-            ->fit(Fit::Max, 4000, self::LOGO_HEIGHT)
+            ->fit(Fit::Max, self::LOGO_MAX_WIDTH, self::LOGO_HEIGHT)
             ->format('png')
             ->performOnCollections('logo')
             ->nonQueued();

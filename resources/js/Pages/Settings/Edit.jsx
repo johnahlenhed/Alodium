@@ -169,8 +169,9 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                     <div>
                         <InputLabel htmlFor="logo" value="Logo (optional)" />
                         <p id="logo_help" className="mt-1 text-sm text-gray-500">
-                            PNG, JPEG or WebP, at most 2 MB and 64 to 4000 pixels per side. A transparent PNG works best.
-                            It is shown at most 128 pixels high.
+                            PNG, JPEG, WebP or SVG, at most 2 MB. PNG, JPEG and WebP: 64 to 4000 pixels per side; a
+                            transparent PNG works well. SVG: it needs a viewBox or a width and height, and scripts and
+                            links to other sites are removed when it is saved. It is shown at most 128 pixels high.
                         </p>
                         {shownLogo && (
                             <div className="mt-3 inline-block rounded-md border border-gray-200 bg-[repeating-conic-gradient(rgb(var(--color-gray-100))_0%_25%,rgb(var(--color-surface))_0%_50%)] bg-[length:16px_16px] p-3">
@@ -181,7 +182,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                             id="logo"
                             ref={fileInput}
                             type="file"
-                            accept="image/png,image/jpeg,image/webp"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
                             aria-describedby="logo_help"
                             onChange={(e) => chooseLogo(e.target.files[0])}
                             className="mt-3 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium hover:file:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"

@@ -89,7 +89,7 @@ class MediaController extends Controller
 
     private function cleanSvg(UploadedFile $file): string
     {
-        $clean = app(SvgSanitizer::class)->sanitize((string) file_get_contents($file->getRealPath()));
+        $clean = app(SvgSanitizer::class)->sanitizeFile($file);
 
         if ($clean === null) {
             throw ValidationException::withMessages(['file' => 'The file could not be read as an SVG image.']);

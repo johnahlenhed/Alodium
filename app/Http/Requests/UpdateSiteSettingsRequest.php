@@ -3,9 +3,13 @@
 namespace App\Http\Requests;
 
 use App\Models\Page;
+use App\Models\SiteSetting;
 use App\Rules\BrandColor;
 use App\Rules\NavigationLink;
+use App\Services\SvgSanitizer;
+use App\Support\SvgSize;
 use App\Support\ThemeOptions;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -42,8 +46,9 @@ class UpdateSiteSettingsRequest extends FormRequest
             'buttons' => ['required', 'string', Rule::in(array_keys(ThemeOptions::BUTTONS))],
 
             // mimetypes is checked against the file's content (finfo), not its name or the
-            // type the browser sent, so a renamed PHP or SVG file is rejected. bail: one message.
-            'logo' => ['bail', 'nullable', 'file', 'mimetypes:image/png,image/jpeg,image/webp', 'max:2048', 'dimensions:min_width=64,min_height=64,max_width=4000,max_height=4000'],
+            // type the browser sent, so a renamed PHP or GIF file is rejected. bail: one
+            // message. dimensions passes every SVG (Laravel can't measure one): svgLogo() checks it.
+            'logo' => ['bail', 'nullable', 'file', 'mimetypes:'.implode(',', SiteSetting::LOGO_MIME_TYPES), 'max:2048', 'dimensions:min_width=64,min_height=64,max_width=4000,max_height=4000', $this->svgLogo(...)],
             'remove_logo' => ['sometimes', 'boolean'],
 
             // The entries after Home, in order. Missing means none (a multipart form
@@ -57,6 +62,25 @@ class UpdateSiteSettingsRequest extends FormRequest
 
             'front_page_id' => ['nullable', 'integer'],
         ];
+    }
+
+    /**
+     * An SVG logo must survive the sanitiser and say how big it is (a viewBox, or
+     * a width and height), or the site would have nothing to size it by.
+     * SiteSettingsController::saveLogo() stores the same sanitised version.
+     */
+    private function svgLogo(string $attribute, mixed $value, Closure $fail): void
+    {
+        if ($value->getMimeType() !== 'image/svg+xml') {
+            return;
+        }
+
+        $svg = app(SvgSanitizer::class)->sanitizeFile($value);
+        if ($svg === null) {
+            $fail('The logo could not be read as an SVG image.');
+        } elseif (SvgSize::of($svg) === null) {
+            $fail('This SVG has no size, so the site can\'t tell how wide to show it. Give its <svg> element a viewBox (for example viewBox="0 0 240 80") or a width and height in pixels, then upload it again.');
+        }
     }
 
     /** The front page and navigation pages must be on the public site: one query for all of them. */
@@ -89,7 +113,7 @@ class UpdateSiteSettingsRequest extends FormRequest
             'site_description.regex' => "The description can't contain line breaks, tabs or other control characters.",
             'footer_text.regex' => "The footer text can't contain line breaks, tabs or other control characters.",
             'logo.file' => 'The logo must be an image file.',
-            'logo.mimetypes' => 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.',
+            'logo.mimetypes' => 'The logo must be a PNG, JPEG, WebP or SVG image. GIF is not supported.',
             'logo.max' => 'The logo can be at most 2 MB.',
             'logo.dimensions' => 'The logo must be between 64 and 4000 pixels wide and high.',
             'navigation.max' => 'The navigation can hold at most :max links after Home.',
