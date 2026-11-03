@@ -77,6 +77,10 @@ class SiteSettingsController extends Controller
             $settings->fill([
                 ...Arr::only($validated, $settings->getFillable()),
                 'brand_color' => strtoupper($validated['brand_color']),
+                // Stored uppercase, like the brand colour; left out of the form, it stays as it is.
+                ...(array_key_exists('nav_background_color', $validated)
+                    ? ['nav_background_color' => $validated['nav_background_color'] === null ? null : strtoupper($validated['nav_background_color'])]
+                    : []),
             ]);
             $settings->save();
 

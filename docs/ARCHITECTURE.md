@@ -103,7 +103,7 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `navigation_items` | The main navigation after Home, in `sort_order`. Each entry has either `page_id` (cascade on delete; `label` null = the page's title, hidden while the page isn't on the public site) or `url` (a path on the site such as `/blog`, or an http(s) address; `label` required). |
 | `revisions` | Snapshots before a published post/page is edited. Polymorphic `model`, `title`, `content`, `blocks`. Newest 20 kept. |
 | `media` | Spatie Media Library. Polymorphic owner, `collection_name` (`library` on users, `featured` on posts/pages, `logo` on site settings), `custom_properties` (imported images: `source_url`, `source_hash`; logo: `logo_width`, `logo_height`). |
-| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
+| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
@@ -122,7 +122,7 @@ All under `/api`. Responses are JSON; `/api/*` errors are rendered as JSON.
 | `GET /public/posts/{slug}` | One post: the list fields without `excerpt`, plus `content`, `og_image`, `og_image_width`, `og_image_height`. 404 `{message}` for drafts and unknown slugs. |
 | `GET /public/pages` | Like posts, plus `blocks` (array, or null for legacy pages). |
 | `GET /public/pages/{slug}` | Like a post, plus `blocks` and `background_color` (null unless it passes the page background rule with the current brand colour). A block page returns `content: ""`. |
-| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
+| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
 | `POST /public/contact` | Body `name, email, message, website` (honeypot). `{success: true}` or 422 errors. Sends a notification mail. |
 | `POST /collect` | Starts a visit. Returns `{visit_id, token}`. |
 | `PATCH /collect/{visit}` | Duration/scroll depth; needs the visit's `token`. `{success: true}`. |
@@ -190,6 +190,19 @@ brand colour's picker, `ColorInputs.jsx`) and, mirrored, by the server
 `PageBackgroundTest` compares them on a fixture from the JavaScript). In
 practice only light colours pass, and the success message's green decides
 first. Not part of revisions.
+
+**Header background colour (`site_settings.nav_background_color`).** The same
+pattern for the site header, set under Settings, Look: `astro/src/lib/navBackground.js`
+and `App\Support\NavBackground` (fixture `nav-backgrounds.json`, `NavBackgroundTest`),
+`App\Rules\NavBackgroundColor`, and `NavBackgroundField.jsx`. Both background
+fields share `BackgroundColorField.jsx`, and both rules share the check runner
+(`contrastChecks.js`, `App\Support\ContrastChecks`). A colour must work with
+dark text (the name and links; the current page, hovered links, focus ring and
+built-in mark in the darker brand shade) or with white text (everything
+white), at 4.5:1 / 3:1; `SiteHeader` adds `site-header--light` or `--dark`
+and `--nav-bg`. It is checked with the brand colour from the same save, and
+the API sends it only while it still passes. An uploaded logo isn't checked.
+The public site has no menu toggle (the menu wraps), so there is no icon to check.
 
 **Backgrounds (`data.variant`).** `BlockType::VARIANTS` is `default`, `light`
 (the brand tint), `brand`, `dark` (a near-black shade of the brand) and `none`.
@@ -521,7 +534,7 @@ The README requires the worker to run with `--timeout=660` and
 |---|---|---|
 | `check-theme.mjs` | `npm run check` | theme.js/fonts.js values, hostile input, font combinations |
 | `check-settings.mjs` | `npm run check` | `normalizeSite()` validation |
-| `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css`; also that every page background `pageBackground.js` accepts meets the thresholds for the colours on `.page-background`, and that its fixed colours equal `blocks.css` |
+| `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css`; also that every page background `pageBackground.js` accepts, and every header colour `navBackground.js` accepts (in the scheme it picks), meets the thresholds for the colours CSS puts on it, and that both rules' fixed colours equal `blocks.css` |
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |

@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { contrast, HEX_PATTERN, mix, parseHex, toHex } from '../src/lib/color.js';
+import { NAV_COLOURS, navScheme } from '../src/lib/navBackground.js';
 import { isValidPageBackground, PAGE_COLOURS } from '../src/lib/pageBackground.js';
 import { isValidBrand } from '../src/lib/theme.js';
 
@@ -272,6 +273,57 @@ for (const brand of pageBrands) {
 }
 console.log(`Page backgrounds: ${pageChecked} accepted colours on ${pageBrands.length} brand colours: ${pageFailures.length} failing pairs.`);
 failures.push(...pageFailures.slice(0, 20));
+
+// --- header background colours (site_settings.nav_background_color) ------------
+//
+// src/lib/navBackground.js picks dark text ("light") or white text ("dark") for
+// a colour, or refuses it. Its fixed colours must be the ones in blocks.css,
+// and on every colour it accepts, the colours site.css puts on the header in
+// that scheme (.site-header--light, --dark) must meet their thresholds.
+
+for (const [key, name] of Object.entries({ text: '--color-text', onDark: '--color-on-brand' })) {
+    if (NAV_COLOURS[key].toLowerCase() !== declarations[name].toLowerCase()) {
+        failures.push(`navBackground.js ${key} is ${NAV_COLOURS[key]}, blocks.css ${name} is ${declarations[name]}`);
+    }
+}
+
+/** [label, colour on the header (--nav-text, --nav-accent, --color-focus), minimum] per scheme. */
+const NAV_PAIRS = {
+    light: [
+        ['site name and menu links (--nav-text)', '--color-text', TEXT],
+        ['current page and hover (--nav-accent)', '--color-brand-strong', TEXT],
+        ['focus ring', '--color-brand-strong', UI],
+        ['built-in mark (--nav-accent)', '--color-brand-strong', UI],
+    ],
+    dark: [
+        ['site name, menu links, current page, hover, mark', '--color-on-brand', TEXT],
+        ['focus ring', '--color-on-brand', UI],
+    ],
+};
+
+const navCounts = { light: 0, dark: 0, refused: 0 };
+const navFailures = [];
+for (const brand of pageBrands) {
+    const colours = palette(brand);
+    // Any colour, plus the brand itself and its derived shades (common header choices).
+    const candidates = [brand, toHex(colours['--color-brand-strong'].rgb), toHex(colours['--color-brand-night'].rgb)];
+    for (let i = 0; i < 30; i++) candidates.push(toHex([random(), random(), random()].map((c) => Math.floor(c * 256))));
+    for (const background of candidates) {
+        const scheme = navScheme(background, brand);
+        if (scheme === null) {
+            navCounts.refused++;
+            continue;
+        }
+        navCounts[scheme]++;
+        const bg = parseHex(background);
+        for (const [label, fg, min] of NAV_PAIRS[scheme]) {
+            const ratio = contrast(colours[fg].rgb, bg);
+            if (ratio < min) navFailures.push(`${brand} header ${background} (${scheme}): ${label} ${ratio.toFixed(2)} < ${min}`);
+        }
+    }
+}
+console.log(`Header backgrounds on ${pageBrands.length} brand colours: ${navCounts.light} with dark text, ${navCounts.dark} with white text (${navCounts.refused} refused): ${navFailures.length} failing pairs.`);
+failures.push(...navFailures.slice(0, 20));
 
 if (failures.length) {
     console.error(`\n${failures.length} pair(s) below the threshold:\n  ${failures.join('\n  ')}`);

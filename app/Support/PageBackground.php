@@ -23,9 +23,10 @@ final class PageBackground
 
     private const ERROR_COLOUR = '#b3261e';
 
-    private const TEXT = 4.5;
+    /** The minimums, as in pageBackground.js: WCAG 1.4.3 (normal text) and 1.4.11 (focus rings, borders). */
+    public const TEXT = 4.5;
 
-    private const UI = 3.0;
+    public const UI = 3.0;
 
     /**
      * Every check for this background and brand (both #rrggbb), in the same order
@@ -35,11 +36,10 @@ final class PageBackground
      */
     public static function checks(string $background, string $brand): array
     {
-        $bg = ColorContrast::parseHex($background);
         $rgb = ColorContrast::parseHex($brand);
         // --color-brand-strong and --color-brand-deep, mixed as color.js mix() does.
-        $strong = self::mix($rgb, [0, 0, 0], 0.75);
-        $deep = self::mix($rgb, [0, 0, 0], 0.55);
+        $strong = ColorContrast::mix($rgb, [0, 0, 0], 0.75);
+        $deep = ColorContrast::mix($rgb, [0, 0, 0], 0.55);
 
         $pairs = [
             ['the text', ColorContrast::parseHex(self::TEXT_COLOUR), self::TEXT],
@@ -53,25 +53,13 @@ final class PageBackground
             ['button edges', $rgb, self::UI],
         ];
 
-        return array_map(function (array $pair) use ($bg): array {
-            [$what, $colour, $minimum] = $pair;
-            $ratio = ColorContrast::ratio($colour, $bg);
-
-            return ['what' => $what, 'ratio' => $ratio, 'minimum' => $minimum, 'ok' => $ratio >= $minimum];
-        }, $pairs);
+        return ContrastChecks::run($pairs, $background);
     }
 
     /** The check furthest below its minimum (the first of equals), or null when all pass. */
     public static function worst(string $background, string $brand): ?array
     {
-        $worst = null;
-        foreach (self::checks($background, $brand) as $check) {
-            if (! $check['ok'] && ($worst === null || $check['ratio'] / $check['minimum'] < $worst['ratio'] / $worst['minimum'])) {
-                $worst = $check;
-            }
-        }
-
-        return $worst;
+        return ContrastChecks::worst(self::checks($background, $brand));
     }
 
     /** A #rrggbb colour that every check passes on, for this brand colour. */
@@ -79,11 +67,5 @@ final class PageBackground
     {
         return is_string($value) && preg_match(ColorContrast::HEX_PATTERN, $value)
             && preg_match(ColorContrast::HEX_PATTERN, $brand) && self::worst($value, $brand) === null;
-    }
-
-    /** color.js mix(): each channel a * weight + b * (1 - weight), unrounded. */
-    private static function mix(array $a, array $b, float $weight): array
-    {
-        return array_map(fn (int $i) => $a[$i] * $weight + $b[$i] * (1 - $weight), [0, 1, 2]);
     }
 }

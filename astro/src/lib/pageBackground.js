@@ -9,7 +9,8 @@
 // PageBackground, kept equal by tests/Fixtures/page-backgrounds.json).
 // scripts/check-contrast.mjs checks the colours below against blocks.css.
 
-import { contrast, HEX_PATTERN, mix, parseHex } from './color.js';
+import { HEX_PATTERN, mix, parseHex } from './color.js';
+import { checkPairs, worstCheck } from './contrastChecks.js';
 
 /** The fixed colours that sit on a page background, as in blocks.css. */
 export const PAGE_COLOURS = Object.freeze({
@@ -20,8 +21,8 @@ export const PAGE_COLOURS = Object.freeze({
     error: '#b3261e',
 });
 
-const TEXT = 4.5; // WCAG 1.4.3, normal text
-const UI = 3; // WCAG 1.4.11, focus rings and control borders
+export const TEXT = 4.5; // WCAG 1.4.3, normal text
+export const UI = 3; // WCAG 1.4.11, focus rings and control borders
 const BLACK = [0, 0, 0];
 
 /**
@@ -50,11 +51,7 @@ function pairs(brand) {
  * [{ what, ratio, minimum, ok }].
  */
 export function pageBackgroundChecks(background, brand) {
-    const bg = parseHex(background);
-    return pairs(brand).map(([what, colour, minimum]) => {
-        const ratio = contrast(colour, bg);
-        return { what, ratio, minimum, ok: ratio >= minimum };
-    });
+    return checkPairs(pairs(brand), background);
 }
 
 /**
@@ -62,11 +59,7 @@ export function pageBackgroundChecks(background, brand) {
  * of equals), or null when all pass. Both colours must be #rrggbb.
  */
 export function worstPageBackgroundCheck(background, brand) {
-    let worst = null;
-    for (const check of pageBackgroundChecks(background, brand)) {
-        if (!check.ok && (worst === null || check.ratio / check.minimum < worst.ratio / worst.minimum)) worst = check;
-    }
-    return worst;
+    return worstCheck(pageBackgroundChecks(background, brand));
 }
 
 /** A #rrggbb colour that every check passes on, for this (valid) brand colour. */

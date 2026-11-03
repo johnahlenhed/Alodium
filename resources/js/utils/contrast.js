@@ -6,6 +6,8 @@ import { contrast, HEX_PATTERN, mix, parseHex, toHex } from '../../../astro/src/
 export { HEX_PATTERN };
 // A page's background colour: the rule the server (App\Support\PageBackground) and the build use.
 export { PAGE_COLOURS, worstPageBackgroundCheck } from '../../../astro/src/lib/pageBackground.js';
+// The header's background colour: the same for App\Support\NavBackground.
+export { NAV_COLOURS, navScheme, worstNavBackgroundChecks } from '../../../astro/src/lib/navBackground.js';
 
 /** --color-brand-strong for this brand (#rrggbb), as blocks.css mixes it: links on a page background. */
 export function brandStrong(hex) {

@@ -68,6 +68,29 @@ body {
     background: var(--color-bg);
 }
 
+/*
+ * A header colour from Settings (site_settings.nav_background_color, as
+ * --nav-bg), with the scheme src/lib/navBackground.js chose for it. Only the
+ * colours that rule checks change: --nav-text (the name and menu links) and
+ * --nav-accent (the current page, hovered links, the built-in mark), and the
+ * focus ring. Light: dark text, with the darker brand shade where the brand
+ * colour was. Dark: everything white; the current page stays bold and
+ * underlined, so it isn't told apart by colour alone.
+ */
+.site-header--light {
+    --nav-accent: var(--color-brand-strong);
+    --color-focus: var(--color-brand-strong);
+    background: var(--nav-bg);
+}
+
+.site-header--dark {
+    --nav-text: var(--color-on-brand);
+    --nav-accent: var(--color-on-brand);
+    --color-focus: var(--color-on-brand);
+    border-bottom-color: transparent;
+    background: var(--nav-bg);
+}
+
 /* On narrow screens the navigation wraps onto a second row. */
 .site-header__inner {
     display: flex;
@@ -85,7 +108,7 @@ body {
     align-items: center;
     gap: var(--space-3);
     min-height: var(--target-min);
-    color: var(--color-text);
+    color: var(--nav-text, var(--color-text));
     font-family: var(--font-heading);
     font-size: 1.1875rem;
     font-weight: 600;
@@ -97,7 +120,7 @@ body {
     flex: none;
     width: auto;
     height: 1.875rem; /* 30px */
-    color: var(--color-brand);
+    color: var(--nav-accent, var(--color-brand));
 }
 
 /*
@@ -151,7 +174,8 @@ body {
     min-height: var(--target-min);
     padding-inline: var(--space-3);
     border-radius: var(--radius);
-    color: var(--color-text);
+    /* --nav-*: set on a coloured header only, so the footer keeps the defaults. */
+    color: var(--nav-text, var(--color-text));
     text-decoration: none;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.35em;
@@ -159,14 +183,14 @@ body {
 
 .site-nav a:hover,
 .site-footer__nav a:hover {
-    color: var(--color-brand);
+    color: var(--nav-accent, var(--color-brand));
     text-decoration-line: underline;
 }
 
 /* The current page (and, for Blog, a post): brand colour, bold, thick underline. */
 .site-nav a[aria-current],
 .site-footer__nav a[aria-current] {
-    color: var(--color-brand);
+    color: var(--nav-accent, var(--color-brand));
     font-weight: 600;
     text-decoration-line: underline;
     text-decoration-thickness: 2px;

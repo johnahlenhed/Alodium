@@ -14,6 +14,7 @@ const VALID = Object.freeze({
     footer_text: 'Storgatan 1',
     show_site_name: false,
     theme: { brand: '#7A1F3D', fontBody: 'serif', fontHeading: 'system', corners: 'round', buttons: 'outline' },
+    nav_background_color: '#1B2A4A',
     logo: { url: `${API}/storage/9/conversions/logo-logo.png`, width: 240, height: 80 },
     navigation: [
         { label: 'Home', href: '/' },
@@ -50,6 +51,7 @@ test('a valid response is used as given, without warnings', () => {
         footerText: 'Storgatan 1',
         showSiteName: false,
         theme: { brand: '#7a1f3d', fontBody: 'serif', fontHeading: 'system', corners: 'round', buttons: 'outline' },
+        navBackground: { color: '#1b2a4a', scheme: 'dark' },
         logo: VALID.logo,
         navigation: VALID.navigation,
         frontPage: { slug: 'about' },
@@ -174,6 +176,25 @@ test('logo: an http(s) URL on the API origin, 1 to 4000 wide and 24 to 96 high, 
     assert.equal(normalize({ logo: 'x' }).site.logo, null);
     // Without a known API origin no logo can be on it.
     assert.equal(normalize({}, '').site.logo, null);
+});
+
+test('nav_background_color: a colour one scheme works on with the brand colour, otherwise none', () => {
+    const nav = (value, theme = VALID.theme) => normalize({ nav_background_color: value, theme });
+    assert.deepEqual(nav('#F5F1EA').site.navBackground, { color: '#f5f1ea', scheme: 'light' });
+    assert.deepEqual(nav('#1B2A4A').site.navBackground, { color: '#1b2a4a', scheme: 'dark' });
+    // Missing (an older API) or null: none, without a warning.
+    for (const value of [undefined, null]) {
+        const { site, warnings } = nav(value);
+        assert.equal(site.navBackground, null);
+        assert.deepEqual(warnings, []);
+    }
+    // Checked with the brand colour the build uses: mid grey works with a dark brand, not a light one.
+    assert.equal(nav('#888888', { ...VALID.theme, brand: '#1B2A4A' }).site.navBackground.scheme, 'light');
+    for (const value of ['#888888', '#fff', 'navy', 'red;}header{display:none', 42, {}]) {
+        const { site, warnings } = nav(value, { ...VALID.theme, brand: '#767676' });
+        assert.equal(site.navBackground, null, JSON.stringify(value));
+        assert.equal(warnings.length, 1, JSON.stringify(value));
+    }
 });
 
 test('front_page: null or a slug', () => {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Support\NavBackground;
 use App\Support\ThemeOptions;
 
 /**
@@ -27,6 +28,7 @@ class PublicSiteSettings
             'footer_text' => $settings->footer_text,
             'show_site_name' => $settings->show_site_name,
             'theme' => $this->theme($settings),
+            'nav_background_color' => $this->navBackground($settings),
             'logo' => $this->logo($settings),
             'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),
@@ -49,6 +51,18 @@ class PublicSiteSettings
             'corners' => $pick($settings->corners, ThemeOptions::CORNERS, ThemeOptions::DEFAULTS['corners']),
             'buttons' => $pick($settings->buttons, ThemeOptions::BUTTONS, ThemeOptions::DEFAULTS['buttons']),
         ];
+    }
+
+    /**
+     * The header's background colour, or null: also when it no longer passes with
+     * the brand colour the site uses (changed in the database, say), so the header
+     * then keeps the page colour rather than getting unreadable text.
+     */
+    private function navBackground(SiteSetting $settings): ?string
+    {
+        $value = $settings->nav_background_color;
+
+        return NavBackground::scheme($value, ThemeOptions::resolveBrand($settings->brand_color)) !== null ? $value : null;
     }
 
     /** The PNG conversion or the sanitised SVG, at the chosen height, or null (SiteSetting::logoImage()). */
