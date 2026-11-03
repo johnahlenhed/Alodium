@@ -38,6 +38,9 @@ class UpdateSiteSettingsRequest extends FormRequest
             'site_description' => ['nullable', 'string', 'max:300', self::PLAIN_TEXT],
             'footer_text' => ['nullable', 'string', 'max:200', self::PLAIN_TEXT],
             'show_site_name' => ['required', 'boolean'],
+            // Missing keeps the stored height, so a Settings page loaded before this
+            // field existed still saves. Out of range is rejected, not clamped.
+            'logo_height' => ['sometimes', 'integer', 'between:'.SiteSetting::LOGO_HEIGHT_MIN.','.SiteSetting::LOGO_HEIGHT_MAX],
 
             'brand_color' => ['required', new BrandColor],
             'font_body' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
@@ -113,6 +116,8 @@ class UpdateSiteSettingsRequest extends FormRequest
             'site_description.regex' => "The description can't contain line breaks, tabs or other control characters.",
             'footer_text.regex' => "The footer text can't contain line breaks, tabs or other control characters.",
             'logo.file' => 'The logo must be an image file.',
+            'logo_height.integer' => 'The logo height must be a whole number of pixels.',
+            'logo_height.between' => 'The logo height must be between :min and :max pixels.',
             'logo.mimetypes' => 'The logo must be a PNG, JPEG, WebP or SVG image. GIF is not supported.',
             'logo.max' => 'The logo can be at most 2 MB.',
             'logo.dimensions' => 'The logo must be between 64 and 4000 pixels wide and high.',

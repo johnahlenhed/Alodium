@@ -9,8 +9,11 @@
 import { SITE_DEFAULTS } from './site.js';
 import { DEFAULT_SETTINGS, resolveSettings } from './theme.js';
 
-/** The server's limits (App\Http\Requests\UpdateSiteSettingsRequest). */
-export const LIMITS = Object.freeze({ name: 80, description: 300, footerText: 200, logoSide: 4000 });
+/**
+ * The server's limits (App\Http\Requests\UpdateSiteSettingsRequest). logoHeight is
+ * the height the header shows the logo at (SiteSetting::LOGO_HEIGHT_MIN/MAX).
+ */
+export const LIMITS = Object.freeze({ name: 80, description: 300, footerText: 200, logoSide: 4000, logoHeight: Object.freeze({ min: 24, max: 96 }) });
 
 const CONTROL_CHARACTERS = /\p{Cc}/u;
 const characters = (text) => [...text].length; // code points, like the server's mb_strlen
@@ -93,7 +96,10 @@ function theme(value, warn) {
     return resolved;
 }
 
-/** An absolute http(s) URL on the API's own origin, with a size from 1 to 4000 px; otherwise no logo. */
+/**
+ * An absolute http(s) URL on the API's own origin, with the size it is shown at:
+ * a width from 1 to 4000 px and a height within LIMITS.logoHeight. Otherwise no logo.
+ */
 function logo(value, apiOrigin, warn) {
     if (value === null) return null;
 
@@ -105,9 +111,10 @@ function logo(value, apiOrigin, warn) {
         url = null;
     }
 
-    const ok = url && (url.protocol === 'http:' || url.protocol === 'https:') && url.origin === apiOrigin && side(value.width) && side(value.height);
+    const height = Number.isInteger(value?.height) && value.height >= LIMITS.logoHeight.min && value.height <= LIMITS.logoHeight.max;
+    const ok = url && (url.protocol === 'http:' || url.protocol === 'https:') && url.origin === apiOrigin && side(value.width) && height;
     if (!ok) {
-        warn('"logo" is invalid (it needs an http(s) URL on the API origin and a width and height from 1 to 4000); the site is built without it.');
+        warn(`"logo" is invalid (it needs an http(s) URL on the API origin, a width from 1 to 4000 and a height from ${LIMITS.logoHeight.min} to ${LIMITS.logoHeight.max}); the site is built without it.`);
         return null;
     }
     return { url: url.href, width: value.width, height: value.height };

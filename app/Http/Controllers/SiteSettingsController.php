@@ -43,6 +43,8 @@ class SiteSettingsController extends Controller
                 // The old Blog and Contact switches are navigation entries now (navigation_items).
                 ...Arr::except(Arr::only($settings->attributesToArray(), $settings->getFillable()), ['show_blog_in_nav', 'show_contact_in_nav']),
                 'front_page_id' => $frontPageMissing ? null : $settings->front_page_id,
+                // null on a row from before the column: the default.
+                'logo_height' => $settings->shownLogoHeight(),
                 'navigation' => $navigation,
             ],
             'frontPageMissing' => $frontPageMissing,
@@ -54,6 +56,7 @@ class SiteSettingsController extends Controller
                 'buttons' => $this->options(ThemeOptions::BUTTONS),
                 'minContrast' => ThemeOptions::MIN_BRAND_CONTRAST,
                 'maxNavigation' => UpdateSiteSettingsRequest::MAX_NAVIGATION_ITEMS,
+                'logoHeight' => ['min' => SiteSetting::LOGO_HEIGHT_MIN, 'max' => SiteSetting::LOGO_HEIGHT_MAX, 'default' => SiteSetting::LOGO_HEIGHT_DEFAULT],
             ],
         ]);
     }
@@ -140,7 +143,9 @@ class SiteSettingsController extends Controller
         // The size goes into the API (width/height attributes). A raster logo's conversion
         // is made during the upload and measured; an SVG has none and is sized from its markup.
         if ($svg !== null) {
-            $size = SiteSetting::svgLogoSize(...SvgSize::of($svg));
+            // Its proportions, at the conversion's height; logoImage() scales them to the shown height.
+            [$width, $height] = SvgSize::of($svg);
+            $size = SiteSetting::fitLogo($width, $height, SiteSetting::LOGO_PIXEL_HEIGHT);
         } else {
             $size = is_file($media->getPath('logo')) ? getimagesize($media->getPath('logo')) : false;
         }

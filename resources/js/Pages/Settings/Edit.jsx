@@ -64,6 +64,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
         site_description: settings.site_description ?? '',
         footer_text: settings.footer_text ?? '',
         show_site_name: settings.show_site_name,
+        logo_height: settings.logo_height,
         brand_color: settings.brand_color,
         font_body: settings.font_body,
         font_heading: settings.font_heading,
@@ -120,6 +121,9 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
     const radius = options.corners.find((corner) => corner.value === data.corners)?.radius ?? '6px';
     const frontPage = pages.find((page) => String(page.id) === String(data.front_page_id));
     const shownLogo = newLogoUrl ?? (data.remove_logo ? null : logo?.url);
+    // The preview uses the header's rules (astro/src/styles/site.css): the chosen height in
+    // rem, the width from the logo's proportions, at most 64/9 times the height.
+    const logoRem = data.logo_height / 16;
 
     return (
         <AuthenticatedLayout header={<h2 className="text-page-title font-semibold text-gray-800">Site settings</h2>}>
@@ -171,11 +175,18 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                         <p id="logo_help" className="mt-1 text-sm text-gray-500">
                             PNG, JPEG, WebP or SVG, at most 2 MB. PNG, JPEG and WebP: 64 to 4000 pixels per side; a
                             transparent PNG works well. SVG: it needs a viewBox or a width and height, and scripts and
-                            links to other sites are removed when it is saved. It is shown at most 128 pixels high.
+                            links to other sites are removed when it is saved. Its height on the site is set below.
                         </p>
                         {shownLogo && (
-                            <div className="mt-3 inline-block rounded-md border border-gray-200 bg-[repeating-conic-gradient(rgb(var(--color-gray-100))_0%_25%,rgb(var(--color-surface))_0%_50%)] bg-[length:16px_16px] p-3">
-                                <img src={shownLogo} alt={newLogoUrl ? 'New logo, not saved yet' : 'Current logo'} className="max-h-16 w-auto" />
+                            // As in the site header: the logo at the chosen height, with the name when it is shown.
+                            <div className="mt-3 flex max-w-full items-center gap-3 overflow-hidden rounded-md border border-gray-200 bg-[repeating-conic-gradient(rgb(var(--color-gray-100))_0%_25%,rgb(var(--color-surface))_0%_50%)] bg-[length:16px_16px] p-3">
+                                <img
+                                    src={shownLogo}
+                                    alt={newLogoUrl ? 'New logo, not saved yet' : 'Current logo'}
+                                    className="w-auto flex-none object-contain object-left"
+                                    style={{ height: `${logoRem}rem`, maxWidth: `min(100%, ${(logoRem * 64) / 9}rem)` }}
+                                />
+                                {data.show_site_name && <span className="truncate text-[1.1875rem] font-semibold text-gray-900">{data.site_name}</span>}
                             </div>
                         )}
                         <input
@@ -196,6 +207,43 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                         )}
                         <InputError message={errors.logo} className="mt-2" />
                     </div>
+
+                    {shownLogo && (
+                        <div>
+                            <InputLabel htmlFor="logo_height" value="Logo height on the site" />
+                            <div className="mt-2 flex items-center gap-4">
+                                <input
+                                    id="logo_height"
+                                    type="range"
+                                    min={options.logoHeight.min}
+                                    max={options.logoHeight.max}
+                                    step={1}
+                                    value={data.logo_height}
+                                    aria-describedby="logo_height_help"
+                                    aria-valuetext={`${data.logo_height} pixels`}
+                                    onChange={(e) => setData('logo_height', Number(e.target.value))}
+                                    className="w-full max-w-xs accent-brand-600"
+                                />
+                                <output htmlFor="logo_height" className="w-14 flex-none text-sm tabular-nums text-gray-900">
+                                    {data.logo_height} px
+                                </output>
+                                {data.logo_height !== options.logoHeight.default && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setData('logo_height', options.logoHeight.default)}
+                                        className="flex-none text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                    >
+                                        Reset to {options.logoHeight.default} px
+                                    </button>
+                                )}
+                            </div>
+                            <p id="logo_height_help" className="mt-1 text-sm text-gray-500">
+                                {options.logoHeight.min} to {options.logoHeight.max} pixels high; the preview above shows
+                                it at this size. The width follows the logo&rsquo;s proportions.
+                            </p>
+                            <InputError message={errors.logo_height} className="mt-2" />
+                        </div>
+                    )}
 
                     <div>
                         <label className="flex items-center gap-2 text-sm text-gray-900">

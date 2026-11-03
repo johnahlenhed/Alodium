@@ -141,11 +141,12 @@ test('navigation: entries need a text label and a path on this site or an http(s
     assert.deepEqual(normalize({ navigation: 'x' }).site.navigation, SITE_DEFAULTS.navigation);
 });
 
-test('logo: an http(s) URL on the API origin with a size from 1 to 4000, otherwise none', () => {
+test('logo: an http(s) URL on the API origin, 1 to 4000 wide and 24 to 96 high, otherwise none', () => {
     const logo = (changes) => normalize({ logo: { ...VALID.logo, ...changes } });
-    assert.deepEqual(logo({ width: 4000, height: 1 }).site.logo, { ...VALID.logo, width: 4000, height: 1 });
+    assert.deepEqual(logo({ width: 4000, height: 24 }).site.logo, { ...VALID.logo, width: 4000, height: 24 });
+    assert.deepEqual(logo({ width: 1, height: 96 }).site.logo, { ...VALID.logo, width: 1, height: 96 });
     // An SVG logo is the (sanitised) file itself, not a conversion.
-    const svg = { url: `${API}/storage/9/logo.svg`, width: 384, height: 128 };
+    const svg = { url: `${API}/storage/9/logo.svg`, width: 108, height: 36 };
     assert.deepEqual(normalize({ logo: svg }).site.logo, svg);
     assert.deepEqual(normalize({ logo: null }).warnings, []);
 
@@ -160,6 +161,9 @@ test('logo: an http(s) URL on the API origin with a size from 1 to 4000, otherwi
         { width: 0 },
         { width: 4001 },
         { height: 12.5 },
+        { height: 23 },
+        { height: 97 },
+        { height: 128 }, // the conversion's old pixel height, not a shown height
         { height: '80' },
         { width: undefined },
     ]) {

@@ -11,6 +11,7 @@ use App\Services\SvgSanitizer;
 use Illuminate\Bus\UniqueLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -304,20 +305,21 @@ class SiteSettingsTest extends TestCase
         $this->assertSame(1, SiteSetting::current()->getMedia('logo')->count());
     }
 
-    public function test_the_logo_conversion_is_at_most_128px_high_and_keeps_transparency(): void
+    public function test_the_logo_conversion_is_at_most_192px_high_and_keeps_transparency(): void
     {
         $this->saveWithFile(['logo' => $this->image('png', 600, 300)])->assertSessionHasNoErrors();
         $logo = SiteSetting::current()->logo();
 
+        // Twice the largest shown height (96px), for high-density screens.
         $path = $logo->getPath('logo');
-        $this->assertSame([256, 128], array_slice(getimagesize($path), 0, 2));
-        $this->assertSame(256, $logo->getCustomProperty('logo_width'));
-        $this->assertSame(128, $logo->getCustomProperty('logo_height'));
+        $this->assertSame([384, 192], array_slice(getimagesize($path), 0, 2));
+        $this->assertSame(384, $logo->getCustomProperty('logo_width'));
+        $this->assertSame(192, $logo->getCustomProperty('logo_height'));
 
         // The corner was transparent in the upload and still is (alpha 127 = fully transparent).
         $converted = imagecreatefrompng($path);
         $this->assertSame(127, (imagecolorat($converted, 0, 0) >> 24) & 0x7F);
-        $this->assertSame(0, (imagecolorat($converted, 128, 64) >> 24) & 0x7F);
+        $this->assertSame(0, (imagecolorat($converted, 192, 96) >> 24) & 0x7F);
 
         // A small logo is not enlarged.
         $this->saveWithFile(['logo' => $this->image('png', 80, 64)])->assertSessionHasNoErrors();
@@ -381,14 +383,14 @@ class SiteSettingsTest extends TestCase
 
     public function test_an_svg_logo_is_not_rasterised_and_is_sized_from_its_markup(): void
     {
-        // Each scaled to 128px high, keeping its proportions (and at most 4000 wide).
+        // Its proportions, stored at the conversion's 192px (and at most 4000 wide).
         $cases = [
-            'viewBox' => ['viewBox="0 0 300 100"', [384, 128]],
-            'width and height' => ['width="60" height="40"', [192, 128]],
-            'width and height in other units' => ['width="2in" height="1in"', [256, 128]],
-            'width and height win over the viewBox' => ['width="100" height="100" viewBox="0 0 300 100"', [128, 128]],
-            'only a width, with a viewBox' => ['width="50" viewBox="0 0 30 10"', [384, 128]],
-            'relative width, with a viewBox' => ['width="100%" viewBox="0,0,30,10"', [384, 128]],
+            'viewBox' => ['viewBox="0 0 300 100"', [576, 192]],
+            'width and height' => ['width="60" height="40"', [288, 192]],
+            'width and height in other units' => ['width="2in" height="1in"', [384, 192]],
+            'width and height win over the viewBox' => ['width="100" height="100" viewBox="0 0 300 100"', [192, 192]],
+            'only a width, with a viewBox' => ['width="50" viewBox="0 0 30 10"', [576, 192]],
+            'relative width, with a viewBox' => ['width="100%" viewBox="0,0,30,10"', [576, 192]],
             'very wide: limited to 4000' => ['viewBox="0 0 10000 100"', [4000, 40]],
         ];
 
@@ -430,7 +432,7 @@ class SiteSettingsTest extends TestCase
         $url = SiteSetting::current()->logo()->getUrl();
 
         $this->actingAs($this->admin)->get('/settings')->assertInertia(fn (Assert $page) => $page
-            ->where('logo', ['url' => $url, 'width' => 384, 'height' => 128]));
+            ->where('logo', ['url' => $url, 'width' => 108, 'height' => 36]));
         $this->assertStringEndsWith('/logo.svg', $url);
     }
 
@@ -446,6 +448,104 @@ class SiteSettingsTest extends TestCase
         $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"/>')])->assertSessionHasNoErrors();
         $this->assertSame('logo.svg', SiteSetting::current()->logo()->file_name);
         $this->assertCount(1, Storage::disk('public')->allFiles(), 'The PNG and its conversion were deleted.');
+    }
+
+    // --- logo height ----------------------------------------------------------------
+
+    private const SVG_3_TO_1 = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect width="300" height="100"/></svg>';
+
+    /** The logo as the public site and the Settings page get it. */
+    private function shownLogo(): array
+    {
+        $api = $this->getJson('/api/public/site')->json('logo');
+        $this->actingAs($this->admin)->get('/settings')->assertInertia(fn (Assert $page) => $page
+            ->where('logo.width', $api['width'])
+            ->where('logo.height', $api['height']));
+
+        return [$api['width'], $api['height']];
+    }
+
+    public function test_the_logo_height_applies_to_raster_and_svg_logos_alike(): void
+    {
+        // [file, shown size at 60px, at the bounds 24px and 96px]
+        $cases = [
+            'PNG, 2:1' => [fn () => $this->image('png', 600, 300), [120, 60], [48, 24], [192, 96]],
+            'small JPEG, 5:4 (not enlarged in the file, shown at the chosen size)' => [fn () => $this->image('jpeg', 80, 64), [75, 60], [30, 24], [120, 96]],
+            'SVG, 3:1' => [fn () => $this->fileWithContent('logo.svg', self::SVG_3_TO_1), [180, 60], [72, 24], [288, 96]],
+        ];
+
+        foreach ($cases as $label => [$file, $at60, $atMin, $atMax]) {
+            $this->saveWithFile(['logo' => $file(), 'logo_height' => 60])->assertSessionHasNoErrors();
+            $this->assertSame(60, SiteSetting::current()->logo_height, $label);
+            $this->assertSame($at60, $this->shownLogo(), $label);
+
+            // The height alone can change, without uploading the logo again.
+            $this->save(['logo_height' => 24])->assertSessionHasNoErrors();
+            $this->assertSame($atMin, $this->shownLogo(), $label);
+            $this->save(['logo_height' => '96'])->assertSessionHasNoErrors(); // as a multipart form sends it
+            $this->assertSame($atMax, $this->shownLogo(), $label);
+        }
+    }
+
+    public function test_a_logo_height_outside_the_range_is_rejected(): void
+    {
+        $this->save(['logo_height' => 50])->assertSessionHasNoErrors();
+
+        foreach ([23, 97, 0, -36, 500] as $height) {
+            $this->save(['logo_height' => $height])
+                ->assertSessionHasErrors(['logo_height' => 'The logo height must be between 24 and 96 pixels.']);
+        }
+        foreach ([36.5, '40px', 'big', '', null] as $height) {
+            $this->save(['logo_height' => $height])
+                ->assertSessionHasErrors(['logo_height' => 'The logo height must be a whole number of pixels.']);
+        }
+        $this->assertSame(50, SiteSetting::current()->logo_height, 'Nothing was saved.');
+    }
+
+    public function test_an_untouched_logo_height_shows_the_logo_as_before(): void
+    {
+        // Before this setting the header showed every logo 36px high (2.25rem), and the
+        // API gave the 128px conversion's size: the same proportions, now at 36px.
+        $this->saveWithFile(['logo' => $this->image('webp', 900, 300)])->assertSessionHasNoErrors();
+        $this->assertSame([108, 36], $this->shownLogo());
+        $this->assertSame(384 / 128, 108 / 36);
+
+        // The row of a site that existed before the column: logo_height is null.
+        DB::table('site_settings')->update(['logo_height' => null]);
+        $this->assertSame([108, 36], $this->shownLogo());
+        $this->actingAs($this->admin)->get('/settings')->assertInertia(fn (Assert $page) => $page
+            ->where('settings.logo_height', 36)
+            ->where('options.logoHeight', ['min' => 24, 'max' => 96, 'default' => 36]));
+
+        // A save that doesn't send the field (a Settings page loaded before it existed) keeps it.
+        $this->save(['logo_height' => 70]);
+        $this->save(['site_name' => 'Renamed'])->assertSessionHasNoErrors();
+        $this->assertSame(70, SiteSetting::current()->logo_height);
+        $this->assertSame(36, SiteSetting::defaults()['logo_height']);
+    }
+
+    public function test_a_stored_height_outside_the_range_is_clamped_when_shown(): void
+    {
+        // Validation stops this on save; a value changed in the database still can't break the header.
+        $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', self::SVG_3_TO_1)]);
+        DB::table('site_settings')->update(['logo_height' => 500]);
+        $this->assertSame([288, 96], $this->shownLogo());
+        DB::table('site_settings')->update(['logo_height' => 1]);
+        $this->assertSame([72, 24], $this->shownLogo());
+    }
+
+    public function test_changing_the_logo_height_rebuilds_only_when_there_is_a_logo(): void
+    {
+        Queue::fake();
+        $this->save(['logo_height' => 36]);
+        $this->assertRebuildsQueued(1); // the first save writes the row
+        $this->save(['logo_height' => 60]);
+        $this->assertRebuildsQueued(0); // no logo: nothing visible changed
+
+        $this->saveWithFile(['logo' => $this->image('png', 300, 100)]);
+        $this->assertRebuildsQueued(1);
+        $this->save(['logo_height' => 80]);
+        $this->assertRebuildsQueued(1);
     }
 
     public function test_the_logo_can_be_removed(): void
