@@ -41,8 +41,12 @@
     /* Over hero images: a dark shade of the brand at 85%, so white text stays readable on light photos. */
     --color-hero-overlay: color-mix(in srgb, var(--color-brand-strong) 85%, transparent);
     --color-hero-overlay-dark: color-mix(in srgb, var(--color-brand-night) 85%, transparent);
-    /* The light hero over an image: the page colour at 88%, under dark text (a black pixel is the worst case). */
-    --color-hero-overlay-light: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    /*
+     * The light hero over an image: the page colour at 60%, so the image stays
+     * visible. What sits on it is --color-text (near-black, fixed), which keeps
+     * 4.5:1 even over a black pixel; brand-coloured text would need about 85%.
+     */
+    --color-hero-overlay-light: color-mix(in srgb, var(--color-bg) 60%, transparent);
     /* Links in rich text. The panels (.block--light, --brand, --dark) change them. */
     --color-link: var(--color-brand);
     --color-link-hover: var(--color-brand-strong);
@@ -319,8 +323,12 @@
     --button-border-hover: var(--color-brand-tint-strong);
 }
 
-/* In the hero every variant is inverted: white where the page version has the brand, and the reverse. */
-.block-hero .button-primary {
+/*
+ * In the hero every variant is inverted: white where the page version has the
+ * brand, and the reverse. Not in the hero without a background ("none"), which
+ * keeps the page's buttons.
+ */
+.block-hero:not(.block--none) .button-primary {
     --button-bg: var(--color-on-brand);
     --button-text: var(--color-brand);
     --button-border: var(--color-on-brand);
@@ -329,8 +337,8 @@
     --button-border-hover: var(--color-brand-tint);
 }
 
-.block-hero .button-secondary,
-[data-button='outline'] .block-hero .button-primary {
+.block-hero:not(.block--none) .button-secondary,
+[data-button='outline'] .block-hero:not(.block--none) .button-primary {
     --button-bg: transparent;
     --button-text: var(--color-on-brand);
     --button-border: var(--color-on-brand);
@@ -340,7 +348,7 @@
 }
 
 /* The page version sits on a tint lighter than the page; this one on a shade darker than the hero. */
-[data-button='outline'] .block-hero .button-secondary {
+[data-button='outline'] .block-hero:not(.block--none) .button-secondary {
     --button-bg: var(--color-brand-strong);
     --button-text: var(--color-on-brand);
     --button-border: var(--color-brand-strong);
@@ -353,6 +361,7 @@
  * Hero backgrounds (data.variant). Dark: the near-black shade, with the same
  * inverted buttons as the default hero. Light: the brand tint with dark text and
  * the page's buttons, using the darker shades where text sits on the tint.
+ * None: no background colour (below).
  */
 .block-hero.block--dark {
     background: var(--color-brand-night);
@@ -401,8 +410,52 @@
     --button-border-hover: var(--color-brand-tint-strong);
 }
 
+/*
+ * Light over an image: the overlay is thinner than the tint is opaque, so the
+ * focus ring and the button text and borders on it use --color-text instead of
+ * the brand shades (see --color-hero-overlay-light). The solid primary keeps
+ * its brand fill, with a --color-text border so its edge shows on any photo.
+ */
+.block-hero.block--light.block-hero--has-image {
+    --color-focus: var(--color-text);
+}
+
+.block-hero.block--light.block-hero--has-image .button-primary {
+    --button-border: var(--color-text);
+    --button-border-hover: var(--color-text);
+}
+
+.block-hero.block--light.block-hero--has-image .button-secondary,
+[data-button='outline'] .block-hero.block--light.block-hero--has-image .button-primary {
+    --button-text: var(--color-text);
+    --button-border: var(--color-text);
+    --button-border-hover: var(--color-text);
+}
+
+/*
+ * None: no background colour. The page colour shows, with the page's text,
+ * focus ring and buttons. An image is shown as it is, with no overlay, so the
+ * text sits on a panel in the page colour: no photo can make it unreadable,
+ * and every colour pair is one the page already has.
+ */
+.block-hero.block--none {
+    --color-focus: var(--color-brand);
+    background: none;
+    color: var(--color-text);
+}
+
+.block-hero.block--none.block-hero--has-image::after {
+    content: none;
+}
+
+.block-hero.block--none.block-hero--has-image .block-hero__content {
+    padding: var(--space-6);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg);
+}
+
 /* On the brand and dark backgrounds the selection is inverted (site.css uses the brand). */
-.block-hero:not(.block--light) ::selection,
+.block-hero:not(.block--light, .block--none) ::selection,
 .block--brand ::selection,
 .block--dark ::selection {
     background: var(--color-on-brand);

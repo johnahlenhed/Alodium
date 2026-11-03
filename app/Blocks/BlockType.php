@@ -12,11 +12,13 @@ abstract class BlockType
 {
     /**
      * Background treatments (data.variant), styled in astro/src/styles/blocks.css
-     * as .block--light, .block--brand and .block--dark. "default" adds none. A
+     * as .block--light, .block--brand, .block--dark and .block--none. "default"
+     * is the type's usual look (no background for text and columns, the brand
+     * colour for the hero); "none" is only for a type whose default has one. A
      * type lists the ones it offers in variants(); every colour pair they create
      * is checked by astro/scripts/check-contrast.mjs.
      */
-    public const VARIANTS = ['default', 'light', 'brand', 'dark'];
+    public const VARIANTS = ['default', 'light', 'brand', 'dark', 'none'];
 
     /** Stored in each block's "type", e.g. "hero". */
     abstract public function name(): string;

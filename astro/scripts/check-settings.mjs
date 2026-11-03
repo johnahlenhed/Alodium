@@ -144,6 +144,9 @@ test('navigation: entries need a text label and a path on this site or an http(s
 test('logo: an http(s) URL on the API origin with a size from 1 to 4000, otherwise none', () => {
     const logo = (changes) => normalize({ logo: { ...VALID.logo, ...changes } });
     assert.deepEqual(logo({ width: 4000, height: 1 }).site.logo, { ...VALID.logo, width: 4000, height: 1 });
+    // An SVG logo is the (sanitised) file itself, not a conversion.
+    const svg = { url: `${API}/storage/9/logo.svg`, width: 384, height: 128 };
+    assert.deepEqual(normalize({ logo: svg }).site.logo, svg);
     assert.deepEqual(normalize({ logo: null }).warnings, []);
 
     for (const changes of [

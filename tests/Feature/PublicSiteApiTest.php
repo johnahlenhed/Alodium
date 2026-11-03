@@ -98,6 +98,26 @@ class PublicSiteApiTest extends TestCase
         $this->assertSame(['width' => 384, 'height' => 128], ['width' => $logo['width'], 'height' => $logo['height']]);
     }
 
+    public function test_an_svg_logo_is_served_as_the_sanitised_file_itself(): void
+    {
+        $this->save(['logo' => $this->fileWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><script>alert(1)</script><rect width="300" height="100"/></svg>')]);
+        $media = SiteSetting::current()->logo();
+
+        $logo = $this->getJson('/api/public/site')->json('logo');
+
+        // Absolute, the original (there is no conversion for an SVG), with its size scaled to 128px high.
+        $this->assertSame(url($media->getUrl()), $logo['url']);
+        $this->assertStringStartsWith(rtrim(config('app.url'), '/').'/storage/', $logo['url']);
+        $this->assertStringEndsWith('/logo.svg', $logo['url']);
+        $this->assertStringNotContainsString('/conversions/', $logo['url']);
+        $this->assertSame(['width' => 384, 'height' => 128], ['width' => $logo['width'], 'height' => $logo['height']]);
+
+        // The file at that URL is the sanitised one.
+        $file = Storage::disk('public')->get(substr(parse_url($logo['url'], PHP_URL_PATH), strlen('/storage/')));
+        $this->assertStringContainsString('<rect', $file);
+        $this->assertStringNotContainsString('<script', $file);
+    }
+
     public function test_navigation_entries_in_any_order_with_their_own_labels(): void
     {
         [$about, $services] = [$this->makePage('About'), $this->makePage('Services')];

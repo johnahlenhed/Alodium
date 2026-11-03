@@ -173,9 +173,10 @@ class PageBlocksTest extends TestCase
             ['type' => 'columns', 'data' => ['variant' => 'light', 'columns' => [['html' => '<p>L</p>'], ['html' => '<p>R</p>']]]],
             ['type' => 'text', 'data' => ['html' => '<p>B</p>']],
             ['type' => 'text', 'data' => ['html' => '<p>C</p>', 'variant' => '']],
+            ['type' => 'hero', 'data' => ['heading' => 'No background', 'variant' => 'none']],
         ]])->assertSessionHasNoErrors();
 
-        $this->assertSame(['dark', 'brand', 'light', 'default', 'default'], array_column(array_column($page->fresh()->blocks['blocks'], 'data'), 'variant'));
+        $this->assertSame(['dark', 'brand', 'light', 'default', 'default', 'none'], array_column(array_column($page->fresh()->blocks['blocks'], 'data'), 'variant'));
     }
 
     public function test_only_the_variants_a_block_type_offers_are_accepted(): void
@@ -185,10 +186,15 @@ class PageBlocksTest extends TestCase
             ['type' => 'hero', 'data' => ['heading' => 'Hi', 'variant' => 'brand']],
             ['type' => 'text', 'data' => ['html' => '<p>A</p>', 'variant' => 'neon']],
             ['type' => 'columns', 'data' => ['variant' => ['dark'], 'columns' => [['html' => '<p>L</p>'], ['html' => '<p>R</p>']]]],
+            // "none" is only the hero's: for text and columns it is the same as "default".
+            ['type' => 'text', 'data' => ['html' => '<p>B</p>', 'variant' => 'none']],
+            ['type' => 'columns', 'data' => ['variant' => 'none', 'columns' => [['html' => '<p>L</p>'], ['html' => '<p>R</p>']]]],
         ]])->assertSessionHasErrors([
-            'blocks.0.data.variant' => 'The selected hero background is invalid.',
-            'blocks.1.data.variant' => 'The selected text background is invalid.',
+            'blocks.0.data.variant' => 'The selected hero background colour is invalid.',
+            'blocks.1.data.variant' => 'The selected text background colour is invalid.',
             'blocks.2.data.variant',
+            'blocks.3.data.variant' => 'The selected text background colour is invalid.',
+            'blocks.4.data.variant',
         ]);
     }
 

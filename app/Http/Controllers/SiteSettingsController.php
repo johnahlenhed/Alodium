@@ -8,6 +8,8 @@ use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Services\PublicSiteSettings;
+use App\Services\SvgSanitizer;
+use App\Support\SvgSize;
 use App\Support\ThemeOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
@@ -15,7 +17,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /** The admin-only Settings page: the public site's identity, look, navigation and front page. */
 class SiteSettingsController extends Controller
@@ -45,7 +46,7 @@ class SiteSettingsController extends Controller
                 'navigation' => $navigation,
             ],
             'frontPageMissing' => $frontPageMissing,
-            'logo' => $this->logoPreview($settings->logo()),
+            'logo' => $settings->logoImage(),
             'pages' => $pages->map(fn (Page $page) => ['id' => $page->id, 'title' => $page->title, 'slug' => $page->slug])->values(),
             'options' => [
                 'fonts' => $this->options(ThemeOptions::FONTS),
@@ -123,32 +124,29 @@ class SiteSettingsController extends Controller
     private function saveLogo(SiteSetting $settings, UploadedFile $file): void
     {
         // The type from the content (the form request allowed only these), not the uploaded name.
-        $extension = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$file->getMimeType()];
+        $type = $file->getMimeType();
+        $extension = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/svg+xml' => 'svg'][$type];
+
+        // An SVG is stored as cleaned by the sanitiser, never as uploaded (as in the
+        // media library). The form request checked that it can be cleaned and sized.
+        $svg = $type === 'image/svg+xml' ? app(SvgSanitizer::class)->sanitizeFile($file) : null;
 
         // singleFile(): the previous logo and its conversion are deleted.
-        $media = $settings->addMedia($file)
+        $media = ($svg !== null ? $settings->addMediaFromString($svg) : $settings->addMedia($file))
             ->usingName('Logo')
             ->usingFileName("logo.$extension")
             ->toMediaCollection('logo');
 
-        // The conversion is made during the upload; its size goes into the API (width/height attributes).
-        $size = is_file($media->getPath('logo')) ? getimagesize($media->getPath('logo')) : false;
+        // The size goes into the API (width/height attributes). A raster logo's conversion
+        // is made during the upload and measured; an SVG has none and is sized from its markup.
+        if ($svg !== null) {
+            $size = SiteSetting::svgLogoSize(...SvgSize::of($svg));
+        } else {
+            $size = is_file($media->getPath('logo')) ? getimagesize($media->getPath('logo')) : false;
+        }
         if ($size) {
             $media->setCustomProperty('logo_width', $size[0])->setCustomProperty('logo_height', $size[1])->save();
         }
-    }
-
-    private function logoPreview(?Media $media): ?array
-    {
-        if (! $media || ! $media->hasGeneratedConversion('logo')) {
-            return null;
-        }
-
-        return [
-            'url' => $media->getUrl('logo'),
-            'width' => (int) $media->getCustomProperty('logo_width'),
-            'height' => (int) $media->getCustomProperty('logo_height'),
-        ];
     }
 
     /** ['inter' => 'Inter'] -> [['value' => 'inter', 'label' => 'Inter']] */

@@ -113,7 +113,12 @@ function pairs(buttons) {
         ['Light hero text', '--color-text', '--color-brand-tint', TEXT],
         ['Light hero text over image (black pixel)', '--color-text', lightOverBlack, TEXT],
         ['Light hero focus ring', '--color-brand-strong', '--color-brand-tint', UI],
-        ['Light hero focus ring over image (black pixel)', '--color-brand-strong', lightOverBlack, UI],
+        // Over an image the light hero's focus ring and outline buttons switch to --color-text (blocks.css).
+        ['Light hero focus ring over image (black pixel)', '--color-text', lightOverBlack, UI],
+        // No background ("none"): the page colour, also over an image (the text is on a
+        // page-colour panel), with the page's focus ring and buttons, so the page pairs.
+        ['No-background hero text', '--color-text', '--color-bg', TEXT],
+        ['No-background hero focus ring', '--color-focus', '--color-bg', UI],
     ];
 
     const solid = [
@@ -138,11 +143,12 @@ function pairs(buttons) {
         // Light hero: the page's buttons, darker where text sits on the tint.
         ['Light hero primary', '--color-on-brand', '--color-brand', TEXT],
         ['Light hero primary edge', '--color-brand', '--color-brand-tint', UI],
-        ['Light hero primary edge over image', '--color-brand', lightOverBlack, UI],
+        ['Light hero primary border over image', '--color-text', lightOverBlack, UI],
         ['Light hero primary hover', '--color-on-brand', '--color-brand-strong', TEXT],
         ['Light hero secondary', '--color-brand-strong', '--color-brand-tint', TEXT],
-        ['Light hero secondary over image', '--color-brand-strong', lightOverBlack, TEXT],
+        ['Light hero secondary over image', '--color-text', lightOverBlack, TEXT],
         ['Light hero secondary border', '--color-brand-strong', '--color-brand-tint', UI],
+        ['Light hero secondary border over image', '--color-text', lightOverBlack, UI],
         ['Light hero secondary hover', '--color-brand-strong', '--color-brand-tint-strong', TEXT],
     ];
 
@@ -163,7 +169,8 @@ function pairs(buttons) {
         ['Dark hero primary border', '--color-on-brand', '--color-brand-night', UI],
         ['Dark hero secondary (on shade)', '--color-on-brand', '--color-brand-strong', TEXT],
         ['Light hero primary', '--color-brand-strong', '--color-brand-tint', TEXT],
-        ['Light hero primary over image', '--color-brand-strong', lightOverBlack, TEXT],
+        ['Light hero primary over image', '--color-text', lightOverBlack, TEXT],
+        ['Light hero primary border over image', '--color-text', lightOverBlack, UI],
         ['Light hero primary border', '--color-brand-strong', '--color-brand-tint', UI],
         ['Light hero primary hover', '--color-brand-strong', '--color-brand-tint-strong', TEXT],
         ['Light hero secondary (on the page colour)', '--color-brand-strong', '--color-bg', TEXT],
