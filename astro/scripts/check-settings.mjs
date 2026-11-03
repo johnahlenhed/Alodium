@@ -15,6 +15,7 @@ const VALID = Object.freeze({
     show_site_name: false,
     theme: { brand: '#7A1F3D', fontBody: 'serif', fontHeading: 'system', corners: 'round', buttons: 'outline' },
     nav_background_color: '#1B2A4A',
+    footer_background_color: '#F5F1EA',
     logo: { url: `${API}/storage/9/conversions/logo-logo.png`, width: 240, height: 80 },
     navigation: [
         { label: 'Home', href: '/' },
@@ -52,6 +53,7 @@ test('a valid response is used as given, without warnings', () => {
         showSiteName: false,
         theme: { brand: '#7a1f3d', fontBody: 'serif', fontHeading: 'system', corners: 'round', buttons: 'outline' },
         navBackground: { color: '#1b2a4a', scheme: 'dark' },
+        footerBackground: { color: '#f5f1ea', scheme: 'light' },
         logo: VALID.logo,
         navigation: VALID.navigation,
         frontPage: { slug: 'about' },
@@ -193,6 +195,24 @@ test('nav_background_color: a colour one scheme works on with the brand colour, 
     for (const value of ['#888888', '#fff', 'navy', 'red;}header{display:none', 42, {}]) {
         const { site, warnings } = nav(value, { ...VALID.theme, brand: '#767676' });
         assert.equal(site.navBackground, null, JSON.stringify(value));
+        assert.equal(warnings.length, 1, JSON.stringify(value));
+    }
+});
+
+test('footer_background_color: as the header, with the footer\'s own checks', () => {
+    const footer = (value, theme = VALID.theme) => normalize({ footer_background_color: value, theme });
+    assert.deepEqual(footer('#1B2A4A').site.footerBackground, { color: '#1b2a4a', scheme: 'dark' });
+    for (const value of [undefined, null]) {
+        const { site, warnings } = footer(value);
+        assert.equal(site.footerBackground, null);
+        assert.deepEqual(warnings, []);
+    }
+    // #9E9E9E takes dark text in the header, but the footer's muted text needs a lighter colour.
+    assert.deepEqual(normalize({ nav_background_color: '#9E9E9E', footer_background_color: '#9E9E9E', theme: { ...VALID.theme, brand: '#1B2A4A' } }).site.footerBackground, null);
+    assert.equal(normalize({ nav_background_color: '#9E9E9E', theme: { ...VALID.theme, brand: '#1B2A4A' } }).site.navBackground.scheme, 'light');
+    for (const value of ['#888888', '#fff', 'red;}footer{display:none', 42]) {
+        const { site, warnings } = footer(value, { ...VALID.theme, brand: '#767676' });
+        assert.equal(site.footerBackground, null, JSON.stringify(value));
         assert.equal(warnings.length, 1, JSON.stringify(value));
     }
 });

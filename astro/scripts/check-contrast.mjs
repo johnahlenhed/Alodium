@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { contrast, HEX_PATTERN, mix, parseHex, toHex } from '../src/lib/color.js';
+import { FOOTER_COLOURS, footerScheme } from '../src/lib/footerBackground.js';
 import { NAV_COLOURS, navScheme } from '../src/lib/navBackground.js';
 import { isValidPageBackground, PAGE_COLOURS } from '../src/lib/pageBackground.js';
 import { isValidBrand } from '../src/lib/theme.js';
@@ -324,6 +325,53 @@ for (const brand of pageBrands) {
 }
 console.log(`Header backgrounds on ${pageBrands.length} brand colours: ${navCounts.light} with dark text, ${navCounts.dark} with white text (${navCounts.refused} refused): ${navFailures.length} failing pairs.`);
 failures.push(...navFailures.slice(0, 20));
+
+// --- footer background colours (site_settings.footer_background_color) ---------
+//
+// The same for the footer (src/lib/footerBackground.js, .site-footer--light and
+// --dark in site.css): it has muted text (--footer-muted) and no mark.
+
+for (const [key, name] of Object.entries({ text: '--color-text', textMuted: '--color-text-muted', onDark: '--color-on-brand' })) {
+    if (FOOTER_COLOURS[key].toLowerCase() !== declarations[name].toLowerCase()) {
+        failures.push(`footerBackground.js ${key} is ${FOOTER_COLOURS[key]}, blocks.css ${name} is ${declarations[name]}`);
+    }
+}
+
+const FOOTER_PAIRS = {
+    light: [
+        ['site name and menu links (--nav-text)', '--color-text', TEXT],
+        ['footer text and analytics note (--footer-muted)', '--color-text-muted', TEXT],
+        ['current page and hover (--nav-accent)', '--color-brand-strong', TEXT],
+        ['focus ring', '--color-brand-strong', UI],
+    ],
+    dark: [
+        ['site name, links, footer text, note, current page, hover', '--color-on-brand', TEXT],
+        ['focus ring', '--color-on-brand', UI],
+    ],
+};
+
+const footerCounts = { light: 0, dark: 0, refused: 0 };
+const footerFailures = [];
+for (const brand of pageBrands) {
+    const colours = palette(brand);
+    const candidates = [brand, toHex(colours['--color-brand-night'].rgb), declarations['--color-surface']];
+    for (let i = 0; i < 30; i++) candidates.push(toHex([random(), random(), random()].map((c) => Math.floor(c * 256))));
+    for (const background of candidates) {
+        const scheme = footerScheme(background, brand);
+        if (scheme === null) {
+            footerCounts.refused++;
+            continue;
+        }
+        footerCounts[scheme]++;
+        const bg = parseHex(background);
+        for (const [label, fg, min] of FOOTER_PAIRS[scheme]) {
+            const ratio = contrast(colours[fg].rgb, bg);
+            if (ratio < min) footerFailures.push(`${brand} footer ${background} (${scheme}): ${label} ${ratio.toFixed(2)} < ${min}`);
+        }
+    }
+}
+console.log(`Footer backgrounds on ${pageBrands.length} brand colours: ${footerCounts.light} with dark text, ${footerCounts.dark} with white text (${footerCounts.refused} refused): ${footerFailures.length} failing pairs.`);
+failures.push(...footerFailures.slice(0, 20));
 
 if (failures.length) {
     console.error(`\n${failures.length} pair(s) below the threshold:\n  ${failures.join('\n  ')}`);

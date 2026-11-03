@@ -174,7 +174,7 @@ body {
     min-height: var(--target-min);
     padding-inline: var(--space-3);
     border-radius: var(--radius);
-    /* --nav-*: set on a coloured header only, so the footer keeps the defaults. */
+    /* --nav-*: set on a coloured header or footer only; otherwise these defaults. */
     color: var(--nav-text, var(--color-text));
     text-decoration: none;
     text-decoration-thickness: 1px;
@@ -370,8 +370,31 @@ body {
 .site-footer {
     border-top: 1px solid var(--color-border);
     background: var(--color-surface);
-    color: var(--color-text-muted);
+    color: var(--footer-muted, var(--color-text-muted));
     font-size: var(--text-sm);
+}
+
+/*
+ * A footer colour from Settings (site_settings.footer_background_color, as
+ * --footer-bg), with the scheme src/lib/footerBackground.js chose for it. The
+ * links share the header's --nav-text and --nav-accent; --footer-muted is the
+ * footer text and the analytics note. Light: dark text, with the darker brand
+ * shade where the brand colour was. Dark: everything white, muted text too;
+ * the current page stays bold and underlined.
+ */
+.site-footer--light {
+    --nav-accent: var(--color-brand-strong);
+    --color-focus: var(--color-brand-strong);
+    background: var(--footer-bg);
+}
+
+.site-footer--dark {
+    --nav-text: var(--color-on-brand);
+    --nav-accent: var(--color-on-brand);
+    --footer-muted: var(--color-on-brand);
+    --color-focus: var(--color-on-brand);
+    border-top-color: transparent;
+    background: var(--footer-bg);
 }
 
 .site-footer__inner {
@@ -387,7 +410,7 @@ body {
 }
 
 .site-footer__name {
-    color: var(--color-text);
+    color: var(--nav-text, var(--color-text));
     font-family: var(--font-heading);
     font-weight: 600;
 }

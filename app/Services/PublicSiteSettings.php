@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Support\FooterBackground;
 use App\Support\NavBackground;
 use App\Support\ThemeOptions;
 
@@ -29,6 +30,7 @@ class PublicSiteSettings
             'show_site_name' => $settings->show_site_name,
             'theme' => $this->theme($settings),
             'nav_background_color' => $this->navBackground($settings),
+            'footer_background_color' => $this->footerBackground($settings),
             'logo' => $this->logo($settings),
             'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),
@@ -63,6 +65,14 @@ class PublicSiteSettings
         $value = $settings->nav_background_color;
 
         return NavBackground::scheme($value, ThemeOptions::resolveBrand($settings->brand_color)) !== null ? $value : null;
+    }
+
+    /** The footer's background colour, or null, sent on the same terms as the header's. */
+    private function footerBackground(SiteSetting $settings): ?string
+    {
+        $value = $settings->footer_background_color;
+
+        return FooterBackground::scheme($value, ThemeOptions::resolveBrand($settings->brand_color)) !== null ? $value : null;
     }
 
     /** The PNG conversion or the sanitised SVG, at the chosen height, or null (SiteSetting::logoImage()). */

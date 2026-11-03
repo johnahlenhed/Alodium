@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Rules\BrandColor;
+use App\Rules\FooterBackgroundColor;
 use App\Rules\NavBackgroundColor;
 use App\Rules\NavigationLink;
 use App\Services\SvgSanitizer;
@@ -47,6 +48,7 @@ class UpdateSiteSettingsRequest extends FormRequest
             // Checked with the brand colour in this same form (it can change in the same save).
             // Missing keeps the stored colour, so a Settings page loaded before this field still saves.
             'nav_background_color' => ['sometimes', 'nullable', new NavBackgroundColor(ThemeOptions::resolveBrand($this->input('brand_color')))],
+            'footer_background_color' => ['sometimes', 'nullable', new FooterBackgroundColor(ThemeOptions::resolveBrand($this->input('brand_color')))],
             'font_body' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
             'font_heading' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
             'corners' => ['required', 'string', Rule::in(array_keys(ThemeOptions::CORNERS))],

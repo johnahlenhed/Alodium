@@ -6,6 +6,7 @@
 // build warning. Text stays text: the templates output it with Astro's normal
 // escaping, never set:html.
 
+import { footerScheme } from './footerBackground.js';
 import { navScheme } from './navBackground.js';
 import { SITE_DEFAULTS } from './site.js';
 import { DEFAULT_SETTINGS, resolveSettings } from './theme.js';
@@ -81,7 +82,8 @@ export function normalizeSite(raw, { apiOrigin, warn = (message) => console.warn
         footerText: text('footer_text', 'footerText', LIMITS.footerText, false),
         showSiteName,
         theme: resolvedTheme,
-        navBackground: navBackground(raw.nav_background_color, resolvedTheme.brand, warn),
+        navBackground: schemeColour('nav_background_color', raw.nav_background_color, navScheme(raw.nav_background_color, resolvedTheme.brand), 'the header keeps the page colour', warn),
+        footerBackground: schemeColour('footer_background_color', raw.footer_background_color, footerScheme(raw.footer_background_color, resolvedTheme.brand), 'the footer keeps its grey', warn),
         logo: logo(raw.logo, apiOrigin, warn),
         navigation: navigation(raw.navigation, warn),
         frontPage: frontPage(raw.front_page, warn),
@@ -89,15 +91,15 @@ export function normalizeSite(raw, { apiOrigin, warn = (message) => console.warn
 }
 
 /**
- * The header's colour, checked again with the brand colour this build uses
- * (src/lib/navBackground.js): { color, scheme } or null. Missing (an API from
- * before the setting) and null both mean none.
+ * The header's or footer's colour, checked again with the brand colour this
+ * build uses (scheme: navScheme() or footerScheme() of the value): { color,
+ * scheme } or null. Missing (an API from before the setting) and null both
+ * mean none.
  */
-function navBackground(value, brand, warn) {
+function schemeColour(key, value, scheme, fallback, warn) {
     if (value === undefined || value === null) return null;
-    const scheme = navScheme(value, brand);
     if (scheme === null) {
-        warn('"nav_background_color" is invalid or unreadable with the brand colour; the header keeps the page colour.');
+        warn(`"${key}" is invalid or unreadable with the brand colour; ${fallback}.`);
         return null;
     }
     return { color: value.toLowerCase(), scheme };

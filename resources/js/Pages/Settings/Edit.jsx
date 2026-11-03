@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import BrandColorField from './Partials/BrandColorField';
+import FooterBackgroundField from './Partials/FooterBackgroundField';
 import NavBackgroundField from './Partials/NavBackgroundField';
 import NavigationEditor from './Partials/NavigationEditor';
 import ThemePreview from './Partials/ThemePreview';
@@ -68,6 +69,7 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
         logo_height: settings.logo_height,
         brand_color: settings.brand_color,
         nav_background_color: settings.nav_background_color ?? null,
+        footer_background_color: settings.footer_background_color ?? null,
         font_body: settings.font_body,
         font_heading: settings.font_heading,
         corners: settings.corners,
@@ -284,6 +286,14 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
                         value={data.nav_background_color}
                         onChange={(value) => setData('nav_background_color', value)}
                         error={errors.nav_background_color}
+                        brandColor={data.brand_color}
+                        siteName={data.site_name}
+                    />
+
+                    <FooterBackgroundField
+                        value={data.footer_background_color}
+                        onChange={(value) => setData('footer_background_color', value)}
+                        error={errors.footer_background_color}
                         brandColor={data.brand_color}
                         siteName={data.site_name}
                     />

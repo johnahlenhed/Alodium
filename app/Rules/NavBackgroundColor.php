@@ -3,6 +3,7 @@
 namespace App\Rules;
 
 use App\Support\ColorContrast;
+use App\Support\ContrastChecks;
 use App\Support\NavBackground;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -24,14 +25,9 @@ class NavBackgroundColor implements ValidationRule
             return;
         }
 
-        $worst = NavBackground::worst($value, $this->brand);
-        if ($worst['light'] !== null && $worst['dark'] !== null) {
-            $describe = fn (array $check) => sprintf('%s at %s:1 (minimum %s:1)', $check['what'], ColorContrast::format($check['ratio']), number_format($check['minimum'], 1));
-            $fail(sprintf(
-                'Neither dark nor white text works on this colour. With dark text, %s; with white text, %s. Try a lighter or a darker shade.',
-                $describe($worst['light']),
-                $describe($worst['dark']),
-            ));
+        $message = ContrastChecks::schemeMessage(NavBackground::worst($value, $this->brand));
+        if ($message !== null) {
+            $fail($message);
         }
     }
 }

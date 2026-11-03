@@ -38,4 +38,25 @@ final class ContrastChecks
 
         return $worst;
     }
+
+    /**
+     * For a colour with two schemes (dark text, white text; NavBackground,
+     * FooterBackground): the message when neither passes, naming each one's
+     * worst check, or null when one passes.
+     *
+     * @param  array{light: ?array, dark: ?array}  $worst
+     */
+    public static function schemeMessage(array $worst): ?string
+    {
+        if ($worst['light'] === null || $worst['dark'] === null) {
+            return null;
+        }
+        $describe = fn (array $check) => sprintf('%s at %s:1 (minimum %s:1)', $check['what'], ColorContrast::format($check['ratio']), number_format($check['minimum'], 1));
+
+        return sprintf(
+            'Neither dark nor white text works on this colour. With dark text, %s; with white text, %s. Try a lighter or a darker shade.',
+            $describe($worst['light']),
+            $describe($worst['dark']),
+        );
+    }
 }

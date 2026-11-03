@@ -97,6 +97,16 @@ for (const file of pageFiles) {
         fail(`the header is ${header}, with no colour set`);
     }
 
+    // The footer's colour (footer_background_color), the same way.
+    const footer = first(html, /(<footer\b[^>]*>)/) ?? '';
+    const footerClass = first(footer, /class="([^"]*)"/);
+    const footerBg = first(footer, /style="--footer-bg: (#[0-9a-f]{6})"/);
+    if (site.footer_background_color) {
+        if (footerBg !== site.footer_background_color.toLowerCase() || !/^site-footer site-footer--(light|dark)$/.test(footerClass ?? '')) fail(`the footer is ${footer}, not coloured ${site.footer_background_color}`);
+    } else if (footerClass !== 'site-footer' || footerBg !== undefined) {
+        fail(`the footer is ${footer}, with no colour set`);
+    }
+
     const brand = first(html, /<a class="site-brand" href="\/">([\s\S]*?)<\/a><nav/) ?? '';
     const name = first(brand, /<span class="site-brand__name">([^<]*)<\/span>/);
     if (site.logo) {

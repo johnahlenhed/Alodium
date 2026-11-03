@@ -8,6 +8,8 @@ export { HEX_PATTERN };
 export { PAGE_COLOURS, worstPageBackgroundCheck } from '../../../astro/src/lib/pageBackground.js';
 // The header's background colour: the same for App\Support\NavBackground.
 export { NAV_COLOURS, navScheme, worstNavBackgroundChecks } from '../../../astro/src/lib/navBackground.js';
+// The footer's: the same for App\Support\FooterBackground.
+export { FOOTER_COLOURS, footerScheme, worstFooterBackgroundChecks } from '../../../astro/src/lib/footerBackground.js';
 
 /** --color-brand-strong for this brand (#rrggbb), as blocks.css mixes it: links on a page background. */
 export function brandStrong(hex) {
