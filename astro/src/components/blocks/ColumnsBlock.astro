@@ -16,9 +16,11 @@ const columns = data.columns.filter(hasColumnContent).map((column) => ({
     html: htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? '') ? column.html : null,
 }));
 const variant = variantClass(data.variant, PANEL_VARIANTS);
+// The layout follows the columns that are shown: three with one empty is laid out as two.
+const layout = columns.length === 1 ? 'block-columns--single' : columns.length === 3 ? 'block-columns--three' : null;
 ---
 
-<section class={classes('block', 'block-columns', columns.length === 1 && 'block-columns--single', variant && 'block--panel', variant)} data-block-id={id}>
+<section class={classes('block', 'block-columns', layout, variant && 'block--panel', variant)} data-block-id={id}>
     {
         columns.map((column) => (
             <div class="column">

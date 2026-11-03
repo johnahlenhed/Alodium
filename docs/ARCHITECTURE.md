@@ -178,6 +178,14 @@ normalises on save; HTML fields go through `ContentSanitizer`. Astro checks
 again at render time (`safeLink`, `safeImage`). A hero as the first rendered
 block provides the page's `<h1>` (`CmsPage.astro`).
 
+**Columns.** `data.columns` is a list of two or three `{html, image, alt}` of
+equal width (`ColumnsBlock::MIN_COLUMNS`/`MAX_COLUMNS`, the same in
+`blocksReducer.js`). The editor's count field adds an empty column or cuts the
+last, asking first if it has content. On the site an empty column is left out
+and the layout follows the columns shown (`block-columns--single`, none for
+two, `block-columns--three`): two side by side from 720px, three from 960px
+(in the reading column while stacked), stacked below.
+
 **Page background colour (`pages.background_color`).** Any `#RRGGBB` on which
 everything that sits straight on the page stays readable: the text, muted
 text, links and button text (the darker brand shades on a coloured page),
@@ -548,6 +556,7 @@ The README requires the worker to run with `--timeout=660` and
 | `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css`; also that every page background `pageBackground.js` accepts, and every header and footer colour `navBackground.js` and `footerBackground.js` accept (in the scheme they pick), meets the thresholds for the colours CSS puts on it, and that both rules' fixed colours equal `blocks.css` |
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
+| `check-blocks.mjs` | `npm run check`, and `--built` in `npm run check:build` | the columns block: `ColumnsBlock.astro` rendered with Astro's container API (which columns show, the class for two, three or one), and from `blocks.css` (or the built CSS) how many sit side by side at 375 to 1280px and where panel corners go square |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |
 | `derive-font-fallbacks.mjs` | (manual) | fallback font metrics in `fonts.js` |
 
