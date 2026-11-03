@@ -52,7 +52,7 @@ app/
   Blocks/            BlockRegistry + BlockType, one class per block type in Types/
   Console/Commands/  db:backup, media:backup-remote, content:publish-scheduled,
                      content:sanitize, db:backup-test-remote, user:set-password,
-                     app:ensure-key, app:configure-env
+                     app:ensure-key, app:configure-env, demo:reset-content
   Http/Controllers/  admin pages (Inertia) and API controllers; Auth/ is Breeze
   Http/Middleware/   RequireAdmin ("admin" alias), HandleInertiaRequests, EnsureRegistrationIsEnabled
   Http/Requests/     UpdateSiteSettingsRequest, ProfileUpdateRequest, Auth/LoginRequest
@@ -382,6 +382,7 @@ forgot-password page, which fails the same way.
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
 | `app:ensure-key` | `composer setup`, README step 3 | runs `key:generate` only when `.env` has no `APP_KEY`; otherwise explains why it skipped (a new key logs everyone out and makes encrypted data unreadable) |
 | `app:configure-env` | README step 3, again to add skipped values | generates `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` and (if left empty) `DB_PASSWORD`, asks for the database user, Resend key, Sentry DSN and S3 bucket; never replaces a value already set; writes `.env` once, then `config:cache` once (section 11) |
+| `demo:reset-content` | manually | empties the content for demo content: posts and pages (through their models, so revisions and media files go too), media library uploads, the menu, submissions, import reports; resets the site settings. Keeps users and visits. Needs `--force`, `--site=` the host of `APP_URL` (APP_ENV can't tell a demo site from a client's), a yes at a terminal, and a successful `db:backup` first unless `--no-backup` |
 | `user:set-password` | manually | sets a user's password (hidden prompt or `--generate`), creating an admin for a new email; sends no email (section 7) |
 
 The README requires the worker to run with `--timeout=660` and
