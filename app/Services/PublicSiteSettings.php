@@ -55,7 +55,7 @@ class PublicSiteSettings
         ];
     }
 
-    /** The 128px-high conversion or the sanitised SVG, with its size, or null (SiteSetting::logoImage()). */
+    /** The PNG conversion or the sanitised SVG, at the chosen height, or null (SiteSetting::logoImage()). */
     private function logo(SiteSetting $settings): ?array
     {
         $logo = $settings->logoImage();

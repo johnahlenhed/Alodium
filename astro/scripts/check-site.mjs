@@ -2,7 +2,7 @@
 // GET /api/public/site (run `npm run build:local` first, with Laravel running):
 //   - the name, footer text and navigation labels are escaped text
 //   - header and footer navigation equal the API's, in order, without the front page
-//   - the logo <img> has the API's width and height and the right alt text
+//   - the logo <img> has the API's width and height (also as its CSS height) and the right alt text
 //   - <head> has the theme variables, data-button and only the selected font files
 //   - "/" renders the front page (the same content as /{slug}/) with one <h1>,
 //     or, without a front page, the latest 6 posts and a link to /blog/
@@ -93,6 +93,8 @@ for (const file of pageFiles) {
         const img = first(brand, TAG('img')) ?? '';
         if (first(img, /src="([^"]*)"/) !== site.logo.url) fail('the logo src is not the API URL');
         if (first(img, /width="(\d+)"/) !== String(site.logo.width) || first(img, /height="(\d+)"/) !== String(site.logo.height)) fail('the logo has no matching width/height');
+        // The CSS height is the chosen one too (Settings), in rem.
+        if (first(img, /style="([^"]*)"/) !== `--logo-height: ${site.logo.height / 16}rem`) fail('the logo is not shown at the height from the API');
         // Astro writes alt="" as a bare "alt", which HTML reads as the same empty value.
         const altMatch = img.match(/\salt(?:="([^"]*)")?(?=[\s>/])/);
         const alt = altMatch ? (altMatch[1] ?? '') : undefined;

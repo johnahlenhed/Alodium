@@ -95,7 +95,8 @@ class PublicSiteApiTest extends TestCase
         $this->assertSame(url($media->getUrl('logo')), $logo['url']);
         $this->assertStringContainsString('/conversions/', $logo['url']);
         $this->assertStringEndsWith('.png', $logo['url']);
-        $this->assertSame(['width' => 384, 'height' => 128], ['width' => $logo['width'], 'height' => $logo['height']]);
+        // The size it is shown at: the default 36px high, with the width keeping the 3:1 proportions.
+        $this->assertSame(['width' => 108, 'height' => 36], ['width' => $logo['width'], 'height' => $logo['height']]);
     }
 
     public function test_an_svg_logo_is_served_as_the_sanitised_file_itself(): void
@@ -105,12 +106,12 @@ class PublicSiteApiTest extends TestCase
 
         $logo = $this->getJson('/api/public/site')->json('logo');
 
-        // Absolute, the original (there is no conversion for an SVG), with its size scaled to 128px high.
+        // Absolute, the original (there is no conversion for an SVG), at the default 36px high.
         $this->assertSame(url($media->getUrl()), $logo['url']);
         $this->assertStringStartsWith(rtrim(config('app.url'), '/').'/storage/', $logo['url']);
         $this->assertStringEndsWith('/logo.svg', $logo['url']);
         $this->assertStringNotContainsString('/conversions/', $logo['url']);
-        $this->assertSame(['width' => 384, 'height' => 128], ['width' => $logo['width'], 'height' => $logo['height']]);
+        $this->assertSame(['width' => 108, 'height' => 36], ['width' => $logo['width'], 'height' => $logo['height']]);
 
         // The file at that URL is the sanitised one.
         $file = Storage::disk('public')->get(substr(parse_url($logo['url'], PHP_URL_PATH), strlen('/storage/')));

@@ -24,7 +24,9 @@ const { name, logo } = settings;
 const showName = !logo || settings.showSiteName;
 const { pathname } = Astro.url;
 // The logo: decorative next to the name (alt=""), otherwise its alt text is the name.
-// Its width/height attributes reserve the space; CSS sets the height (no layout shift).
+// Its width/height attributes reserve the space; CSS sets the height (no layout shift),
+// from the height chosen in Settings, in rem as before (36px = the old 2.25rem).
+const logoHeight = logo ? `--logo-height: ${logo.height / 16}rem` : undefined;
 ---
 
 <header class="site-header">
@@ -32,7 +34,7 @@ const { pathname } = Astro.url;
         <a class="site-brand" href="/">
             {
                 logo ? (
-                    <img class="site-brand__logo" src={logo.url} width={logo.width} height={logo.height} alt={showName ? '' : name} />
+                    <img class="site-brand__logo" src={logo.url} width={logo.width} height={logo.height} alt={showName ? '' : name} style={logoHeight} />
                 ) : (
                     <BrandMark class="site-brand__mark" />
                 )
