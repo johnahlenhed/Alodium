@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { contrast, HEX_PATTERN, mix, parseHex, toHex } from '../src/lib/color.js';
+import { isValidPageBackground, PAGE_COLOURS } from '../src/lib/pageBackground.js';
 import { isValidBrand } from '../src/lib/theme.js';
 
 const quiet = process.argv.includes('--quiet');
@@ -225,6 +226,52 @@ for (const brand of sample) {
 }
 console.log(`\nSample: ${sample.length} accepted brand colours (${nearLimit.length} between 4.5 and 4.7:1), both button styles: ${sweepFailures.length} failing pairs.`);
 failures.push(...sweepFailures.slice(0, 20));
+
+// --- page background colours (pages.background_color, .page-background) -------
+//
+// The client picks any colour src/lib/pageBackground.js accepts. Its fixed
+// colours must be the ones in blocks.css, and on every colour it accepts, the
+// colours blocks.css puts on a .page-background must meet their thresholds.
+
+for (const [key, name] of Object.entries({ text: '--color-text', textMuted: '--color-text-muted', borderStrong: '--color-border-strong', success: '--color-success', error: '--color-error' })) {
+    if (PAGE_COLOURS[key].toLowerCase() !== declarations[name].toLowerCase()) {
+        failures.push(`pageBackground.js ${key} is ${PAGE_COLOURS[key]}, blocks.css ${name} is ${declarations[name]}`);
+    }
+}
+
+/** [label, colour on .page-background, minimum]; the background is --page-bg. */
+const PAGE_PAIRS = [
+    ['text, headings', '--color-text', TEXT],
+    ['muted text', '--color-text-muted', TEXT],
+    ['links (--color-link), secondary and outline button text', '--color-brand-strong', TEXT],
+    ['link hover', '--color-brand-deep', TEXT],
+    ['contact form success', '--color-success', TEXT],
+    ['contact form errors', '--color-error', TEXT],
+    ['focus ring (--color-focus)', '--color-brand-strong', UI],
+    ['form field borders', '--color-border-strong', UI],
+    ['solid primary button edge', '--color-brand', UI],
+    ['secondary and outline button borders', '--color-brand-strong', UI],
+];
+
+const pageBrands = [declarations['--color-brand'], '#7A1F3D', '#0B5D3B', ...sample.filter((_, i) => i % 10 === 0), ...nearLimit];
+let pageChecked = 0;
+const pageFailures = [];
+for (const brand of pageBrands) {
+    const colours = palette(brand);
+    for (let i = 0; i < 40; i++) {
+        // Light colours, where the rule has to decide; it accepts some and refuses others.
+        const background = toHex([random(), random(), random()].map((c) => 200 + Math.floor(c * 56)));
+        if (!isValidPageBackground(background, brand)) continue;
+        pageChecked++;
+        const bg = parseHex(background);
+        for (const [label, fg, min] of PAGE_PAIRS) {
+            const ratio = contrast(colours[fg].rgb, bg);
+            if (ratio < min) pageFailures.push(`${brand} on page ${background}: ${label} ${ratio.toFixed(2)} < ${min}`);
+        }
+    }
+}
+console.log(`Page backgrounds: ${pageChecked} accepted colours on ${pageBrands.length} brand colours: ${pageFailures.length} failing pairs.`);
+failures.push(...pageFailures.slice(0, 20));
 
 if (failures.length) {
     console.error(`\n${failures.length} pair(s) below the threshold:\n  ${failures.join('\n  ')}`);

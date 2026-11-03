@@ -47,6 +47,8 @@ class Page extends Model implements HasMedia
         'meta_title',
         'meta_description',
         'og_image',
+        // #RRGGBB or null (none); see App\Rules\PageBackgroundColor. Not part of revisions.
+        'background_color',
         'status',
         'published_at',
         'publish_at',

@@ -9,6 +9,7 @@ import BlockEditor from '@/Components/Blocks/BlockEditor';
 import Checkbox from '@/Components/Checkbox';
 import { Link } from '@inertiajs/react';
 import { useCallback, useRef, useState } from 'react';
+import PageBackgroundField from './PageBackgroundField';
 
 const textareaClass =
     'mt-1 block w-full rounded-md border-gray-400 shadow-sm focus:border-brand-500 focus:ring-brand-500';
@@ -17,8 +18,9 @@ const textareaClass =
 // mode: "blocks" (block editor) or "classic" (one rich-text editor for `content`,
 // for legacy pages). onConvert switches a legacy page to blocks (Edit only).
 // frontPage: the "Make this the home page" option (Create, admins only), with
-// form.data.make_front_page; see PageController::frontPageOption().
-export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic', onConvert, frontPage }) {
+// form.data.make_front_page; see PageController::frontPageOption(). brandColor:
+// the site's brand colour, for the background colour's contrast readout.
+export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic', onConvert, frontPage, brandColor }) {
     const { data, setData, errors, processing } = form;
 
     // Stable setter for the block list, so block cards keep stable callbacks.
@@ -136,6 +138,13 @@ export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic'
                     <InputError message={errors.publish_at} className="mt-2" />
                 </div>
             )}
+
+            <PageBackgroundField
+                value={data.background_color}
+                onChange={(value) => setData('background_color', value)}
+                error={errors.background_color}
+                brandColor={brandColor}
+            />
 
             <div>
                 <InputLabel htmlFor="meta_title" value="Meta title" />

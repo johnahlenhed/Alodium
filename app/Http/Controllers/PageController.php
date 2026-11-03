@@ -9,8 +9,10 @@ use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\Revision;
 use App\Models\SiteSetting;
+use App\Rules\PageBackgroundColor;
 use App\Services\PublicSiteBuilds;
 use App\Services\PublicSiteSettings;
+use App\Support\ThemeOptions;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
@@ -47,6 +49,7 @@ class PageController extends Controller
             'hasBlocks' => true,
             'blocks' => [],
             'frontPage' => $this->frontPageOption($request),
+            'brandColor' => ThemeOptions::resolveBrand(SiteSetting::current()->brand_color),
         ]);
     }
 
@@ -122,6 +125,8 @@ class PageController extends Controller
             // For a legacy page: its content as one text block, used if it is converted.
             'blocks' => $page->blocksOrLegacy(),
             'hasBlocks' => $page->hasBlocks(),
+            // For the background colour's live contrast readout (PageBackgroundField).
+            'brandColor' => ThemeOptions::resolveBrand(SiteSetting::current()->brand_color),
             // Whether the page is live yet (rebuilds take a minute or two), and where.
             'publicSite' => $builds->pageStatus($page),
             // The menu and the front page are on the Settings page, which only admins can use.
@@ -254,6 +259,9 @@ class PageController extends Controller
             'meta_description' => ['nullable', 'string', 'max:255'],
             // Full URL of the social sharing image, picked from the media library.
             'og_image' => ['nullable', 'string', 'max:2048', 'url:http,https'],
+            // Optional; without the key the stored colour is kept. Checked against the
+            // brand colour the public site uses now, as the site checks it again.
+            'background_color' => ['sometimes', 'nullable', new PageBackgroundColor(ThemeOptions::resolveBrand(SiteSetting::current()->brand_color))],
             ...($hasBlocks ? $this->blockRegistry->rules($blocks) : []),
         ], [], $hasBlocks ? $this->blockRegistry->attributes($blocks) : []);
 
@@ -263,6 +271,10 @@ class PageController extends Controller
 
         $validated = $this->sanitizeContent($validator->validate());
         unset($validated['blocks']);
+        if (array_key_exists('background_color', $validated)) {
+            // Stored uppercase, like the brand colour.
+            $validated['background_color'] = $validated['background_color'] === null ? null : strtoupper($validated['background_color']);
+        }
 
         if ($hasBlocks) {
             $validated['blocks'] = $this->blockRegistry->normalize($blocks);
