@@ -9,7 +9,10 @@ use App\Support\PlainText;
 
 class ColumnsBlock extends BlockType
 {
-    public const COLUMNS = 2;
+    /** Two or three columns of equal width (resources/js/Components/Blocks/blocksReducer.js has the same). */
+    public const MIN_COLUMNS = 2;
+
+    public const MAX_COLUMNS = 3;
 
     public function name(): string
     {
@@ -25,7 +28,7 @@ class ColumnsBlock extends BlockType
     public function rules(): array
     {
         return [
-            'columns' => ['required', 'array', 'size:'.self::COLUMNS],
+            'columns' => ['required', 'array', 'between:'.self::MIN_COLUMNS.','.self::MAX_COLUMNS],
             'columns.*' => ['array'],
             'columns.*.html' => ['nullable', 'string', 'max:100000'],
             'columns.*.image' => ['nullable', new MediaUrl],

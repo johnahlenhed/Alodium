@@ -26,7 +26,7 @@ export const BLOCK_TYPES = {
         component: ColumnsBlock,
         check: (data) => {
             if (!Array.isArray(data.columns)) return 'columns are missing';
-            return data.columns.some(hasColumnContent) ? null : 'both columns are empty';
+            return data.columns.some(hasColumnContent) ? null : 'all columns are empty';
         },
     },
     button: {

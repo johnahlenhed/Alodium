@@ -2,8 +2,8 @@
 // Plain Node checks for the pure block-list operations (no test framework).
 import assert from 'node:assert/strict';
 import {
-    MAX_BLOCKS, addBlock, canAdd, convertToBlocks, errorsByBlockId, hasContent,
-    moveBlock, moveBlockBy, newBlockId, removeBlock, updateBlockData,
+    MAX_BLOCKS, MAX_COLUMNS, MIN_COLUMNS, addBlock, canAdd, convertToBlocks, errorsByBlockId, hasContent,
+    moveBlock, moveBlockBy, newBlockId, removeBlock, resizeColumns, updateBlockData,
 } from './blocksReducer.js';
 
 const list = () => [
@@ -98,6 +98,24 @@ check('hasContent', () => {
     assert.equal(hasContent({ html: '<p></p>' }), false);
     assert.equal(hasContent({ html: '<p>x</p>' }), true);
     assert.equal(hasContent({ columns: [{ html: '' }, { html: 'y' }] }), true);
+});
+
+check('columns grow to three with an empty column and shrink back from the end', () => {
+    const two = [{ html: 'L' }, { html: 'R' }];
+    const three = resizeColumns(two, 3);
+    assert.deepEqual(three, [{ html: 'L' }, { html: 'R' }, { html: '', image: '', alt: '' }]);
+    assert.equal(three[0], two[0]); // kept columns keep their identity
+    assert.equal(two.length, 2); // input not mutated
+
+    const back = resizeColumns([...two, { html: 'Third' }], 2);
+    assert.deepEqual(back, two);
+    assert.equal(resizeColumns(two, 2), two); // no change, same array
+});
+
+check('the column count stays within the server limits', () => {
+    assert.equal(resizeColumns([{ html: 'a' }], 1).length, MIN_COLUMNS);
+    assert.equal(resizeColumns([], 9).length, MAX_COLUMNS);
+    assert.equal(resizeColumns(undefined, 3).length, 3);
 });
 
 check('server errors are grouped by the submitted block ids', () => {
