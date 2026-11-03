@@ -140,7 +140,7 @@ class PageBlocksTest extends TestCase
             'text html' => ['text', [], 'html'],
             'image image' => ['image', ['alt' => 'x'], 'image'],
             'columns columns' => ['columns', [], 'columns'],
-            'columns needs exactly two' => ['columns', ['columns' => [['html' => '<p>one</p>']]], 'columns'],
+            'columns needs at least two' => ['columns', ['columns' => [['html' => '<p>one</p>']]], 'columns'],
             'button label' => ['button', ['url' => '/x'], 'label'],
             'button url' => ['button', ['label' => 'Go'], 'url'],
         ];
@@ -153,6 +153,20 @@ class PageBlocksTest extends TestCase
             ['id' => 'ok', 'type' => 'text', 'data' => ['html' => '<p>fine</p>']],
             ['id' => 'bad', 'type' => $type, 'data' => $data],
         ]])->assertSessionHasErrors("blocks.1.data.{$field}");
+    }
+
+    public function test_a_columns_block_has_two_or_three_columns(): void
+    {
+        $columns = fn (int $count) => ['type' => 'columns', 'data' => ['columns' => array_fill(0, $count, ['html' => '<p>x</p>'])]];
+
+        $this->save($this->page(), ['blocks' => [$columns(1), $columns(4)]])->assertSessionHasErrors([
+            'blocks.0.data.columns' => 'The columns field must have between 2 and 3 items.',
+            'blocks.1.data.columns' => 'The columns field must have between 2 and 3 items.',
+        ]);
+
+        $page = $this->page(['slug' => 'ok']);
+        $this->save($page, ['blocks' => [$columns(2), $columns(3)]])->assertSessionHasNoErrors();
+        $this->assertSame([2, 3], array_map(fn ($block) => count($block['data']['columns']), $page->fresh()->blockList()));
     }
 
     public function test_field_limits_are_enforced_including_contact_form(): void
@@ -341,6 +355,52 @@ class PageBlocksTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertTrue(Page::where('title', 'Landing')->firstOrFail()->hasBlocks());
+    }
+
+    public function test_a_three_column_block_is_created_and_round_trips_through_the_editor(): void
+    {
+        $this->actingAs($this->admin)->post('/pages', [
+            'title' => 'Services', 'status' => 'published',
+            'blocks' => [['id' => 'three', 'type' => 'columns', 'data' => ['variant' => 'light', 'columns' => [
+                ['html' => '<p>Design</p>', 'image' => '/storage/1/design.jpg', 'alt' => 'Sketches'],
+                ['html' => '<p onclick="x()">Build</p>', 'image' => '', 'alt' => ''],
+                ['html' => '<p>Host</p>', 'image' => 'https://cdn.example.com/host.jpg', 'alt' => 'Servers'],
+            ]]]],
+        ])->assertSessionHasNoErrors();
+
+        $page = Page::where('title', 'Services')->firstOrFail();
+        $stored = [['id' => 'three', 'type' => 'columns', 'data' => ['columns' => [
+            ['html' => '<p>Design</p>', 'image' => '/storage/1/design.jpg', 'alt' => 'Sketches'],
+            ['html' => '<p>Build</p>', 'image' => null, 'alt' => null],
+            ['html' => '<p>Host</p>', 'image' => 'https://cdn.example.com/host.jpg', 'alt' => 'Servers'],
+        ], 'variant' => 'light']]];
+        $this->assertSame($stored, $page->blockList());
+
+        // The editor gets all three columns back, in order...
+        $editorBlocks = null;
+        $this->actingAs($this->admin)->get(route('pages.edit', $page))->assertInertia(function ($inertia) use ($stored, &$editorBlocks) {
+            $inertia->where('blocks', $stored);
+            $editorBlocks = $inertia->toArray()['props']['blocks'];
+        });
+
+        // ...and saving them unchanged keeps them as they are, with no new revision.
+        $this->save($page, ['blocks' => $editorBlocks])->assertSessionHasNoErrors();
+        $this->assertSame($stored, $page->fresh()->blockList());
+        $this->assertSame(0, $page->revisions()->count());
+
+        // Editing the third column changes only that one.
+        $editorBlocks[0]['data']['columns'][2]['html'] = '<p>Host and monitor</p>';
+        $this->save($page, ['blocks' => $editorBlocks])->assertSessionHasNoErrors();
+        $columns = $page->fresh()->blockList()[0]['data']['columns'];
+        $this->assertSame('<p>Host and monitor</p>', $columns[2]['html']);
+        $this->assertSame(array_slice($stored[0]['data']['columns'], 0, 2), array_slice($columns, 0, 2));
+
+        // The public site gets all three, with the excerpt from every column.
+        $this->getJson('/api/public/pages/services')
+            ->assertJsonCount(3, 'blocks.0.data.columns')
+            ->assertJsonPath('blocks.0.data.columns.2.html', '<p>Host and monitor</p>')
+            ->assertJsonPath('blocks.0.data.columns.0.image', '/storage/1/design.jpg'); // Astro makes it absolute
+        $this->getJson('/api/public/pages')->assertJsonPath('0.excerpt', 'Design Build Host and monitor');
     }
 
     public function test_blocks_null_turns_a_block_page_back_into_a_legacy_page(): void

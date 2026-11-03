@@ -13,6 +13,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseRules, splitTopLevel } from './lib/css.mjs';
 
 const dist = fileURLToPath(new URL('../dist', import.meta.url));
 const errors = [];
@@ -22,57 +23,6 @@ const check = (ok, message) => ok || errors.push(message);
 
 const cssFiles = readdirSync(join(dist, '_astro')).filter((file) => file.endsWith('.css'));
 const css = cssFiles.map((file) => readFileSync(join(dist, '_astro', file), 'utf8')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
-
-function parseRules(text, at = '') {
-    const rules = [];
-    let i = 0;
-    while (i < text.length) {
-        const open = text.indexOf('{', i);
-        if (open === -1) break;
-        const prelude = text.slice(i, open).trim();
-        let depth = 1;
-        let j = open + 1;
-        while (depth > 0 && j < text.length) {
-            if (text[j] === '{') depth++;
-            else if (text[j] === '}') depth--;
-            j++;
-        }
-        const body = text.slice(open + 1, j - 1);
-        if (prelude.startsWith('@font-face')) {
-            // not a style rule
-        } else if (prelude.startsWith('@')) {
-            rules.push(...parseRules(body, prelude));
-        } else {
-            const declarations = {};
-            for (const part of body.split(/;(?![^(]*\))/)) {
-                const colon = part.indexOf(':');
-                if (colon > 0) declarations[part.slice(0, colon).trim()] = part.slice(colon + 1).trim();
-            }
-            rules.push({ selectors: splitTopLevel(prelude), declarations, at });
-        }
-        i = j;
-    }
-    return rules;
-}
-
-/** Splits on commas outside parentheses. */
-function splitTopLevel(text, separator = ',') {
-    const parts = [];
-    let depth = 0;
-    let current = '';
-    for (const char of text) {
-        if (char === '(') depth++;
-        if (char === ')') depth--;
-        if (char === separator && depth === 0) {
-            parts.push(current.trim());
-            current = '';
-        } else {
-            current += char;
-        }
-    }
-    parts.push(current.trim());
-    return parts;
-}
 
 const rules = parseRules(css);
 const normal = (value) => value?.replace(/\s+/g, '');

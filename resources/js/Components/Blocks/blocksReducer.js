@@ -67,6 +67,25 @@ export function convertToBlocks(legacyBlocks) {
     }));
 }
 
+/** Same limits as the server (App\Blocks\Types\ColumnsBlock). */
+export const MIN_COLUMNS = 2;
+export const MAX_COLUMNS = 3;
+
+export const emptyColumn = () => ({ html: '', image: '', alt: '' });
+
+/**
+ * A columns block's list with `count` columns (clamped to the limits): extra
+ * columns are cut from the end, missing ones added empty. Kept columns keep
+ * their identity.
+ */
+export function resizeColumns(columns, count) {
+    const list = Array.isArray(columns) ? columns : [];
+    const target = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, count));
+    if (list.length === target) return list;
+    if (list.length > target) return list.slice(0, target);
+    return [...list, ...Array.from({ length: target - list.length }, emptyColumn)];
+}
+
 /** True when any value in the data is a non-empty string (used to confirm deletes). */
 export function hasContent(data) {
     if (typeof data === 'string') return data.trim() !== '' && data.trim() !== '<p></p>';

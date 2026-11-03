@@ -530,7 +530,7 @@
     color: var(--color-text-muted);
 }
 
-/* columns: wider than the text when there are two */
+/* columns: wider than the text when two or three are side by side */
 
 .block-columns {
     display: grid;
@@ -539,18 +539,32 @@
     width: var(--wide-column-width);
 }
 
-.block-columns--single {
+/* One column, and three while they are stacked: the reading column. */
+.block-columns--single,
+.block-columns--three {
     width: var(--column-width);
 }
 
-/* Side by side from 720px; stacked below. Media queries can't use var(). */
+/*
+ * Two side by side from 720px, three from 960px; stacked below. A third of a
+ * 720px screen (about 200px) is too narrow for a heading and an image, so
+ * three stay stacked until there is about 270px each. Media queries can't use var().
+ */
 @media (min-width: 720px) {
     .block-columns {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .block-columns--single {
+    .block-columns--single,
+    .block-columns--three {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 960px) {
+    .block-columns--three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: var(--wide-column-width);
     }
 }
 
@@ -611,7 +625,14 @@
 }
 
 @media (max-width: 72.75rem) {
-    .block-columns.block--panel:not(.block-columns--single) {
+    .block-columns.block--panel:not(.block-columns--single):not(.block-columns--three) {
+        border-radius: 0;
+    }
+}
+
+/* Three columns are in the wide column only from 960px (below, the 44rem rule applies). */
+@media (min-width: 960px) and (max-width: 72.75rem) {
+    .block-columns--three.block--panel {
         border-radius: 0;
     }
 }
