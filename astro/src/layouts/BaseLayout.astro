@@ -7,7 +7,8 @@ import { getSite } from '../lib/api.js';
 import { fontFaceCss, fontPreloadMarkup } from '../lib/fonts.js';
 import { serializeJsonLd } from '../lib/jsonld.js';
 import { navigationFor } from '../lib/settings.js';
-import { buildTheme } from '../lib/theme.js';
+import { isValidPageBackground } from '../lib/pageBackground.js';
+import { buildTheme, resolveSettings } from '../lib/theme.js';
 
 interface Props {
     /** Page title; " | <site name>" is appended. */
@@ -25,9 +26,11 @@ interface Props {
     jsonLd?: Record<string, unknown> | null;
     /** Path for the canonical link when it isn't this page's own URL (the front page's /slug/ points to "/"). */
     canonicalPath?: string;
+    /** A CMS page's own background colour (#rrggbb from the API), or null for none. */
+    pageBackground?: string | null;
 }
 
-const { title, metaTitle, description, ogImage, ogImageWidth, ogImageHeight, ogType = 'website', jsonLd, canonicalPath } = Astro.props;
+const { title, metaTitle, description, ogImage, ogImageWidth, ogImageHeight, ogType = 'website', jsonLd, canonicalPath, pageBackground = null } = Astro.props;
 
 // The site settings from the Settings page, fetched once per build.
 const settings = await getSite();
@@ -44,6 +47,14 @@ const trackerApi = (import.meta.env.API_URL ?? '').replace(/\/+$/, '').replace(/
 // Everything in it comes from allow-lists in src/lib/theme.js and fonts.js, so
 // it is safe to write into the page as-is.
 const theme = buildTheme(settings.theme);
+
+// Checked again with the brand colour this build uses (src/lib/pageBackground.js):
+// only a colour everything on the page stays readable on reaches the CSS.
+const brand = resolveSettings(settings.theme).brand;
+if (pageBackground !== null && !isValidPageBackground(pageBackground, brand)) {
+    console.warn(`[page] The background colour ${JSON.stringify(pageBackground)} of ${Astro.url.pathname} is invalid or too dark; the page is built without it.`);
+}
+const background = isValidPageBackground(pageBackground, brand) ? pageBackground.toLowerCase() : null;
 const themeCss = `${fontFaceCss(theme.fontsToLoad)}\n${theme.css}`;
 ---
 
@@ -96,7 +107,7 @@ const themeCss = `${fontFaceCss(theme.fontsToLoad)}\n${theme.css}`;
 
         <SiteHeader settings={settings} navigation={navigation} />
 
-        <main id="main" class="site-main">
+        <main id="main" class:list={['site-main', background && 'page-background']} style={background ? `--page-bg: ${background}` : undefined}>
             <slot />
         </main>
 

@@ -324,6 +324,39 @@
 }
 
 /*
+ * A page with its own background colour (pages.background_color, on <main> as
+ * --page-bg). Only colours on which everything here stays readable are
+ * accepted (src/lib/pageBackground.js). As in the light panels, links, the
+ * focus ring and button text use the darker shades; the outline style's
+ * secondary button sits on the page colour so it stands out from the
+ * background. --color-bg itself is unchanged: form fields, code and the
+ * no-background hero's panel stay in the page colour. Blocks with their own
+ * background set their own colours, so they look as on any other page.
+ */
+.page-background {
+    --color-link: var(--color-brand-strong);
+    --color-link-hover: var(--color-brand-deep);
+    --color-focus: var(--color-brand-strong);
+    background: var(--page-bg);
+}
+
+.page-background .button-secondary,
+[data-button='outline'] .page-background .button-primary,
+[data-button='outline'] .page-background .contact-form button {
+    --button-text: var(--color-brand-strong);
+    --button-border: var(--color-brand-strong);
+    --button-bg-hover: var(--color-brand-tint-strong);
+    --button-text-hover: var(--color-brand-strong);
+    --button-border-hover: var(--color-brand-strong);
+}
+
+[data-button='outline'] .page-background .button-secondary {
+    --button-bg: var(--color-bg);
+    --button-border: var(--color-bg);
+    --button-border-hover: var(--color-brand-tint-strong);
+}
+
+/*
  * In the hero every variant is inverted: white where the page version has the
  * brand, and the reverse. Not in the hero without a background ("none"), which
  * keeps the page's buttons.

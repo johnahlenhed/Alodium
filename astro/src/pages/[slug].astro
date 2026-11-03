@@ -50,6 +50,7 @@ const jsonLd = isFrontPage
     ogType="website"
     jsonLd={jsonLd}
     canonicalPath={isFrontPage ? '/' : undefined}
+    pageBackground={page.background_color ?? null}
 >
     <CmsPage page={page} />
 </BaseLayout>

@@ -42,6 +42,7 @@ const jsonLd = webSiteJsonLd({ site: Astro.site, siteName: settings.name, descri
             ogImageWidth={frontPage.og_image_width}
             ogImageHeight={frontPage.og_image_height}
             jsonLd={jsonLd}
+            pageBackground={frontPage.background_color ?? null}
         >
             <CmsPage page={frontPage} />
         </BaseLayout>

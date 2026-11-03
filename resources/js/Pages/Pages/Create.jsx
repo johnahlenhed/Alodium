@@ -3,7 +3,7 @@ import { toUtcIso } from '@/utils/publishing';
 import { Head, useForm } from '@inertiajs/react';
 import PageForm from './Partials/PageForm';
 
-export default function Create({ blocks = [] }) {
+export default function Create({ blocks = [], frontPage = null, brandColor }) {
     // New pages are block pages.
     const form = useForm({
         title: '',
@@ -13,6 +13,10 @@ export default function Create({ blocks = [] }) {
         meta_title: '',
         meta_description: '',
         og_image: '',
+        // null: no background colour of its own.
+        background_color: null,
+        // Ticked for a site's first page (admins only; editors get no option).
+        make_front_page: frontPage?.suggest ?? false,
     });
 
     const submit = (e) => {
@@ -20,6 +24,7 @@ export default function Create({ blocks = [] }) {
         form.transform((data) => ({
             ...data,
             publish_at: data.status === 'scheduled' ? toUtcIso(data.publish_at) : null,
+            make_front_page: frontPage ? data.make_front_page : undefined,
         }));
         form.post(route('pages.store'));
     };
@@ -36,7 +41,7 @@ export default function Create({ blocks = [] }) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-3xl bg-surface p-4 shadow sm:rounded-lg sm:p-8">
-                    <PageForm form={form} onSubmit={submit} submitLabel="Create page" mode="blocks" />
+                    <PageForm form={form} onSubmit={submit} submitLabel="Create page" mode="blocks" frontPage={frontPage} brandColor={brandColor} />
                 </div>
             </div>
         </AuthenticatedLayout>

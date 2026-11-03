@@ -40,6 +40,12 @@ final class ColorContrast
         return (max($first, $second) + 0.05) / (min($first, $second) + 0.05);
     }
 
+    /** color.js mix(), as CSS color-mix(in srgb, a weight%, b): each channel a * weight + b * (1 - weight), unrounded. */
+    public static function mix(array $a, array $b, float $weight): array
+    {
+        return array_map(fn (int $i) => $a[$i] * $weight + $b[$i] * (1 - $weight), [0, 1, 2]);
+    }
+
     /** Contrast of a #rrggbb colour against white. */
     public static function againstWhite(string $hex): float
     {

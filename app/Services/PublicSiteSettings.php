@@ -5,7 +5,8 @@ namespace App\Services;
 use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
-use App\Support\ColorContrast;
+use App\Support\FooterBackground;
+use App\Support\NavBackground;
 use App\Support\ThemeOptions;
 
 /**
@@ -28,6 +29,8 @@ class PublicSiteSettings
             'footer_text' => $settings->footer_text,
             'show_site_name' => $settings->show_site_name,
             'theme' => $this->theme($settings),
+            'nav_background_color' => $this->navBackground($settings),
+            'footer_background_color' => $this->footerBackground($settings),
             'logo' => $this->logo($settings),
             'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),
@@ -42,17 +45,34 @@ class PublicSiteSettings
     private function theme(SiteSetting $settings): array
     {
         $pick = fn (?string $value, array $allowed, string $default) => is_string($value) && array_key_exists($value, $allowed) ? $value : $default;
-        $brand = $settings->brand_color;
-        $validBrand = is_string($brand) && preg_match(ColorContrast::HEX_PATTERN, $brand)
-            && ColorContrast::againstWhite($brand) >= ThemeOptions::MIN_BRAND_CONTRAST;
 
         return [
-            'brand' => $validBrand ? strtoupper($brand) : ThemeOptions::DEFAULTS['brand'],
+            'brand' => ThemeOptions::resolveBrand($settings->brand_color),
             'fontBody' => $pick($settings->font_body, ThemeOptions::FONTS, ThemeOptions::DEFAULTS['fontBody']),
             'fontHeading' => $pick($settings->font_heading, ThemeOptions::FONTS, ThemeOptions::DEFAULTS['fontHeading']),
             'corners' => $pick($settings->corners, ThemeOptions::CORNERS, ThemeOptions::DEFAULTS['corners']),
             'buttons' => $pick($settings->buttons, ThemeOptions::BUTTONS, ThemeOptions::DEFAULTS['buttons']),
         ];
+    }
+
+    /**
+     * The header's background colour, or null: also when it no longer passes with
+     * the brand colour the site uses (changed in the database, say), so the header
+     * then keeps the page colour rather than getting unreadable text.
+     */
+    private function navBackground(SiteSetting $settings): ?string
+    {
+        $value = $settings->nav_background_color;
+
+        return NavBackground::scheme($value, ThemeOptions::resolveBrand($settings->brand_color)) !== null ? $value : null;
+    }
+
+    /** The footer's background colour, or null, sent on the same terms as the header's. */
+    private function footerBackground(SiteSetting $settings): ?string
+    {
+        $value = $settings->footer_background_color;
+
+        return FooterBackground::scheme($value, ThemeOptions::resolveBrand($settings->brand_color)) !== null ? $value : null;
     }
 
     /** The PNG conversion or the sanitised SVG, at the chosen height, or null (SiteSetting::logoImage()). */

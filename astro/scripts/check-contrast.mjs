@@ -9,6 +9,9 @@
 
 import { readFileSync } from 'node:fs';
 import { contrast, HEX_PATTERN, mix, parseHex, toHex } from '../src/lib/color.js';
+import { FOOTER_COLOURS, footerScheme } from '../src/lib/footerBackground.js';
+import { NAV_COLOURS, navScheme } from '../src/lib/navBackground.js';
+import { isValidPageBackground, PAGE_COLOURS } from '../src/lib/pageBackground.js';
 import { isValidBrand } from '../src/lib/theme.js';
 
 const quiet = process.argv.includes('--quiet');
@@ -225,6 +228,150 @@ for (const brand of sample) {
 }
 console.log(`\nSample: ${sample.length} accepted brand colours (${nearLimit.length} between 4.5 and 4.7:1), both button styles: ${sweepFailures.length} failing pairs.`);
 failures.push(...sweepFailures.slice(0, 20));
+
+// --- page background colours (pages.background_color, .page-background) -------
+//
+// The client picks any colour src/lib/pageBackground.js accepts. Its fixed
+// colours must be the ones in blocks.css, and on every colour it accepts, the
+// colours blocks.css puts on a .page-background must meet their thresholds.
+
+for (const [key, name] of Object.entries({ text: '--color-text', textMuted: '--color-text-muted', borderStrong: '--color-border-strong', success: '--color-success', error: '--color-error' })) {
+    if (PAGE_COLOURS[key].toLowerCase() !== declarations[name].toLowerCase()) {
+        failures.push(`pageBackground.js ${key} is ${PAGE_COLOURS[key]}, blocks.css ${name} is ${declarations[name]}`);
+    }
+}
+
+/** [label, colour on .page-background, minimum]; the background is --page-bg. */
+const PAGE_PAIRS = [
+    ['text, headings', '--color-text', TEXT],
+    ['muted text', '--color-text-muted', TEXT],
+    ['links (--color-link), secondary and outline button text', '--color-brand-strong', TEXT],
+    ['link hover', '--color-brand-deep', TEXT],
+    ['contact form success', '--color-success', TEXT],
+    ['contact form errors', '--color-error', TEXT],
+    ['focus ring (--color-focus)', '--color-brand-strong', UI],
+    ['form field borders', '--color-border-strong', UI],
+    ['solid primary button edge', '--color-brand', UI],
+    ['secondary and outline button borders', '--color-brand-strong', UI],
+];
+
+const pageBrands = [declarations['--color-brand'], '#7A1F3D', '#0B5D3B', ...sample.filter((_, i) => i % 10 === 0), ...nearLimit];
+let pageChecked = 0;
+const pageFailures = [];
+for (const brand of pageBrands) {
+    const colours = palette(brand);
+    for (let i = 0; i < 40; i++) {
+        // Light colours, where the rule has to decide; it accepts some and refuses others.
+        const background = toHex([random(), random(), random()].map((c) => 200 + Math.floor(c * 56)));
+        if (!isValidPageBackground(background, brand)) continue;
+        pageChecked++;
+        const bg = parseHex(background);
+        for (const [label, fg, min] of PAGE_PAIRS) {
+            const ratio = contrast(colours[fg].rgb, bg);
+            if (ratio < min) pageFailures.push(`${brand} on page ${background}: ${label} ${ratio.toFixed(2)} < ${min}`);
+        }
+    }
+}
+console.log(`Page backgrounds: ${pageChecked} accepted colours on ${pageBrands.length} brand colours: ${pageFailures.length} failing pairs.`);
+failures.push(...pageFailures.slice(0, 20));
+
+// --- header background colours (site_settings.nav_background_color) ------------
+//
+// src/lib/navBackground.js picks dark text ("light") or white text ("dark") for
+// a colour, or refuses it. Its fixed colours must be the ones in blocks.css,
+// and on every colour it accepts, the colours site.css puts on the header in
+// that scheme (.site-header--light, --dark) must meet their thresholds.
+
+for (const [key, name] of Object.entries({ text: '--color-text', onDark: '--color-on-brand' })) {
+    if (NAV_COLOURS[key].toLowerCase() !== declarations[name].toLowerCase()) {
+        failures.push(`navBackground.js ${key} is ${NAV_COLOURS[key]}, blocks.css ${name} is ${declarations[name]}`);
+    }
+}
+
+/** [label, colour on the header (--nav-text, --nav-accent, --color-focus), minimum] per scheme. */
+const NAV_PAIRS = {
+    light: [
+        ['site name and menu links (--nav-text)', '--color-text', TEXT],
+        ['current page and hover (--nav-accent)', '--color-brand-strong', TEXT],
+        ['focus ring', '--color-brand-strong', UI],
+        ['built-in mark (--nav-accent)', '--color-brand-strong', UI],
+    ],
+    dark: [
+        ['site name, menu links, current page, hover, mark', '--color-on-brand', TEXT],
+        ['focus ring', '--color-on-brand', UI],
+    ],
+};
+
+const navCounts = { light: 0, dark: 0, refused: 0 };
+const navFailures = [];
+for (const brand of pageBrands) {
+    const colours = palette(brand);
+    // Any colour, plus the brand itself and its derived shades (common header choices).
+    const candidates = [brand, toHex(colours['--color-brand-strong'].rgb), toHex(colours['--color-brand-night'].rgb)];
+    for (let i = 0; i < 30; i++) candidates.push(toHex([random(), random(), random()].map((c) => Math.floor(c * 256))));
+    for (const background of candidates) {
+        const scheme = navScheme(background, brand);
+        if (scheme === null) {
+            navCounts.refused++;
+            continue;
+        }
+        navCounts[scheme]++;
+        const bg = parseHex(background);
+        for (const [label, fg, min] of NAV_PAIRS[scheme]) {
+            const ratio = contrast(colours[fg].rgb, bg);
+            if (ratio < min) navFailures.push(`${brand} header ${background} (${scheme}): ${label} ${ratio.toFixed(2)} < ${min}`);
+        }
+    }
+}
+console.log(`Header backgrounds on ${pageBrands.length} brand colours: ${navCounts.light} with dark text, ${navCounts.dark} with white text (${navCounts.refused} refused): ${navFailures.length} failing pairs.`);
+failures.push(...navFailures.slice(0, 20));
+
+// --- footer background colours (site_settings.footer_background_color) ---------
+//
+// The same for the footer (src/lib/footerBackground.js, .site-footer--light and
+// --dark in site.css): it has muted text (--footer-muted) and no mark.
+
+for (const [key, name] of Object.entries({ text: '--color-text', textMuted: '--color-text-muted', onDark: '--color-on-brand' })) {
+    if (FOOTER_COLOURS[key].toLowerCase() !== declarations[name].toLowerCase()) {
+        failures.push(`footerBackground.js ${key} is ${FOOTER_COLOURS[key]}, blocks.css ${name} is ${declarations[name]}`);
+    }
+}
+
+const FOOTER_PAIRS = {
+    light: [
+        ['site name and menu links (--nav-text)', '--color-text', TEXT],
+        ['footer text and analytics note (--footer-muted)', '--color-text-muted', TEXT],
+        ['current page and hover (--nav-accent)', '--color-brand-strong', TEXT],
+        ['focus ring', '--color-brand-strong', UI],
+    ],
+    dark: [
+        ['site name, links, footer text, note, current page, hover', '--color-on-brand', TEXT],
+        ['focus ring', '--color-on-brand', UI],
+    ],
+};
+
+const footerCounts = { light: 0, dark: 0, refused: 0 };
+const footerFailures = [];
+for (const brand of pageBrands) {
+    const colours = palette(brand);
+    const candidates = [brand, toHex(colours['--color-brand-night'].rgb), declarations['--color-surface']];
+    for (let i = 0; i < 30; i++) candidates.push(toHex([random(), random(), random()].map((c) => Math.floor(c * 256))));
+    for (const background of candidates) {
+        const scheme = footerScheme(background, brand);
+        if (scheme === null) {
+            footerCounts.refused++;
+            continue;
+        }
+        footerCounts[scheme]++;
+        const bg = parseHex(background);
+        for (const [label, fg, min] of FOOTER_PAIRS[scheme]) {
+            const ratio = contrast(colours[fg].rgb, bg);
+            if (ratio < min) footerFailures.push(`${brand} footer ${background} (${scheme}): ${label} ${ratio.toFixed(2)} < ${min}`);
+        }
+    }
+}
+console.log(`Footer backgrounds on ${pageBrands.length} brand colours: ${footerCounts.light} with dark text, ${footerCounts.dark} with white text (${footerCounts.refused} refused): ${footerFailures.length} failing pairs.`);
+failures.push(...footerFailures.slice(0, 20));
 
 if (failures.length) {
     console.error(`\n${failures.length} pair(s) below the threshold:\n  ${failures.join('\n  ')}`);

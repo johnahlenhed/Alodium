@@ -34,20 +34,24 @@ class SiteSettingsController extends Controller
             ->map(fn (NavigationItem $item) => $item->only(['page_id', 'url', 'label']))
             ->values();
 
-        // A front page that was unpublished or deleted is shown as "Latest posts",
-        // which is also what the public site falls back to.
-        $frontPageMissing = $settings->front_page_id !== null && ! $pages->contains('id', $settings->front_page_id);
+        // A front page that isn't on the public site (chosen as a draft when it was
+        // created, or unpublished since) stays chosen: the public site shows the
+        // latest posts until it is published (PublicSiteSettings). A deleted one is
+        // already null (nullOnDelete).
+        $pendingFrontPage = $settings->front_page_id !== null && ! $pages->contains('id', $settings->front_page_id)
+            ? Page::query()->find($settings->front_page_id, ['id', 'title', 'slug'])
+            : null;
 
         return Inertia::render('Settings/Edit', [
             'settings' => [
                 // The old Blog and Contact switches are navigation entries now (navigation_items).
                 ...Arr::except(Arr::only($settings->attributesToArray(), $settings->getFillable()), ['show_blog_in_nav', 'show_contact_in_nav']),
-                'front_page_id' => $frontPageMissing ? null : $settings->front_page_id,
+                'front_page_id' => $settings->front_page_id,
                 // null on a row from before the column: the default.
                 'logo_height' => $settings->shownLogoHeight(),
                 'navigation' => $navigation,
             ],
-            'frontPageMissing' => $frontPageMissing,
+            'pendingFrontPage' => $pendingFrontPage?->only(['id', 'title', 'slug']),
             'logo' => $settings->logoImage(),
             'pages' => $pages->map(fn (Page $page) => ['id' => $page->id, 'title' => $page->title, 'slug' => $page->slug])->values(),
             'options' => [
@@ -73,6 +77,11 @@ class SiteSettingsController extends Controller
             $settings->fill([
                 ...Arr::only($validated, $settings->getFillable()),
                 'brand_color' => strtoupper($validated['brand_color']),
+                // Stored uppercase, like the brand colour; left out of the form, they stay as they are.
+                ...array_map(
+                    fn (?string $colour) => $colour === null ? null : strtoupper($colour),
+                    Arr::only($validated, ['nav_background_color', 'footer_background_color']),
+                ),
             ]);
             $settings->save();
 

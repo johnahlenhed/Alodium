@@ -6,6 +6,8 @@
 // build warning. Text stays text: the templates output it with Astro's normal
 // escaping, never set:html.
 
+import { footerScheme } from './footerBackground.js';
+import { navScheme } from './navBackground.js';
 import { SITE_DEFAULTS } from './site.js';
 import { DEFAULT_SETTINGS, resolveSettings } from './theme.js';
 
@@ -72,16 +74,35 @@ export function normalizeSite(raw, { apiOrigin, warn = (message) => console.warn
         warn('"show_site_name" is missing or not a boolean; using the default.');
     }
 
+    const resolvedTheme = theme(raw.theme, warn);
+
     return {
         name: text('name', 'name', LIMITS.name, true),
         description: text('description', 'description', LIMITS.description, false),
         footerText: text('footer_text', 'footerText', LIMITS.footerText, false),
         showSiteName,
-        theme: theme(raw.theme, warn),
+        theme: resolvedTheme,
+        navBackground: schemeColour('nav_background_color', raw.nav_background_color, navScheme(raw.nav_background_color, resolvedTheme.brand), 'the header keeps the page colour', warn),
+        footerBackground: schemeColour('footer_background_color', raw.footer_background_color, footerScheme(raw.footer_background_color, resolvedTheme.brand), 'the footer keeps its grey', warn),
         logo: logo(raw.logo, apiOrigin, warn),
         navigation: navigation(raw.navigation, warn),
         frontPage: frontPage(raw.front_page, warn),
     };
+}
+
+/**
+ * The header's or footer's colour, checked again with the brand colour this
+ * build uses (scheme: navScheme() or footerScheme() of the value): { color,
+ * scheme } or null. Missing (an API from before the setting) and null both
+ * mean none.
+ */
+function schemeColour(key, value, scheme, fallback, warn) {
+    if (value === undefined || value === null) return null;
+    if (scheme === null) {
+        warn(`"${key}" is invalid or unreadable with the brand colour; ${fallback}.`);
+        return null;
+    }
+    return { color: value.toLowerCase(), scheme };
 }
 
 /** Through theme.js's allow-lists; each value that had to be replaced is reported. */
