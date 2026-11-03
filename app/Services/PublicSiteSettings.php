@@ -55,20 +55,13 @@ class PublicSiteSettings
         ];
     }
 
-    /** The 128px-high conversion with its size, or null (also while the conversion is missing). */
+    /** The 128px-high conversion or the sanitised SVG, with its size, or null (SiteSetting::logoImage()). */
     private function logo(SiteSetting $settings): ?array
     {
-        $media = $settings->logo();
-        if (! $media || ! $media->hasGeneratedConversion('logo')) {
-            return null;
-        }
+        $logo = $settings->logoImage();
 
-        return [
-            // Absolute, like og_image: url() leaves a full URL alone and completes a relative one.
-            'url' => url($media->getUrl('logo')),
-            'width' => (int) $media->getCustomProperty('logo_width'),
-            'height' => (int) $media->getCustomProperty('logo_height'),
-        ];
+        // Absolute, like og_image: url() leaves a full URL alone and completes a relative one.
+        return $logo ? ['url' => url($logo['url']), 'width' => $logo['width'], 'height' => $logo['height']] : null;
     }
 
     /**

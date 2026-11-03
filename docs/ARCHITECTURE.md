@@ -179,10 +179,16 @@ again at render time (`safeLink`, `safeImage`). A hero as the first rendered
 block provides the page's `<h1>` (`CmsPage.astro`).
 
 **Backgrounds (`data.variant`).** `BlockType::VARIANTS` is `default`, `light`
-(the brand tint), `brand` and `dark` (a near-black shade of the brand). The hero
-offers `default` (the brand colour), `light` and `dark`; text and columns offer
-all four; the other types none. A block missing the field is `default`. For a
-new type to offer them:
+(the brand tint), `brand`, `dark` (a near-black shade of the brand) and `none`.
+The hero offers `default` (the brand colour), `light`, `dark` and `none` (no
+background colour: the page colour, and an image without an overlay, with the
+text on a page-colour panel); text and columns offer the first four (their
+`default` already has no background); the other types none. A block missing
+the field is `default`. Over an image the light hero's overlay is only 60%
+white, so the image shows; the text, focus ring and outline buttons on it use
+`--color-text`, which keeps 4.5:1 over any pixel (brand shades would need about
+85%). In the admin the field is labelled "Background colour". For a new type to
+offer them:
 
 1. Laravel: return the subset from `variants()`, add `'variant' =>
    $this->variantRule()` to `rules()` and `'variant' => $this->variant($data)`
@@ -212,7 +218,10 @@ new type to offer them:
    gives `aria-current` to paths on the site only (`currentState()`), so
    `/blog` and `/contact` keep it and an http(s) link never gets it. The logo
    is the `logo` collection on `SiteSetting`, with a PNG conversion at most
-   128 px high.
+   128 px high. An SVG logo has no conversion: the sanitised file itself is
+   served, sized from its `width`/`height` or `viewBox` to 128 px high
+   (`SiteSetting::logoImage()`, `App\Support\SvgSize`); one without either is
+   refused.
 3. A rebuild is queued only if `PublicSiteSettings::payload()` differs before
    and after the save.
 4. Astro: `getSite()` in `api.js` fetches `/public/site` once per build. A
@@ -414,7 +423,9 @@ The README requires the worker to run with `--timeout=660` and
   of the guard. Delete the draft afterwards (a second import would skip it as
   a duplicate and find no images). `SsrfSmokeTest` runs the same file.
 - **XML**: the importer parses with `LIBXML_NONET` and without entity substitution.
-- **Uploads**: the logo is checked by content type and dimensions; the media
+- **Uploads**: the logo is checked by content type (PNG, JPEG, WebP or SVG) and
+  dimensions; an SVG logo goes through the same `SvgSanitizer` as the library
+  before it is stored, as `logo.svg`. The media
   library accepts jpg, png, gif, webp and svg up to 10 MB (`App\Rules\ImageUpload`).
   The type comes from the file's bytes, and the uploaded name must end in an
   extension of that type ("x.html" holding a GIF is refused). The stored name is

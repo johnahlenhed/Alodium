@@ -50,7 +50,7 @@ export function safeImage(value) {
 }
 
 /** The variants (data.variant) the hero and the panel blocks (text, columns) offer, besides "default". */
-export const HERO_VARIANTS = ['light', 'dark'];
+export const HERO_VARIANTS = ['light', 'dark', 'none'];
 export const PANEL_VARIANTS = ['light', 'brand', 'dark'];
 
 /**

@@ -13,9 +13,10 @@ class TextBlock extends BlockType
         return 'text';
     }
 
+    /** Every background but "none", which is the same as "default" here. */
     public function variants(): array
     {
-        return self::VARIANTS;
+        return ['default', 'light', 'brand', 'dark'];
     }
 
     public function rules(): array
@@ -31,7 +32,7 @@ class TextBlock extends BlockType
     {
         return [
             'html' => 'text',
-            'variant' => 'text background',
+            'variant' => 'text background colour',
         ];
     }
 

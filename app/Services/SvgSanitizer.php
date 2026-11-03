@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use enshrined\svgSanitize\Sanitizer;
+use Illuminate\Http\UploadedFile;
 
 /**
- * Cleans an uploaded SVG before it is stored. SVG files are served from the
- * admin domain, and an SVG opened directly in the browser runs its scripts
- * there, with the admin's session.
+ * Cleans an uploaded SVG before it is stored (media library uploads and the
+ * site logo). SVG files are served from the admin domain, and an SVG opened
+ * directly in the browser runs its scripts there, with the admin's session.
  *
  * enshrined/svg-sanitize keeps only an allowlist of SVG elements and attributes,
  * which removes <script>, <foreignObject> and every on* event handler, and drops
@@ -27,5 +28,14 @@ class SvgSanitizer
         $clean = $sanitizer->sanitize($svg);
 
         return is_string($clean) && trim($clean) !== '' ? $clean : null;
+    }
+
+    /** An uploaded SVG, cleaned: for the media library and the site logo alike. */
+    public function sanitizeFile(UploadedFile $file): ?string
+    {
+        $path = $file->getRealPath();
+        $svg = $path === false ? false : file_get_contents($path);
+
+        return $svg === false ? null : $this->sanitize($svg);
     }
 }

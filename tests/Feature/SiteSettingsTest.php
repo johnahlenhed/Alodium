@@ -7,6 +7,7 @@ use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Services\SvgSanitizer;
 use Illuminate\Bus\UniqueLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -325,14 +326,14 @@ class SiteSettingsTest extends TestCase
 
     public function test_unsafe_or_unsuitable_logos_are_rejected(): void
     {
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><script>alert(1)</script><rect width="200" height="200"/></svg>';
+        $type = 'The logo must be a PNG, JPEG, WebP or SVG image. GIF is not supported.';
 
         $cases = [
-            'SVG' => [$this->fileWithContent('logo.svg', $svg), 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.'],
-            'SVG renamed to .png' => [$this->fileWithContent('logo.png', $svg), 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.'],
-            'GIF' => [$this->image('gif', 200, 200), 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.'],
-            'GIF renamed to .png' => [$this->image('gif', 200, 200, 'logo.png'), 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.'],
-            'PHP renamed to .png' => [$this->fileWithContent('logo.png', '<?php echo shell_exec($_GET["c"]); ?>'), 'The logo must be a PNG, JPEG or WebP image. SVG and GIF are not supported.'],
+            'GIF' => [$this->image('gif', 200, 200), $type],
+            'GIF renamed to .png' => [$this->image('gif', 200, 200, 'logo.png'), $type],
+            'GIF renamed to .svg' => [$this->image('gif', 200, 200, 'logo.svg'), $type],
+            'PHP renamed to .png' => [$this->fileWithContent('logo.png', '<?php echo shell_exec($_GET["c"]); ?>'), $type],
+            'PHP renamed to .svg' => [$this->fileWithContent('logo.svg', '<?php echo shell_exec($_GET["c"]); ?>'), $type],
             'over 2 MB' => [$this->image('png', 200, 200, padTo: 2 * 1024 * 1024 + 1), 'The logo can be at most 2 MB.'],
             'too small' => [$this->image('png', 63, 200), 'The logo must be between 64 and 4000 pixels wide and high.'],
             'too large' => [$this->image('png', 4001, 64), 'The logo must be between 64 and 4000 pixels wide and high.'],
@@ -345,6 +346,106 @@ class SiteSettingsTest extends TestCase
 
         // Exactly 2 MB and exactly 64 px are fine.
         $this->saveWithFile(['logo' => $this->image('png', 64, 64, padTo: 2 * 1024 * 1024)])->assertSessionHasNoErrors();
+    }
+
+    // --- SVG logos ----------------------------------------------------------------
+
+    public function test_an_svg_logo_with_a_script_is_stored_sanitised_not_rejected(): void
+    {
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 300 100" onload="alert(1)">'
+            .'<script>alert(document.cookie)</script>'
+            .'<rect width="300" height="100" fill="#7A1F3D" onclick="alert(2)"/>'
+            .'<image xlink:href="https://evil.example/track.png" width="10" height="10"/>'
+            .'<a href="javascript:alert(3)"><text x="10" y="60">Example</text></a>'
+            .'</svg>';
+
+        // Content decides, not the name: an SVG called logo.png is stored as logo.svg too.
+        foreach (['logo.svg', 'logo.png'] as $name) {
+            $this->saveWithFile(['logo' => $this->fileWithContent($name, $svg)])->assertSessionHasNoErrors();
+
+            $logo = SiteSetting::current()->logo();
+            $this->assertSame('image/svg+xml', $logo->mime_type, $name);
+            $this->assertSame('logo.svg', $logo->file_name, $name);
+
+            // What is on disk is the sanitiser's output, not the upload.
+            $stored = Storage::disk('public')->get($logo->getPathRelativeToRoot());
+            $this->assertSame(app(SvgSanitizer::class)->sanitize($svg), $stored);
+            foreach (['<script', 'alert', 'onload', 'onclick', 'javascript:', 'evil.example'] as $removed) {
+                $this->assertStringNotContainsString($removed, $stored, "{$name}: {$removed}");
+            }
+            $this->assertStringContainsString('<rect', $stored);
+            $this->assertStringContainsString('viewBox="0 0 300 100"', $stored);
+        }
+        $this->assertSame(1, Media::count(), 'singleFile(): the second upload replaced the first.');
+    }
+
+    public function test_an_svg_logo_is_not_rasterised_and_is_sized_from_its_markup(): void
+    {
+        // Each scaled to 128px high, keeping its proportions (and at most 4000 wide).
+        $cases = [
+            'viewBox' => ['viewBox="0 0 300 100"', [384, 128]],
+            'width and height' => ['width="60" height="40"', [192, 128]],
+            'width and height in other units' => ['width="2in" height="1in"', [256, 128]],
+            'width and height win over the viewBox' => ['width="100" height="100" viewBox="0 0 300 100"', [128, 128]],
+            'only a width, with a viewBox' => ['width="50" viewBox="0 0 30 10"', [384, 128]],
+            'relative width, with a viewBox' => ['width="100%" viewBox="0,0,30,10"', [384, 128]],
+            'very wide: limited to 4000' => ['viewBox="0 0 10000 100"', [4000, 40]],
+        ];
+
+        foreach ($cases as $label => [$attributes, $size]) {
+            $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\" {$attributes}><rect width=\"10\" height=\"10\"/></svg>")])
+                ->assertSessionHasNoErrors();
+
+            $logo = SiteSetting::current()->logo();
+            $this->assertSame($size, [$logo->getCustomProperty('logo_width'), $logo->getCustomProperty('logo_height')], $label);
+            $this->assertFalse($logo->hasGeneratedConversion('logo'), $label);
+            $this->assertSame([], Storage::disk('public')->files(dirname($logo->getPathRelativeToRoot()).'/conversions'), $label);
+        }
+    }
+
+    public function test_an_svg_logo_without_a_size_is_rejected_with_a_clear_message(): void
+    {
+        $message = 'This SVG has no size, so the site can\'t tell how wide to show it. Give its <svg> element a viewBox (for example viewBox="0 0 240 80") or a width and height in pixels, then upload it again.';
+
+        foreach ([
+            'no viewBox, width or height' => '',
+            'only relative sizes' => 'width="100%" height="50%"',
+            'only a width' => 'width="240"',
+            'an empty viewBox' => 'viewBox="0 0 0 80"',
+        ] as $label => $attributes) {
+            $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\" {$attributes}><rect width=\"10\" height=\"10\"/></svg>")])
+                ->assertSessionHasErrors(['logo' => $message], null, 'default');
+            $this->assertSame(0, Media::count(), $label);
+        }
+
+        // An SVG the sanitiser can't read.
+        $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect></svg>')])
+            ->assertSessionHasErrors(['logo' => 'The logo could not be read as an SVG image.'], null, 'default');
+        $this->assertSame(0, Media::count());
+    }
+
+    public function test_the_settings_page_previews_an_svg_logo(): void
+    {
+        $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect width="300" height="100"/></svg>')]);
+        $url = SiteSetting::current()->logo()->getUrl();
+
+        $this->actingAs($this->admin)->get('/settings')->assertInertia(fn (Assert $page) => $page
+            ->where('logo', ['url' => $url, 'width' => 384, 'height' => 128]));
+        $this->assertStringEndsWith('/logo.svg', $url);
+    }
+
+    public function test_a_raster_logo_still_replaces_an_svg_one_and_the_reverse(): void
+    {
+        $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"/>')])->assertSessionHasNoErrors();
+        $this->saveWithFile(['logo' => $this->image('png', 600, 300)])->assertSessionHasNoErrors();
+
+        $logo = SiteSetting::current()->logo();
+        $this->assertSame(['image/png', 'logo.png', true], [$logo->mime_type, $logo->file_name, $logo->hasGeneratedConversion('logo')]);
+        $this->assertSame(1, Media::count());
+
+        $this->saveWithFile(['logo' => $this->fileWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"/>')])->assertSessionHasNoErrors();
+        $this->assertSame('logo.svg', SiteSetting::current()->logo()->file_name);
+        $this->assertCount(1, Storage::disk('public')->allFiles(), 'The PNG and its conversion were deleted.');
     }
 
     public function test_the_logo_can_be_removed(): void

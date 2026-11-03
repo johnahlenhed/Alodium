@@ -33,6 +33,9 @@ export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic'
         onSubmit(e);
     };
 
+    // A hero as the first block provides the page's <h1> on the site (CmsPage.astro).
+    const heroReplacesTitle = mode === 'blocks' && data.blocks[0]?.type === 'hero';
+
     return (
         <form onSubmit={submit} className="space-y-6">
             <div>
@@ -42,8 +45,16 @@ export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic'
                     className="mt-1 block w-full"
                     value={data.title}
                     onChange={(e) => setData('title', e.target.value)}
+                    aria-describedby={mode === 'blocks' ? 'title-hint' : undefined}
                     isFocused
                 />
+                {mode === 'blocks' && (
+                    <p id="title-hint" className="mt-1 text-sm text-gray-500">
+                        {heroReplacesTitle
+                            ? "Not shown on the page itself: the page starts with a hero block, and the hero's heading is shown as the main heading instead. The title is still used elsewhere: as the menu link and the browser tab title, unless a menu label or meta title is set."
+                            : "Shown as the page's main heading. If the first block is a hero, the hero's heading is shown instead."}
+                    </p>
+                )}
                 <InputError message={errors.title} className="mt-2" />
             </div>
 
