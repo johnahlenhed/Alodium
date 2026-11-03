@@ -14,7 +14,7 @@ const CONVERT_CONFIRMATION =
     + 'If the page is published, saving also keeps its current version in the revision history, '
     + 'so you can restore it there. Drafts have no revision history.';
 
-function EditForm({ page, blocks, hasBlocks }) {
+function EditForm({ page, blocks, hasBlocks, brandColor }) {
     // Block pages open in the block editor; legacy pages (blocks = null) in the classic one.
     const [mode, setMode] = useState(hasBlocks ? 'blocks' : 'classic');
 
@@ -29,6 +29,7 @@ function EditForm({ page, blocks, hasBlocks }) {
         meta_title: page.meta_title ?? '',
         meta_description: page.meta_description ?? '',
         og_image: page.og_image ?? '',
+        background_color: page.background_color ?? null,
     });
 
     // `blocks` for a legacy page is Page::blocksOrLegacy(): its content as one text block.
@@ -57,11 +58,12 @@ function EditForm({ page, blocks, hasBlocks }) {
             submitLabel="Save changes"
             mode={mode}
             onConvert={mode === 'classic' ? convert : undefined}
+            brandColor={brandColor}
         />
     );
 }
 
-export default function Edit({ page, revisions, blocks, hasBlocks, publicSite, menu }) {
+export default function Edit({ page, revisions, blocks, hasBlocks, publicSite, menu, brandColor }) {
     return (
         <AuthenticatedLayout
             header={
@@ -78,7 +80,7 @@ export default function Edit({ page, revisions, blocks, hasBlocks, publicSite, m
                 <div className="bg-surface p-4 shadow sm:rounded-lg sm:p-8">
                     {/* useForm keeps its initial data. Keyed on updated_at, so after a
                         revision restore the form starts again from the restored page. */}
-                    <EditForm key={page.updated_at} page={page} blocks={blocks} hasBlocks={hasBlocks} />
+                    <EditForm key={page.updated_at} page={page} blocks={blocks} hasBlocks={hasBlocks} brandColor={brandColor} />
                 </div>
 
                 <RevisionHistory

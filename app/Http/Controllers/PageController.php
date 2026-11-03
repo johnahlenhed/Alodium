@@ -9,7 +9,10 @@ use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\Revision;
 use App\Models\SiteSetting;
+use App\Rules\PageBackgroundColor;
 use App\Services\PublicSiteBuilds;
+use App\Services\PublicSiteSettings;
+use App\Support\ThemeOptions;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
@@ -39,18 +42,24 @@ class PageController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         // New pages are block pages.
         return Inertia::render('Pages/Create', [
             'hasBlocks' => true,
             'blocks' => [],
+            'frontPage' => $this->frontPageOption($request),
+            'brandColor' => ThemeOptions::resolveBrand(SiteSetting::current()->brand_color),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PublicSiteSettings $site): RedirectResponse
     {
         $validated = $this->validatePage($request);
+        $request->validate(['make_front_page' => ['sometimes', 'boolean']]);
+        // Only admins choose the front page (the form shows editors no option).
+        $makeFrontPage = $request->user()->isAdmin() && $request->boolean('make_front_page');
+        $before = $makeFrontPage ? $site->payload() : null;
 
         $page = Page::create([
             ...$validated,
@@ -59,8 +68,51 @@ class PageController extends Controller
             'author_id' => $request->user()->id,
         ]);
 
+        $message = $this->savedMessage($page, created: true);
+        if ($makeFrontPage) {
+            // One column, so the previous front page simply stops being it: it stays a
+            // normal page at its own address. On a new site this saves the settings
+            // row for the first time, with the defaults the site already showed.
+            $settings = SiteSetting::current();
+            $settings->front_page_id = $page->id;
+            $settings->save();
+
+            // The page observer queues a rebuild for a published page; a draft can
+            // still change "/" (from the old front page to the latest posts).
+            if ($site->payload() !== $before) {
+                RebuildAstroJob::dispatch();
+            }
+            $message .= $page->status === 'published'
+                ? ' It is now the site\'s home page.'
+                : ' It is the site\'s home page once it is published; until then the home page shows the latest posts.';
+        }
+
         // Back to the page itself: its "On the public site" panel shows when it is live.
-        return redirect()->route('pages.edit', $page)->with('success', $this->savedMessage($page, created: true));
+        return redirect()->route('pages.edit', $page)->with('success', $message);
+    }
+
+    /**
+     * The "Make this the home page" option on the new page form, for admins (the
+     * front page is otherwise chosen under Settings, which only admins can use):
+     * suggested (ticked) for a site's first page, and the current front page, to
+     * say what it replaces. null for editors.
+     */
+    private function frontPageOption(Request $request): ?array
+    {
+        if (! $request->user()->isAdmin()) {
+            return null;
+        }
+        $settings = SiteSetting::current();
+        $current = $settings->front_page_id ? Page::query()->find($settings->front_page_id, ['id', 'title', 'slug']) : null;
+
+        return [
+            'suggest' => ! Page::query()->exists(),
+            'current' => $current ? [
+                'title' => $current->title,
+                'slug' => $current->slug,
+                'published' => Page::onPublicSite()->whereKey($current->id)->exists(),
+            ] : null,
+        ];
     }
 
     public function edit(Request $request, Page $page, PublicSiteBuilds $builds): Response
@@ -73,6 +125,8 @@ class PageController extends Controller
             // For a legacy page: its content as one text block, used if it is converted.
             'blocks' => $page->blocksOrLegacy(),
             'hasBlocks' => $page->hasBlocks(),
+            // For the background colour's live contrast readout (PageBackgroundField).
+            'brandColor' => ThemeOptions::resolveBrand(SiteSetting::current()->brand_color),
             // Whether the page is live yet (rebuilds take a minute or two), and where.
             'publicSite' => $builds->pageStatus($page),
             // The menu and the front page are on the Settings page, which only admins can use.
@@ -205,6 +259,9 @@ class PageController extends Controller
             'meta_description' => ['nullable', 'string', 'max:255'],
             // Full URL of the social sharing image, picked from the media library.
             'og_image' => ['nullable', 'string', 'max:2048', 'url:http,https'],
+            // Optional; without the key the stored colour is kept. Checked against the
+            // brand colour the public site uses now, as the site checks it again.
+            'background_color' => ['sometimes', 'nullable', new PageBackgroundColor(ThemeOptions::resolveBrand(SiteSetting::current()->brand_color))],
             ...($hasBlocks ? $this->blockRegistry->rules($blocks) : []),
         ], [], $hasBlocks ? $this->blockRegistry->attributes($blocks) : []);
 
@@ -214,6 +271,10 @@ class PageController extends Controller
 
         $validated = $this->sanitizeContent($validator->validate());
         unset($validated['blocks']);
+        if (array_key_exists('background_color', $validated)) {
+            // Stored uppercase, like the brand colour.
+            $validated['background_color'] = $validated['background_color'] === null ? null : strtoupper($validated['background_color']);
+        }
 
         if ($hasBlocks) {
             $validated['blocks'] = $this->blockRegistry->normalize($blocks);

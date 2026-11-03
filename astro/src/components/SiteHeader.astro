@@ -12,6 +12,8 @@ interface Props {
     settings: {
         name: string;
         showSiteName: boolean;
+        /** The header's colour and which text it takes (src/lib/navBackground.js), or null. */
+        navBackground: { color: string; scheme: 'light' | 'dark' } | null;
         logo: { url: string; width: number; height: number } | null;
     };
     /** navigationFor(settings): the navigation without the front page's own address. */
@@ -19,7 +21,7 @@ interface Props {
 }
 
 const { settings, navigation } = Astro.props;
-const { name, logo } = settings;
+const { name, logo, navBackground } = settings;
 // Without a logo the name is always shown, otherwise the link would have no visible content.
 const showName = !logo || settings.showSiteName;
 const { pathname } = Astro.url;
@@ -29,7 +31,10 @@ const { pathname } = Astro.url;
 const logoHeight = logo ? `--logo-height: ${logo.height / 16}rem` : undefined;
 ---
 
-<header class="site-header">
+<header
+    class:list={['site-header', navBackground && `site-header--${navBackground.scheme}`]}
+    style={navBackground ? `--nav-bg: ${navBackground.color}` : undefined}
+>
     <div class="site-header__inner">
         <a class="site-brand" href="/">
             {

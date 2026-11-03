@@ -3,7 +3,12 @@ import { currentState } from '../lib/settings.js';
 
 interface Props {
     /** From getSite() (src/lib/api.js). */
-    settings: { name: string; footerText: string | null };
+    settings: {
+        name: string;
+        footerText: string | null;
+        /** The footer's colour and which text it takes (src/lib/footerBackground.js), or null. */
+        footerBackground: { color: string; scheme: 'light' | 'dark' } | null;
+    };
     /** The same navigation as the header. */
     navigation: Array<{ label: string; href: string }>;
 }
@@ -12,12 +17,16 @@ interface Props {
 const ANALYTICS_NOTE = 'This site uses cookie-free analytics.';
 
 const { settings, navigation } = Astro.props;
+const { footerBackground } = settings;
 const { pathname } = Astro.url;
 // The year the site was built (the site is static).
 const year = new Date().getFullYear();
 ---
 
-<footer class="site-footer">
+<footer
+    class:list={['site-footer', footerBackground && `site-footer--${footerBackground.scheme}`]}
+    style={footerBackground ? `--footer-bg: ${footerBackground.color}` : undefined}
+>
     <div class="site-footer__inner">
         <p class="site-footer__name">© {year} {settings.name}</p>
 

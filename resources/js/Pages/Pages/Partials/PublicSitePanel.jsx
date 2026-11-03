@@ -172,7 +172,12 @@ function MenuAndHome({ page, isPublic, menu }) {
     const frontPageUrl = `${route('settings.edit')}#section-front-page`;
 
     if (!isPublic) {
-        return <p>Once it’s published, it can be added to the site’s menu.</p>;
+        return (
+            <div className="space-y-2">
+                <p>Once it’s published, it can be added to the site’s menu.</p>
+                {menu.isFrontPage && <p>It’s chosen as the site’s home page: until it’s published, the home page shows the latest posts.</p>}
+            </div>
+        );
     }
     if (!menu.canEdit) {
         return (

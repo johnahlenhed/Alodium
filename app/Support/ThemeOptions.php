@@ -42,4 +42,16 @@ final class ThemeOptions
 
     /** White text on the brand colour needs at least this contrast (MIN_BRAND_CONTRAST in theme.js). */
     public const MIN_BRAND_CONTRAST = 4.5;
+
+    /**
+     * The brand colour the public site uses: the saved one if it is valid,
+     * otherwise the default (as theme.js resolveSettings() does), uppercase.
+     */
+    public static function resolveBrand(mixed $brand): string
+    {
+        $valid = is_string($brand) && preg_match(ColorContrast::HEX_PATTERN, $brand)
+            && ColorContrast::againstWhite($brand) >= self::MIN_BRAND_CONTRAST;
+
+        return $valid ? strtoupper($brand) : self::DEFAULTS['brand'];
+    }
 }

@@ -7,6 +7,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import BrandColorField from './Partials/BrandColorField';
+import FooterBackgroundField from './Partials/FooterBackgroundField';
+import NavBackgroundField from './Partials/NavBackgroundField';
 import NavigationEditor from './Partials/NavigationEditor';
 import ThemePreview from './Partials/ThemePreview';
 
@@ -58,7 +60,7 @@ function ChoiceGroup({ legend, name, options, value, onChange, error }) {
     );
 }
 
-export default function Edit({ settings, frontPageMissing, logo, pages, options }) {
+export default function Edit({ settings, pendingFrontPage, logo, pages, options }) {
     const form = useForm({
         site_name: settings.site_name,
         site_description: settings.site_description ?? '',
@@ -66,6 +68,8 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
         show_site_name: settings.show_site_name,
         logo_height: settings.logo_height,
         brand_color: settings.brand_color,
+        nav_background_color: settings.nav_background_color ?? null,
+        footer_background_color: settings.footer_background_color ?? null,
         font_body: settings.font_body,
         font_heading: settings.font_heading,
         corners: settings.corners,
@@ -119,11 +123,17 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
 
     const fontLabel = (value) => options.fonts.find((font) => font.value === value)?.label ?? value;
     const radius = options.corners.find((corner) => corner.value === data.corners)?.radius ?? '6px';
-    const frontPage = pages.find((page) => String(page.id) === String(data.front_page_id));
+    // The chosen front page; pendingFrontPage is one that isn't published (it stays chosen).
+    const frontPage = [...pages, ...(pendingFrontPage ? [pendingFrontPage] : [])].find((page) => String(page.id) === String(data.front_page_id));
+    const frontPageIsPending = Boolean(pendingFrontPage) && frontPage?.id === pendingFrontPage.id;
     const shownLogo = newLogoUrl ?? (data.remove_logo ? null : logo?.url);
-    // The preview uses the header's rules (astro/src/styles/site.css): the chosen height in
-    // rem, the width from the logo's proportions, at most 64/9 times the height.
-    const logoRem = data.logo_height / 16;
+    // The preview uses the header's rules (.site-brand__logo in astro/src/styles/site.css): the
+    // chosen height in rem, capped on narrow screens (at most 48px up to a 512px-wide window, the
+    // full 96px from 1024px), so it shows the size for this window's width; the width follows the
+    // logo's proportions, at most 64/9 times the height.
+    const logoHeightCss = `min(${data.logo_height / 16}rem, clamp(3rem, 9.375vw, 6rem))`;
+    // The narrowest window that shows the chosen height in full (9.375vw = height).
+    const fullSizeFrom = Math.ceil(data.logo_height / 0.09375);
 
     return (
         <AuthenticatedLayout header={<h2 className="text-page-title font-semibold text-gray-800">Site settings</h2>}>
@@ -184,7 +194,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                                     src={shownLogo}
                                     alt={newLogoUrl ? 'New logo, not saved yet' : 'Current logo'}
                                     className="w-auto flex-none object-contain object-left"
-                                    style={{ height: `${logoRem}rem`, maxWidth: `min(100%, ${(logoRem * 64) / 9}rem)` }}
+                                    style={{ height: logoHeightCss, maxWidth: `min(100%, ${logoHeightCss} * 64 / 9)` }}
                                 />
                                 {data.show_site_name && <span className="truncate text-[1.1875rem] font-semibold text-gray-900">{data.site_name}</span>}
                             </div>
@@ -238,8 +248,11 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                                 )}
                             </div>
                             <p id="logo_height_help" className="mt-1 text-sm text-gray-500">
-                                {options.logoHeight.min} to {options.logoHeight.max} pixels high; the preview above shows
-                                it at this size. The width follows the logo&rsquo;s proportions.
+                                {options.logoHeight.min} to {options.logoHeight.max} pixels high. The width follows the
+                                logo&rsquo;s proportions.
+                                {data.logo_height > 48
+                                    ? ` Shown ${data.logo_height} px high on screens at least ${fullSizeFrom} px wide; narrower screens show it smaller, down to 48 px on a phone. The preview above follows the width of this window.`
+                                    : ' Shown at this size on every screen; the preview above shows it.'}
                             </p>
                             <InputError message={errors.logo_height} className="mt-2" />
                         </div>
@@ -267,6 +280,22 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                         onChange={(value) => setData('brand_color', value)}
                         error={errors.brand_color}
                         minContrast={options.minContrast}
+                    />
+
+                    <NavBackgroundField
+                        value={data.nav_background_color}
+                        onChange={(value) => setData('nav_background_color', value)}
+                        error={errors.nav_background_color}
+                        brandColor={data.brand_color}
+                        siteName={data.site_name}
+                    />
+
+                    <FooterBackgroundField
+                        value={data.footer_background_color}
+                        onChange={(value) => setData('footer_background_color', value)}
+                        error={errors.footer_background_color}
+                        brandColor={data.brand_color}
+                        siteName={data.site_name}
                     />
 
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -324,6 +353,9 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                             onChange={(e) => setData('front_page_id', e.target.value)}
                         >
                             <option value="">Latest posts</option>
+                            {pendingFrontPage && (
+                                <option value={pendingFrontPage.id}>{pendingFrontPage.title} (not published)</option>
+                            )}
                             {pages.map((page) => (
                                 <option key={page.id} value={page.id}>
                                     {page.title}
@@ -332,13 +364,14 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                         </select>
                         <p id="front_page_help" className="mt-2 text-sm text-gray-600">
                             {frontPage
-                                ? `The home page shows the page “${frontPage.title}”. The latest posts are still listed on the Blog page.`
+                                ? `The home page shows the page “${frontPage.title}”. The latest posts are still listed on the Blog page, and a page that stops being the front page stays at its own address.`
                                 : 'The home page lists the newest blog posts. Choose a published page to show it there instead.'}{' '}
-                            If the chosen page is unpublished or deleted later, the home page goes back to the latest posts.
+                            While the chosen page isn&rsquo;t published, the home page shows the latest posts; if it is deleted, it goes back to them for good.
                         </p>
-                        {frontPageMissing && (
+                        {frontPageIsPending && (
                             <p role="status" className="mt-2 rounded-md border border-warning-200 bg-warning-50 p-3 text-sm text-warning-800">
-                                The page chosen before is no longer published, so the home page shows the latest posts.
+                                “{pendingFrontPage.title}” is the front page, but it isn&rsquo;t published, so the home page shows the
+                                latest posts until it is.
                             </p>
                         )}
                         <InputError message={errors.front_page_id} className="mt-2" />

@@ -60,6 +60,8 @@ class SiteSetting extends Model implements HasMedia
         'show_site_name',
         'logo_height',
         'brand_color',
+        'nav_background_color',
+        'footer_background_color',
         'font_body',
         'font_heading',
         'corners',
@@ -87,6 +89,10 @@ class SiteSetting extends Model implements HasMedia
             'show_site_name' => true,
             'logo_height' => self::LOGO_HEIGHT_DEFAULT,
             'brand_color' => ThemeOptions::DEFAULTS['brand'],
+            // null: the header has the page colour, as before this setting.
+            'nav_background_color' => null,
+            // null: the footer has the light grey surface, as before this setting.
+            'footer_background_color' => null,
             'font_body' => ThemeOptions::DEFAULTS['fontBody'],
             'font_heading' => ThemeOptions::DEFAULTS['fontHeading'],
             'corners' => ThemeOptions::DEFAULTS['corners'],

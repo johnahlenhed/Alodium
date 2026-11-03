@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Mail\ContactSubmissionReceived;
 use App\Models\Page;
 use App\Models\Post;
+use App\Models\SiteSetting;
 use App\Models\Submission;
 use App\Support\ContentImages;
+use App\Support\PageBackground;
 use App\Support\PlainText;
+use App\Support\ThemeOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -122,6 +125,7 @@ class PublicContentController extends Controller
             'meta_title' => $item->meta_title,
             'meta_description' => $item->meta_description,
             ...$this->ogImage($item),
+            ...$this->background($item),
             'published_at' => $item->published_at?->toIso8601String(),
             // For dateModified in the public site's JSON-LD.
             'updated_at' => $item->updated_at?->toIso8601String(),
@@ -230,5 +234,20 @@ class PublicContentController extends Controller
         $text = $item instanceof Page ? $item->plainText() : PlainText::fromHtml($item->content);
 
         return Str::limit($text, 160);
+    }
+
+    /**
+     * A page's background colour, or null: also when it no longer passes with the
+     * current brand colour (the brand changed after the page was saved), so the
+     * page then has no background rather than unreadable text. Pages only.
+     */
+    private function background(Model $item): array
+    {
+        if (! $item instanceof Page) {
+            return [];
+        }
+        $brand = ThemeOptions::resolveBrand(SiteSetting::current()->brand_color);
+
+        return ['background_color' => PageBackground::isValid($item->background_color, $brand) ? $item->background_color : null];
     }
 }

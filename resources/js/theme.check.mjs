@@ -180,8 +180,8 @@ check('no class uses a colour the theme does not define (or the forms-only blue)
 });
 
 check('no hex colours in the admin source, only tokens', () => {
-    // These two show the public site's brand colour (a site setting), not the admin's.
-    const allowed = [PUBLIC_PREVIEW, 'resources/js/Pages/Settings/Partials/BrandColorField.jsx'];
+    // These show the public site's colours (the brand colour, a page's background), not the admin's.
+    const allowed = [PUBLIC_PREVIEW, 'resources/js/Pages/Settings/Partials/BrandColorField.jsx', 'resources/js/Pages/Pages/Partials/PageBackgroundField.jsx'];
     const problems = sources
         .filter((path) => !allowed.includes(path))
         // Not \b: in arbitrary values (#fff_0%) "_" counts as a word character.

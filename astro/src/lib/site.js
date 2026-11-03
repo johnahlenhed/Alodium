@@ -10,6 +10,10 @@ export const SITE_DEFAULTS = Object.freeze({
     showSiteName: true,
     // buildTheme() in src/lib/theme.js fills in every theme default.
     theme: Object.freeze({}),
+    /** The header's colour: { color, scheme: 'light' | 'dark' }, or null for the page colour. */
+    navBackground: null,
+    /** The footer's colour, the same way: { color, scheme }, or null for the light grey. */
+    footerBackground: null,
     logo: null,
     navigation: Object.freeze([
         Object.freeze({ label: 'Home', href: '/' }),

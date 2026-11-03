@@ -68,6 +68,29 @@ body {
     background: var(--color-bg);
 }
 
+/*
+ * A header colour from Settings (site_settings.nav_background_color, as
+ * --nav-bg), with the scheme src/lib/navBackground.js chose for it. Only the
+ * colours that rule checks change: --nav-text (the name and menu links) and
+ * --nav-accent (the current page, hovered links, the built-in mark), and the
+ * focus ring. Light: dark text, with the darker brand shade where the brand
+ * colour was. Dark: everything white; the current page stays bold and
+ * underlined, so it isn't told apart by colour alone.
+ */
+.site-header--light {
+    --nav-accent: var(--color-brand-strong);
+    --color-focus: var(--color-brand-strong);
+    background: var(--nav-bg);
+}
+
+.site-header--dark {
+    --nav-text: var(--color-on-brand);
+    --nav-accent: var(--color-on-brand);
+    --color-focus: var(--color-on-brand);
+    border-bottom-color: transparent;
+    background: var(--nav-bg);
+}
+
 /* On narrow screens the navigation wraps onto a second row. */
 .site-header__inner {
     display: flex;
@@ -85,7 +108,7 @@ body {
     align-items: center;
     gap: var(--space-3);
     min-height: var(--target-min);
-    color: var(--color-text);
+    color: var(--nav-text, var(--color-text));
     font-family: var(--font-heading);
     font-size: 1.1875rem;
     font-weight: 600;
@@ -97,19 +120,28 @@ body {
     flex: none;
     width: auto;
     height: 1.875rem; /* 30px */
-    color: var(--color-brand);
+    color: var(--nav-accent, var(--color-brand));
 }
 
 /*
+ * The logo's height: the one chosen in Settings (--logo-height) on wide
+ * screens, smaller on narrow ones. The cap is clamp(3rem, 9.375vw, 6rem):
+ * 48px up to a 512px-wide viewport, growing to the full 96px at 1024px
+ * (96 / 1024 = 9.375%). A chosen height of 48px or less, the default 36px
+ * among them, is never changed. Settings/Edit.jsx previews with the same rule.
+ *
  * A very wide logo is scaled down inside its box rather than stretched. The
  * box is at most 64/9 times as wide as it is high (16rem at the default
- * 2.25rem), so the proportions a logo can have are the same at every height.
+ * 2.25rem), so the proportions a logo can have are the same at every height,
+ * and never wider than the header column (the viewport minus the gutters; a
+ * percentage wouldn't work here, as .site-brand is as wide as its content).
  */
 .site-brand__logo {
+    --logo-shown: min(var(--logo-height), clamp(3rem, 9.375vw, 6rem));
     flex: none;
     width: auto;
-    max-width: min(100%, calc(var(--logo-height) * 64 / 9));
-    height: var(--logo-height);
+    max-width: min(var(--logo-shown) * 64 / 9, 100vw - 2 * var(--gutter));
+    height: var(--logo-shown);
     object-fit: contain;
     object-position: left center;
 }
@@ -142,7 +174,8 @@ body {
     min-height: var(--target-min);
     padding-inline: var(--space-3);
     border-radius: var(--radius);
-    color: var(--color-text);
+    /* --nav-*: set on a coloured header or footer only; otherwise these defaults. */
+    color: var(--nav-text, var(--color-text));
     text-decoration: none;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.35em;
@@ -150,14 +183,14 @@ body {
 
 .site-nav a:hover,
 .site-footer__nav a:hover {
-    color: var(--color-brand);
+    color: var(--nav-accent, var(--color-brand));
     text-decoration-line: underline;
 }
 
 /* The current page (and, for Blog, a post): brand colour, bold, thick underline. */
 .site-nav a[aria-current],
 .site-footer__nav a[aria-current] {
-    color: var(--color-brand);
+    color: var(--nav-accent, var(--color-brand));
     font-weight: 600;
     text-decoration-line: underline;
     text-decoration-thickness: 2px;
@@ -337,8 +370,31 @@ body {
 .site-footer {
     border-top: 1px solid var(--color-border);
     background: var(--color-surface);
-    color: var(--color-text-muted);
+    color: var(--footer-muted, var(--color-text-muted));
     font-size: var(--text-sm);
+}
+
+/*
+ * A footer colour from Settings (site_settings.footer_background_color, as
+ * --footer-bg), with the scheme src/lib/footerBackground.js chose for it. The
+ * links share the header's --nav-text and --nav-accent; --footer-muted is the
+ * footer text and the analytics note. Light: dark text, with the darker brand
+ * shade where the brand colour was. Dark: everything white, muted text too;
+ * the current page stays bold and underlined.
+ */
+.site-footer--light {
+    --nav-accent: var(--color-brand-strong);
+    --color-focus: var(--color-brand-strong);
+    background: var(--footer-bg);
+}
+
+.site-footer--dark {
+    --nav-text: var(--color-on-brand);
+    --nav-accent: var(--color-on-brand);
+    --footer-muted: var(--color-on-brand);
+    --color-focus: var(--color-on-brand);
+    border-top-color: transparent;
+    background: var(--footer-bg);
 }
 
 .site-footer__inner {
@@ -354,7 +410,7 @@ body {
 }
 
 .site-footer__name {
-    color: var(--color-text);
+    color: var(--nav-text, var(--color-text));
     font-family: var(--font-heading);
     font-weight: 600;
 }

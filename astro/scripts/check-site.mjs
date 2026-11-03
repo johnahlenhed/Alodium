@@ -87,6 +87,26 @@ for (const file of pageFiles) {
     if ((footerText === undefined ? null : decode(footerText)) !== site.footer_text) fail(`footer text is ${JSON.stringify(footerText)}`);
     if (!html.includes('<p class="site-footer__note">This site uses cookie-free analytics.</p>')) fail('the analytics line is missing');
 
+    // The header's colour (nav_background_color): a scheme class and --nav-bg, or neither.
+    const header = first(html, /(<header\b[^>]*>)/) ?? '';
+    const headerClass = first(header, /class="([^"]*)"/);
+    const navBg = first(header, /style="--nav-bg: (#[0-9a-f]{6})"/);
+    if (site.nav_background_color) {
+        if (navBg !== site.nav_background_color.toLowerCase() || !/^site-header site-header--(light|dark)$/.test(headerClass ?? '')) fail(`the header is ${header}, not coloured ${site.nav_background_color}`);
+    } else if (headerClass !== 'site-header' || navBg !== undefined) {
+        fail(`the header is ${header}, with no colour set`);
+    }
+
+    // The footer's colour (footer_background_color), the same way.
+    const footer = first(html, /(<footer\b[^>]*>)/) ?? '';
+    const footerClass = first(footer, /class="([^"]*)"/);
+    const footerBg = first(footer, /style="--footer-bg: (#[0-9a-f]{6})"/);
+    if (site.footer_background_color) {
+        if (footerBg !== site.footer_background_color.toLowerCase() || !/^site-footer site-footer--(light|dark)$/.test(footerClass ?? '')) fail(`the footer is ${footer}, not coloured ${site.footer_background_color}`);
+    } else if (footerClass !== 'site-footer' || footerBg !== undefined) {
+        fail(`the footer is ${footer}, with no colour set`);
+    }
+
     const brand = first(html, /<a class="site-brand" href="\/">([\s\S]*?)<\/a><nav/) ?? '';
     const name = first(brand, /<span class="site-brand__name">([^<]*)<\/span>/);
     if (site.logo) {

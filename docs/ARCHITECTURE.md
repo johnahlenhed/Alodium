@@ -99,11 +99,11 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 |---|---|
 | `users` | Admin accounts. `role` enum `admin`/`editor` (column default `admin`). |
 | `posts` | Blog posts. `author_id`, `title`, `slug` (unique), `content` (sanitised HTML), `meta_title`, `meta_description`, `og_image`, `status` (`draft`/`published`), `published_at`, `publish_at` (scheduled time). |
-| `pages` | CMS pages. Same as posts plus `blocks` (JSON `{version, blocks}`; null = legacy HTML page). `show_in_nav` and `nav_order` are no longer used (copied to `navigation_items`). |
+| `pages` | CMS pages. Same as posts plus `blocks` (JSON `{version, blocks}`; null = legacy HTML page) and `background_color` (`#RRGGBB` or null = none; see below). `show_in_nav` and `nav_order` are no longer used (copied to `navigation_items`). |
 | `navigation_items` | The main navigation after Home, in `sort_order`. Each entry has either `page_id` (cascade on delete; `label` null = the page's title, hidden while the page isn't on the public site) or `url` (a path on the site such as `/blog`, or an http(s) address; `label` required). |
 | `revisions` | Snapshots before a published post/page is edited. Polymorphic `model`, `title`, `content`, `blocks`. Newest 20 kept. |
 | `media` | Spatie Media Library. Polymorphic owner, `collection_name` (`library` on users, `featured` on posts/pages, `logo` on site settings), `custom_properties` (imported images: `source_url`, `source_hash`; logo: `logo_width`, `logo_height`). |
-| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
+| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `footer_background_color` (`#RRGGBB` or null = the grey surface), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
@@ -121,8 +121,8 @@ All under `/api`. Responses are JSON; `/api/*` errors are rendered as JSON.
 | `GET /public/posts` | List of published posts: `id, title, slug, excerpt (160 chars), meta_title, meta_description, published_at, updated_at, author`. |
 | `GET /public/posts/{slug}` | One post: the list fields without `excerpt`, plus `content`, `og_image`, `og_image_width`, `og_image_height`. 404 `{message}` for drafts and unknown slugs. |
 | `GET /public/pages` | Like posts, plus `blocks` (array, or null for legacy pages). |
-| `GET /public/pages/{slug}` | Like a post, plus `blocks`. A block page returns `content: ""`. |
-| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
+| `GET /public/pages/{slug}` | Like a post, plus `blocks` and `background_color` (null unless it passes the page background rule with the current brand colour). A block page returns `content: ""`. |
+| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
 | `POST /public/contact` | Body `name, email, message, website` (honeypot). `{success: true}` or 422 errors. Sends a notification mail. |
 | `POST /collect` | Starts a visit. Returns `{visit_id, token}`. |
 | `PATCH /collect/{visit}` | Duration/scroll depth; needs the visit's `token`. `{success: true}`. |
@@ -177,6 +177,43 @@ matching CSS in `astro/src/styles/blocks.css`. The registry validates and
 normalises on save; HTML fields go through `ContentSanitizer`. Astro checks
 again at render time (`safeLink`, `safeImage`). A hero as the first rendered
 block provides the page's `<h1>` (`CmsPage.astro`).
+
+**Page background colour (`pages.background_color`).** Any `#RRGGBB` on which
+everything that sits straight on the page stays readable: the text, muted
+text, links and button text (the darker brand shades on a coloured page),
+link hover, the contact form's messages (4.5:1), and the focus ring, form
+field borders and button edges (3:1). One rule, `astro/src/lib/pageBackground.js`,
+is used by the build (`BaseLayout`: `<main class="page-background">` with
+`--page-bg`), the page form's live readout (`PageBackgroundField.jsx`, with the
+brand colour's picker, `ColorInputs.jsx`) and, mirrored, by the server
+(`App\Support\PageBackground`, `App\Rules\PageBackgroundColor`;
+`PageBackgroundTest` compares them on a fixture from the JavaScript). In
+practice only light colours pass, and the success message's green decides
+first. Not part of revisions.
+
+**Header background colour (`site_settings.nav_background_color`).** The same
+pattern for the site header, set under Settings, Look: `astro/src/lib/navBackground.js`
+and `App\Support\NavBackground` (fixture `nav-backgrounds.json`, `NavBackgroundTest`),
+`App\Rules\NavBackgroundColor`, and `NavBackgroundField.jsx`. Both background
+fields share `BackgroundColorField.jsx`, and both rules share the check runner
+(`contrastChecks.js`, `App\Support\ContrastChecks`). A colour must work with
+dark text (the name and links; the current page, hovered links, focus ring and
+built-in mark in the darker brand shade) or with white text (everything
+white), at 4.5:1 / 3:1; `SiteHeader` adds `site-header--light` or `--dark`
+and `--nav-bg`. It is checked with the brand colour from the same save, and
+the API sends it only while it still passes. An uploaded logo isn't checked.
+The public site has no menu toggle (the menu wraps), so there is no icon to check.
+
+**Footer background colour (`site_settings.footer_background_color`).** The same
+two schemes for the footer (`footerBackground.js`, `App\Support\FooterBackground`,
+`footer-backgrounds.json`, `App\Rules\FooterBackgroundColor`,
+`FooterBackgroundField.jsx`; `SiteFooter` adds `site-footer--light` or
+`--dark` and `--footer-bg`). Its own checks: no mark, but the footer text and
+analytics note are muted text (`--footer-muted`), which must reach 4.5:1 too,
+so with dark text it needs a lighter colour than the header, and the brand
+colour never decides. The two-scheme rejection message is shared
+(`ContrastChecks::schemeMessage()`), and so are the links' `--nav-text` and
+`--nav-accent`.
 
 **Backgrounds (`data.variant`).** `BlockType::VARIANTS` is `default`, `light`
 (the brand tint), `brand`, `dark` (a near-black shade of the brand) and `none`.
@@ -345,7 +382,7 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
 - failed;
 - unknown or not configured: no build recorded yet, or no rebuild script.
 
-A page counts as live only when the last successful build's snapshot has its current `updated_at`. The snapshot is taken before the build reads the API, so a page saved during a build stays pending until the next one. While pending, the editor polls `pages.site-status`: every 5 s, then 15 s after two minutes, stopping after 15 minutes. Admins add a published page to the end of the menu there, with the same checks as the Settings page (published only, at most `MAX_NAVIGATION_ITEMS`). The front page links to Settings, which explains what it replaces.
+A page counts as live only when the last successful build's snapshot has its current `updated_at`. The snapshot is taken before the build reads the API, so a page saved during a build stays pending until the next one. While pending, the editor polls `pages.site-status`: every 5 s, then 15 s after two minutes, stopping after 15 minutes. Admins add a published page to the end of the menu there, with the same checks as the Settings page (published only, at most `MAX_NAVIGATION_ITEMS`). The front page is chosen under Settings, Front page, or when a page is created: admins get "Make this page the site's home page" on the new page form, ticked and set apart for the site's first page, unticked after that (`PageController::frontPageOption()`). A page chosen as a draft stays chosen, and `/` shows the latest posts until it is published; Settings shows it as "not published" and keeps it on save. The previous front page stays a normal page at its own address.
 
 **The dashboard for a client.** The client who receives a site is an admin, as
 is the developer, so the role can't tell them apart. The Site status therefore
@@ -508,7 +545,7 @@ The README requires the worker to run with `--timeout=660` and
 |---|---|---|
 | `check-theme.mjs` | `npm run check` | theme.js/fonts.js values, hostile input, font combinations |
 | `check-settings.mjs` | `npm run check` | `normalizeSite()` validation |
-| `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css` |
+| `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css`; also that every page background `pageBackground.js` accepts, and every header and footer colour `navBackground.js` and `footerBackground.js` accept (in the scheme they pick), meets the thresholds for the colours CSS puts on it, and that both rules' fixed colours equal `blocks.css` |
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |
