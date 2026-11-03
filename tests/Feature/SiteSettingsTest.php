@@ -88,7 +88,7 @@ class SiteSettingsTest extends TestCase
                 ])
                 ->missing('settings.show_blog_in_nav')
                 ->where('logo', null)
-                ->where('frontPageMissing', false)
+                ->where('pendingFrontPage', null)
                 // Only published pages can be chosen.
                 ->where('pages', [['id' => $page->id, 'title' => 'About', 'slug' => 'about']])
                 ->where('options.minContrast', 4.5)
@@ -648,7 +648,7 @@ class SiteSettingsTest extends TestCase
         $this->assertRebuildsQueued(0);
     }
 
-    public function test_an_unpublished_or_deleted_front_page_breaks_nothing(): void
+    public function test_an_unpublished_front_page_stays_chosen_and_a_deleted_one_is_cleared(): void
     {
         Queue::fake();
         $front = $this->makePage('Welcome');
@@ -657,11 +657,21 @@ class SiteSettingsTest extends TestCase
 
         $front->update(['status' => 'draft']);
         $this->assertRebuildsQueued(1);
+        $this->getJson('/api/public/site')->assertJsonPath('front_page', null); // the latest posts meanwhile
+        // It stays chosen, shown as not published, and a save that keeps it is accepted.
         $this->actingAs($this->admin)->get('/settings')->assertOk()
-            ->assertInertia(fn (Assert $p) => $p->where('settings.front_page_id', null)->where('frontPageMissing', true));
-        // The form then sends no front page, which saves fine and changes nothing public.
-        $this->save(['front_page_id' => null])->assertSessionHasNoErrors();
+            ->assertInertia(fn (Assert $p) => $p->where('settings.front_page_id', $front->id)
+                ->where('pendingFrontPage', ['id' => $front->id, 'title' => 'Welcome', 'slug' => 'welcome']));
+        $this->save(['front_page_id' => $front->id])->assertSessionHasNoErrors();
         $this->assertRebuildsQueued(0);
+        $this->assertSame($front->id, SiteSetting::current()->front_page_id);
+        // Published again, it is the home page again, without choosing it a second time.
+        $front->update(['status' => 'published']);
+        $this->getJson('/api/public/site')->assertJsonPath('front_page', ['slug' => 'welcome']);
+        $this->assertRebuildsQueued(1);
+        // Another unpublished page still can't be chosen.
+        $draft = $this->makePage('Draft', ['status' => 'draft']);
+        $this->save(['front_page_id' => $draft->id])->assertSessionHasErrors(['front_page_id' => 'The front page must be a published page.']);
 
         $other = $this->makePage('Other');
         $this->save(['front_page_id' => $other->id]);
@@ -671,6 +681,6 @@ class SiteSettingsTest extends TestCase
         $this->assertRebuildsQueued(1);
         $this->assertNull(SiteSetting::current()->front_page_id); // nullOnDelete
         $this->getJson('/api/public/site')->assertOk()->assertJsonPath('front_page', null);
-        $this->actingAs($this->admin)->get('/settings')->assertOk()->assertInertia(fn (Assert $p) => $p->where('frontPageMissing', false));
+        $this->actingAs($this->admin)->get('/settings')->assertOk()->assertInertia(fn (Assert $p) => $p->where('pendingFrontPage', null));
     }
 }

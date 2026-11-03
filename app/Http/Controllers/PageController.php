@@ -10,6 +10,7 @@ use App\Models\Page;
 use App\Models\Revision;
 use App\Models\SiteSetting;
 use App\Services\PublicSiteBuilds;
+use App\Services\PublicSiteSettings;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
 use App\Traits\HandlesRevisions;
@@ -39,18 +40,23 @@ class PageController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         // New pages are block pages.
         return Inertia::render('Pages/Create', [
             'hasBlocks' => true,
             'blocks' => [],
+            'frontPage' => $this->frontPageOption($request),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PublicSiteSettings $site): RedirectResponse
     {
         $validated = $this->validatePage($request);
+        $request->validate(['make_front_page' => ['sometimes', 'boolean']]);
+        // Only admins choose the front page (the form shows editors no option).
+        $makeFrontPage = $request->user()->isAdmin() && $request->boolean('make_front_page');
+        $before = $makeFrontPage ? $site->payload() : null;
 
         $page = Page::create([
             ...$validated,
@@ -59,8 +65,51 @@ class PageController extends Controller
             'author_id' => $request->user()->id,
         ]);
 
+        $message = $this->savedMessage($page, created: true);
+        if ($makeFrontPage) {
+            // One column, so the previous front page simply stops being it: it stays a
+            // normal page at its own address. On a new site this saves the settings
+            // row for the first time, with the defaults the site already showed.
+            $settings = SiteSetting::current();
+            $settings->front_page_id = $page->id;
+            $settings->save();
+
+            // The page observer queues a rebuild for a published page; a draft can
+            // still change "/" (from the old front page to the latest posts).
+            if ($site->payload() !== $before) {
+                RebuildAstroJob::dispatch();
+            }
+            $message .= $page->status === 'published'
+                ? ' It is now the site\'s home page.'
+                : ' It is the site\'s home page once it is published; until then the home page shows the latest posts.';
+        }
+
         // Back to the page itself: its "On the public site" panel shows when it is live.
-        return redirect()->route('pages.edit', $page)->with('success', $this->savedMessage($page, created: true));
+        return redirect()->route('pages.edit', $page)->with('success', $message);
+    }
+
+    /**
+     * The "Make this the home page" option on the new page form, for admins (the
+     * front page is otherwise chosen under Settings, which only admins can use):
+     * suggested (ticked) for a site's first page, and the current front page, to
+     * say what it replaces. null for editors.
+     */
+    private function frontPageOption(Request $request): ?array
+    {
+        if (! $request->user()->isAdmin()) {
+            return null;
+        }
+        $settings = SiteSetting::current();
+        $current = $settings->front_page_id ? Page::query()->find($settings->front_page_id, ['id', 'title', 'slug']) : null;
+
+        return [
+            'suggest' => ! Page::query()->exists(),
+            'current' => $current ? [
+                'title' => $current->title,
+                'slug' => $current->slug,
+                'published' => Page::onPublicSite()->whereKey($current->id)->exists(),
+            ] : null,
+        ];
     }
 
     public function edit(Request $request, Page $page, PublicSiteBuilds $builds): Response

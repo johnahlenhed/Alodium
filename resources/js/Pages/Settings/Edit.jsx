@@ -58,7 +58,7 @@ function ChoiceGroup({ legend, name, options, value, onChange, error }) {
     );
 }
 
-export default function Edit({ settings, frontPageMissing, logo, pages, options }) {
+export default function Edit({ settings, pendingFrontPage, logo, pages, options }) {
     const form = useForm({
         site_name: settings.site_name,
         site_description: settings.site_description ?? '',
@@ -119,7 +119,9 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
 
     const fontLabel = (value) => options.fonts.find((font) => font.value === value)?.label ?? value;
     const radius = options.corners.find((corner) => corner.value === data.corners)?.radius ?? '6px';
-    const frontPage = pages.find((page) => String(page.id) === String(data.front_page_id));
+    // The chosen front page; pendingFrontPage is one that isn't published (it stays chosen).
+    const frontPage = [...pages, ...(pendingFrontPage ? [pendingFrontPage] : [])].find((page) => String(page.id) === String(data.front_page_id));
+    const frontPageIsPending = Boolean(pendingFrontPage) && frontPage?.id === pendingFrontPage.id;
     const shownLogo = newLogoUrl ?? (data.remove_logo ? null : logo?.url);
     // The preview uses the header's rules (.site-brand__logo in astro/src/styles/site.css): the
     // chosen height in rem, capped on narrow screens (at most 48px up to a 512px-wide window, the
@@ -331,6 +333,9 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                             onChange={(e) => setData('front_page_id', e.target.value)}
                         >
                             <option value="">Latest posts</option>
+                            {pendingFrontPage && (
+                                <option value={pendingFrontPage.id}>{pendingFrontPage.title} (not published)</option>
+                            )}
                             {pages.map((page) => (
                                 <option key={page.id} value={page.id}>
                                     {page.title}
@@ -339,13 +344,14 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                         </select>
                         <p id="front_page_help" className="mt-2 text-sm text-gray-600">
                             {frontPage
-                                ? `The home page shows the page “${frontPage.title}”. The latest posts are still listed on the Blog page.`
+                                ? `The home page shows the page “${frontPage.title}”. The latest posts are still listed on the Blog page, and a page that stops being the front page stays at its own address.`
                                 : 'The home page lists the newest blog posts. Choose a published page to show it there instead.'}{' '}
-                            If the chosen page is unpublished or deleted later, the home page goes back to the latest posts.
+                            While the chosen page isn&rsquo;t published, the home page shows the latest posts; if it is deleted, it goes back to them for good.
                         </p>
-                        {frontPageMissing && (
+                        {frontPageIsPending && (
                             <p role="status" className="mt-2 rounded-md border border-warning-200 bg-warning-50 p-3 text-sm text-warning-800">
-                                The page chosen before is no longer published, so the home page shows the latest posts.
+                                “{pendingFrontPage.title}” is the front page, but it isn&rsquo;t published, so the home page shows the
+                                latest posts until it is.
                             </p>
                         )}
                         <InputError message={errors.front_page_id} className="mt-2" />

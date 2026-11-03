@@ -6,6 +6,7 @@ import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { localTimeZone, toLocalInput } from '@/utils/publishing';
 import BlockEditor from '@/Components/Blocks/BlockEditor';
+import Checkbox from '@/Components/Checkbox';
 import { Link } from '@inertiajs/react';
 import { useCallback, useRef, useState } from 'react';
 
@@ -15,7 +16,9 @@ const textareaClass =
 // Shared by Create and Edit. The parent owns the useForm instance and submit handler.
 // mode: "blocks" (block editor) or "classic" (one rich-text editor for `content`,
 // for legacy pages). onConvert switches a legacy page to blocks (Edit only).
-export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic', onConvert }) {
+// frontPage: the "Make this the home page" option (Create, admins only), with
+// form.data.make_front_page; see PageController::frontPageOption().
+export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic', onConvert, frontPage }) {
     const { data, setData, errors, processing } = form;
 
     // Stable setter for the block list, so block cards keep stable callbacks.
@@ -113,6 +116,8 @@ export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic'
                 <InputError message={errors.status} className="mt-2" />
             </div>
 
+            {frontPage && <FrontPageOption option={frontPage} checked={data.make_front_page} published={data.status === 'published'} onChange={(value) => setData('make_front_page', value)} error={errors.make_front_page} />}
+
             {data.status === 'scheduled' && (
                 <div>
                     <InputLabel htmlFor="publish_at" value="Publish at" />
@@ -171,5 +176,33 @@ export default function PageForm({ form, onSubmit, submitLabel, mode = 'classic'
                 </Link>
             </div>
         </form>
+    );
+}
+
+/**
+ * "Make this the home page". On a site's first page it is ticked and set apart,
+ * since there is no front page yet; on later pages it is a plain checkbox,
+ * unticked. It says what it replaces, and what happens until the page is published.
+ */
+function FrontPageOption({ option, checked, published, onChange, error }) {
+    const { suggest, current } = option;
+    const replaces = current?.published
+        ? `Now the home page shows “${current.title}”, which would stay a normal page at /${current.slug}.`
+        : 'Now the home page shows the latest blog posts, which stay listed on the Blog page.';
+
+    return (
+        <div className={suggest ? 'rounded-md border border-brand-200 bg-brand-50 px-4 py-3' : undefined}>
+            {suggest && <p className="mb-2 text-sm font-semibold text-brand-900">This is the site&rsquo;s first page</p>}
+            <label className="flex items-center gap-2 text-sm text-gray-900">
+                <Checkbox checked={checked} aria-describedby="make_front_page_help" onChange={(e) => onChange(e.target.checked)} />
+                Make this page the site&rsquo;s home page
+            </label>
+            <p id="make_front_page_help" className="mt-1 text-sm text-gray-600">
+                The home page (/) shows this page. {replaces}
+                {checked && !published && ' Until this page is published, the home page shows the latest posts.'} You can
+                change it later under Settings, Front page.
+            </p>
+            <InputError message={error} className="mt-2" />
+        </div>
     );
 }

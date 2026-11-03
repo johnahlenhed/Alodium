@@ -86,7 +86,11 @@ class UpdateSiteSettingsRequest extends FormRequest
         }
     }
 
-    /** The front page and navigation pages must be on the public site: one query for all of them. */
+    /**
+     * The navigation pages must be on the public site, and so must a newly chosen
+     * front page: one query for all of them. The front page already chosen may
+     * stay chosen while it isn't published (SiteSettingsController::edit()).
+     */
     public function after(): array
     {
         return [function (Validator $validator) {
@@ -103,7 +107,8 @@ class UpdateSiteSettingsRequest extends FormRequest
                     $validator->errors()->add("navigation.$index.page_id", 'Only published pages can be in the navigation.');
                 }
             }
-            if (is_numeric($frontPage) && ! in_array((int) $frontPage, $public, true)) {
+            $unchanged = is_numeric($frontPage) && (int) $frontPage === SiteSetting::current()->front_page_id;
+            if (is_numeric($frontPage) && ! $unchanged && ! in_array((int) $frontPage, $public, true)) {
                 $validator->errors()->add('front_page_id', 'The front page must be a published page.');
             }
         }];
