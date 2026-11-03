@@ -101,15 +101,24 @@ body {
 }
 
 /*
+ * The logo's height: the one chosen in Settings (--logo-height) on wide
+ * screens, smaller on narrow ones. The cap is clamp(3rem, 9.375vw, 6rem):
+ * 48px up to a 512px-wide viewport, growing to the full 96px at 1024px
+ * (96 / 1024 = 9.375%). A chosen height of 48px or less, the default 36px
+ * among them, is never changed. Settings/Edit.jsx previews with the same rule.
+ *
  * A very wide logo is scaled down inside its box rather than stretched. The
  * box is at most 64/9 times as wide as it is high (16rem at the default
- * 2.25rem), so the proportions a logo can have are the same at every height.
+ * 2.25rem), so the proportions a logo can have are the same at every height,
+ * and never wider than the header column (the viewport minus the gutters; a
+ * percentage wouldn't work here, as .site-brand is as wide as its content).
  */
 .site-brand__logo {
+    --logo-shown: min(var(--logo-height), clamp(3rem, 9.375vw, 6rem));
     flex: none;
     width: auto;
-    max-width: min(100%, calc(var(--logo-height) * 64 / 9));
-    height: var(--logo-height);
+    max-width: min(var(--logo-shown) * 64 / 9, 100vw - 2 * var(--gutter));
+    height: var(--logo-shown);
     object-fit: contain;
     object-position: left center;
 }

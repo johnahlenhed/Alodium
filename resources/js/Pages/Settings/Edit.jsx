@@ -121,9 +121,13 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
     const radius = options.corners.find((corner) => corner.value === data.corners)?.radius ?? '6px';
     const frontPage = pages.find((page) => String(page.id) === String(data.front_page_id));
     const shownLogo = newLogoUrl ?? (data.remove_logo ? null : logo?.url);
-    // The preview uses the header's rules (astro/src/styles/site.css): the chosen height in
-    // rem, the width from the logo's proportions, at most 64/9 times the height.
-    const logoRem = data.logo_height / 16;
+    // The preview uses the header's rules (.site-brand__logo in astro/src/styles/site.css): the
+    // chosen height in rem, capped on narrow screens (at most 48px up to a 512px-wide window, the
+    // full 96px from 1024px), so it shows the size for this window's width; the width follows the
+    // logo's proportions, at most 64/9 times the height.
+    const logoHeightCss = `min(${data.logo_height / 16}rem, clamp(3rem, 9.375vw, 6rem))`;
+    // The narrowest window that shows the chosen height in full (9.375vw = height).
+    const fullSizeFrom = Math.ceil(data.logo_height / 0.09375);
 
     return (
         <AuthenticatedLayout header={<h2 className="text-page-title font-semibold text-gray-800">Site settings</h2>}>
@@ -184,7 +188,7 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                                     src={shownLogo}
                                     alt={newLogoUrl ? 'New logo, not saved yet' : 'Current logo'}
                                     className="w-auto flex-none object-contain object-left"
-                                    style={{ height: `${logoRem}rem`, maxWidth: `min(100%, ${(logoRem * 64) / 9}rem)` }}
+                                    style={{ height: logoHeightCss, maxWidth: `min(100%, ${logoHeightCss} * 64 / 9)` }}
                                 />
                                 {data.show_site_name && <span className="truncate text-[1.1875rem] font-semibold text-gray-900">{data.site_name}</span>}
                             </div>
@@ -238,8 +242,11 @@ export default function Edit({ settings, frontPageMissing, logo, pages, options 
                                 )}
                             </div>
                             <p id="logo_height_help" className="mt-1 text-sm text-gray-500">
-                                {options.logoHeight.min} to {options.logoHeight.max} pixels high; the preview above shows
-                                it at this size. The width follows the logo&rsquo;s proportions.
+                                {options.logoHeight.min} to {options.logoHeight.max} pixels high. The width follows the
+                                logo&rsquo;s proportions.
+                                {data.logo_height > 48
+                                    ? ` Shown ${data.logo_height} px high on screens at least ${fullSizeFrom} px wide; narrower screens show it smaller, down to 48 px on a phone. The preview above follows the width of this window.`
+                                    : ' Shown at this size on every screen; the preview above shows it.'}
                             </p>
                             <InputError message={errors.logo_height} className="mt-2" />
                         </div>
