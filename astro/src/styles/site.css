@@ -59,7 +59,10 @@ body {
 /* ------------------------------------------------------------------ header */
 
 .site-header {
-    /* Height of an uploaded logo; its width follows from the width/height attributes. */
+    /*
+     * Height of an uploaded logo; its width follows from the width/height
+     * attributes. SiteHeader sets it on the logo from Settings (logo.height).
+     */
     --logo-height: 2.25rem;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-bg);
@@ -97,11 +100,15 @@ body {
     color: var(--color-brand);
 }
 
-/* A very wide logo is scaled down inside its box rather than stretched. */
+/*
+ * A very wide logo is scaled down inside its box rather than stretched. The
+ * box is at most 64/9 times as wide as it is high (16rem at the default
+ * 2.25rem), so the proportions a logo can have are the same at every height.
+ */
 .site-brand__logo {
     flex: none;
     width: auto;
-    max-width: min(100%, 16rem);
+    max-width: min(100%, calc(var(--logo-height) * 64 / 9));
     height: var(--logo-height);
     object-fit: contain;
     object-position: left center;

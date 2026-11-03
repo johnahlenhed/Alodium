@@ -65,6 +65,21 @@ class SiteThemeSyncTest extends TestCase
         $this->assertSame(config('app.name'), $defaults['site_name']);
     }
 
+    public function test_the_logo_height_bounds_equal_the_ones_the_astro_build_accepts(): void
+    {
+        $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',
+            "const { LIMITS } = await import('./astro/src/lib/settings.js'); console.log(JSON.stringify(LIMITS.logoHeight));"]);
+        if ($result->exitCode() === 127 || str_contains($result->errorOutput(), 'not found')) {
+            $this->markTestSkipped('Node.js is not installed, so the Astro settings cannot be loaded.');
+        }
+        $this->assertTrue($result->successful(), $result->errorOutput());
+
+        $this->assertSame(
+            ['min' => SiteSetting::LOGO_HEIGHT_MIN, 'max' => SiteSetting::LOGO_HEIGHT_MAX],
+            json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR),
+        );
+    }
+
     public function test_the_reserved_slugs_equal_the_ones_the_astro_page_route_skips(): void
     {
         $route = file_get_contents(base_path('astro/src/pages/[slug].astro'));

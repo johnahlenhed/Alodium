@@ -25,10 +25,25 @@ class SiteSetting extends Model implements HasMedia
     /** Uploaded logos: content-checked by the form request, and again by Spatie. */
     public const LOGO_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 
-    /** The logo's maximum height as shown; the width follows the aspect ratio. */
-    public const LOGO_HEIGHT = 128;
+    /**
+     * The height the public site shows the logo at (logo_height, in px): 36 is
+     * what the header always used (2.25rem). The range keeps the header usable;
+     * astro/src/lib/settings.js has the same bounds (SiteThemeSyncTest).
+     */
+    public const LOGO_HEIGHT_DEFAULT = 36;
 
-    /** ... and its maximum width (the public site accepts at most 4000). */
+    public const LOGO_HEIGHT_MIN = 24;
+
+    public const LOGO_HEIGHT_MAX = 96;
+
+    /**
+     * The PNG conversion's maximum height: twice the largest shown height, so the
+     * logo stays sharp on high-density screens. SVG logos store their proportions
+     * at this height too. The width follows the aspect ratio.
+     */
+    public const LOGO_PIXEL_HEIGHT = 2 * self::LOGO_HEIGHT_MAX;
+
+    /** The logo's maximum width, as stored and as shown (the public site accepts at most 4000). */
     public const LOGO_MAX_WIDTH = 4000;
 
     /**
@@ -43,6 +58,7 @@ class SiteSetting extends Model implements HasMedia
         'site_description',
         'footer_text',
         'show_site_name',
+        'logo_height',
         'brand_color',
         'font_body',
         'font_heading',
@@ -55,6 +71,7 @@ class SiteSetting extends Model implements HasMedia
 
     protected $casts = [
         'show_site_name' => 'boolean',
+        'logo_height' => 'integer',
         'show_blog_in_nav' => 'boolean',
         'show_contact_in_nav' => 'boolean',
         'front_page_id' => 'integer',
@@ -68,6 +85,7 @@ class SiteSetting extends Model implements HasMedia
             'site_description' => null,
             'footer_text' => null,
             'show_site_name' => true,
+            'logo_height' => self::LOGO_HEIGHT_DEFAULT,
             'brand_color' => ThemeOptions::DEFAULTS['brand'],
             'font_body' => ThemeOptions::DEFAULTS['fontBody'],
             'font_heading' => ThemeOptions::DEFAULTS['fontHeading'],
@@ -105,9 +123,10 @@ class SiteSetting extends Model implements HasMedia
     }
 
     /**
-     * The logo as the site shows it, with its size: the PNG conversion, or for an
-     * SVG (sanitised on upload) the file itself. The URL is relative. null without
-     * a logo, and while a raster logo's conversion is missing.
+     * The logo as the site shows it: the PNG conversion, or for an SVG (sanitised
+     * on upload) the file itself, at the chosen height with the width that keeps
+     * its proportions. The URL is relative. null without a logo, and while a raster
+     * logo's conversion is missing.
      *
      * @return array{url: string, width: int, height: int}|null
      */
@@ -119,23 +138,39 @@ class SiteSetting extends Model implements HasMedia
             return null;
         }
 
-        return [
-            'url' => $media->getUrl($conversion),
-            'width' => (int) $media->getCustomProperty('logo_width'),
-            'height' => (int) $media->getCustomProperty('logo_height'),
-        ];
+        // The stored size is the file's (or, for an SVG, its proportions at LOGO_PIXEL_HEIGHT).
+        $width = (int) $media->getCustomProperty('logo_width');
+        $height = (int) $media->getCustomProperty('logo_height');
+        if ($width < 1 || $height < 1) {
+            return null;
+        }
+        [$width, $height] = self::fitLogo($width, $height, $this->shownLogoHeight());
+
+        return ['url' => $media->getUrl($conversion), 'width' => $width, 'height' => $height];
     }
 
     /**
-     * The size an SVG logo is shown at: scaled to fit LOGO_MAX_WIDTH x LOGO_HEIGHT,
-     * as the raster conversion is (Fit::Max), but also scaled up, since a vector
-     * loses nothing by it.
+     * logo_height within its bounds: null (a row from before the column) is the
+     * default, and a value outside the range (changed in the database, say) is
+     * clamped. The form request rejects one on save.
+     */
+    public function shownLogoHeight(): int
+    {
+        $height = $this->logo_height ?? self::LOGO_HEIGHT_DEFAULT;
+
+        return max(self::LOGO_HEIGHT_MIN, min(self::LOGO_HEIGHT_MAX, $height));
+    }
+
+    /**
+     * A logo of this size scaled to $height high, keeping its proportions, but at
+     * most LOGO_MAX_WIDTH wide (as Fit::Max does for the conversion, though this
+     * also scales up).
      *
      * @return array{int, int}
      */
-    public static function svgLogoSize(float $width, float $height): array
+    public static function fitLogo(float $width, float $height, int $targetHeight): array
     {
-        $scale = min(self::LOGO_HEIGHT / $height, self::LOGO_MAX_WIDTH / $width);
+        $scale = min($targetHeight / $height, self::LOGO_MAX_WIDTH / $width);
 
         return [max(1, (int) round($width * $scale)), max(1, (int) round($height * $scale))];
     }
@@ -156,11 +191,13 @@ class SiteSetting extends Model implements HasMedia
             return;
         }
 
-        // At most 128px high, never upscaled (Fit::Max). PNG, so transparency is
-        // kept whatever was uploaded. Generated during the upload, so its URL and
-        // size are known before the rebuild that the save queues.
+        // At most LOGO_PIXEL_HEIGHT (192px) high, never upscaled (Fit::Max). PNG,
+        // so transparency is kept whatever was uploaded. Generated during the
+        // upload, so its URL and size are known before the rebuild that the save
+        // queues. (Logos uploaded while it was 128px keep that conversion: sharp
+        // on high-density screens up to 64px shown.)
         $this->addMediaConversion('logo')
-            ->fit(Fit::Max, self::LOGO_MAX_WIDTH, self::LOGO_HEIGHT)
+            ->fit(Fit::Max, self::LOGO_MAX_WIDTH, self::LOGO_PIXEL_HEIGHT)
             ->format('png')
             ->performOnCollections('logo')
             ->nonQueued();
