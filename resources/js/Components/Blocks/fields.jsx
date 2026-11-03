@@ -55,6 +55,7 @@ const VARIANT_LABELS = {
     light: 'Light (a pale tint of the brand colour)',
     brand: 'Brand colour (white text)',
     dark: 'Dark (white text)',
+    none: 'None (no background colour)',
 };
 
 /**
@@ -64,7 +65,7 @@ const VARIANT_LABELS = {
 export function VariantField({ id, variants, defaultLabel = VARIANT_LABELS.default, value, onChange, error }) {
     return (
         <div>
-            <InputLabel htmlFor={id} value="Background" />
+            <InputLabel htmlFor={id} value="Background colour" />
             <select id={id} className={inputClass} value={value || 'default'} onChange={(e) => onChange(e.target.value)}>
                 {variants.map((variant) => (
                     <option key={variant} value={variant}>

@@ -14,10 +14,13 @@ class HeroBlock extends BlockType
         return 'hero';
     }
 
-    /** "default" is the brand colour, so there is no separate "brand". */
+    /**
+     * "default" is the brand colour, so there is no separate "brand"; "none" is
+     * no background colour (the page colour, and an image without an overlay).
+     */
     public function variants(): array
     {
-        return ['default', 'light', 'dark'];
+        return ['default', 'light', 'dark', 'none'];
     }
 
     public function rules(): array
@@ -40,7 +43,7 @@ class HeroBlock extends BlockType
             'image' => 'hero image',
             'button_label' => 'hero button label',
             'button_url' => 'hero button URL',
-            'variant' => 'hero background',
+            'variant' => 'hero background colour',
         ];
     }
 

@@ -16,9 +16,10 @@ class ColumnsBlock extends BlockType
         return 'columns';
     }
 
+    /** Every background but "none", which is the same as "default" here. */
     public function variants(): array
     {
-        return self::VARIANTS;
+        return ['default', 'light', 'brand', 'dark'];
     }
 
     public function rules(): array
@@ -41,7 +42,7 @@ class ColumnsBlock extends BlockType
             'columns.*.html' => 'column :second-position text',
             'columns.*.image' => 'column :second-position image',
             'columns.*.alt' => 'column :second-position alt text',
-            'variant' => 'columns background',
+            'variant' => 'columns background colour',
         ];
     }
 

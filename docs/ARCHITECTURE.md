@@ -179,10 +179,16 @@ again at render time (`safeLink`, `safeImage`). A hero as the first rendered
 block provides the page's `<h1>` (`CmsPage.astro`).
 
 **Backgrounds (`data.variant`).** `BlockType::VARIANTS` is `default`, `light`
-(the brand tint), `brand` and `dark` (a near-black shade of the brand). The hero
-offers `default` (the brand colour), `light` and `dark`; text and columns offer
-all four; the other types none. A block missing the field is `default`. For a
-new type to offer them:
+(the brand tint), `brand`, `dark` (a near-black shade of the brand) and `none`.
+The hero offers `default` (the brand colour), `light`, `dark` and `none` (no
+background colour: the page colour, and an image without an overlay, with the
+text on a page-colour panel); text and columns offer the first four (their
+`default` already has no background); the other types none. A block missing
+the field is `default`. Over an image the light hero's overlay is only 60%
+white, so the image shows; the text, focus ring and outline buttons on it use
+`--color-text`, which keeps 4.5:1 over any pixel (brand shades would need about
+85%). In the admin the field is labelled "Background colour". For a new type to
+offer them:
 
 1. Laravel: return the subset from `variants()`, add `'variant' =>
    $this->variantRule()` to `rules()` and `'variant' => $this->variant($data)`
