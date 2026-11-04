@@ -359,9 +359,10 @@
 /*
  * In the hero every variant is inverted: white where the page version has the
  * brand, and the reverse. Not in the hero without a background ("none"), which
- * keeps the page's buttons.
+ * keeps the page's buttons. Brand and dark panels (a column's button) have the
+ * same backgrounds as the default and dark hero, so they share these colours.
  */
-.block-hero:not(.block--none) .button-primary {
+:is(.block-hero:not(.block--none), .block--panel.block--brand, .block--panel.block--dark) .button-primary {
     --button-bg: var(--color-on-brand);
     --button-text: var(--color-brand);
     --button-border: var(--color-on-brand);
@@ -370,8 +371,8 @@
     --button-border-hover: var(--color-brand-tint);
 }
 
-.block-hero:not(.block--none) .button-secondary,
-[data-button='outline'] .block-hero:not(.block--none) .button-primary {
+:is(.block-hero:not(.block--none), .block--panel.block--brand, .block--panel.block--dark) .button-secondary,
+[data-button='outline'] :is(.block-hero:not(.block--none), .block--panel.block--brand, .block--panel.block--dark) .button-primary {
     --button-bg: transparent;
     --button-text: var(--color-on-brand);
     --button-border: var(--color-on-brand);
@@ -381,7 +382,7 @@
 }
 
 /* The page version sits on a tint lighter than the page; this one on a shade darker than the hero. */
-[data-button='outline'] .block-hero:not(.block--none) .button-secondary {
+[data-button='outline'] :is(.block-hero:not(.block--none), .block--panel.block--brand, .block--panel.block--dark) .button-secondary {
     --button-bg: var(--color-brand-strong);
     --button-text: var(--color-on-brand);
     --button-border: var(--color-brand-strong);
@@ -393,8 +394,8 @@
 /*
  * Hero backgrounds (data.variant). Dark: the near-black shade, with the same
  * inverted buttons as the default hero. Light: the brand tint with dark text and
- * the page's buttons, using the darker shades where text sits on the tint.
- * None: no background colour (below).
+ * the page's buttons, using the darker shades where text sits on the tint (a
+ * light panel's buttons too). None: no background colour (below).
  */
 .block-hero.block--dark {
     background: var(--color-brand-night);
@@ -414,7 +415,7 @@
     background: var(--color-hero-overlay-light);
 }
 
-.block-hero.block--light .button-primary {
+:is(.block-hero, .block--panel).block--light .button-primary {
     --button-bg: var(--color-brand);
     --button-text: var(--color-on-brand);
     --button-border: var(--color-brand);
@@ -423,8 +424,8 @@
     --button-border-hover: var(--color-brand-strong);
 }
 
-.block-hero.block--light .button-secondary,
-[data-button='outline'] .block-hero.block--light .button-primary {
+:is(.block-hero, .block--panel).block--light .button-secondary,
+[data-button='outline'] :is(.block-hero, .block--panel).block--light .button-primary {
     --button-bg: transparent;
     --button-text: var(--color-brand-strong);
     --button-border: var(--color-brand-strong);
@@ -434,7 +435,7 @@
 }
 
 /* On the page colour, so it stands out from the tint around it. */
-[data-button='outline'] .block-hero.block--light .button-secondary {
+[data-button='outline'] :is(.block-hero, .block--panel).block--light .button-secondary {
     --button-bg: var(--color-bg);
     --button-text: var(--color-brand-strong);
     --button-border: var(--color-bg);
@@ -574,6 +575,21 @@
 
 .block-columns .column img {
     margin-bottom: var(--space-5);
+}
+
+/* A column with a button: the button sits at the bottom, so buttons line up across a row. */
+.block-columns .column--has-button {
+    display: flex;
+    flex-direction: column;
+}
+
+.block-columns .column--has-button img {
+    align-self: flex-start;
+}
+
+.column__button {
+    margin-top: auto;
+    padding-top: var(--space-5);
 }
 
 /* contact form block: a card */
