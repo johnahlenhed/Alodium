@@ -4,6 +4,7 @@ namespace App\Blocks\Types;
 
 use App\Blocks\BlockType;
 use App\Rules\MediaUrl;
+use App\Rules\SafeLink;
 use App\Services\ContentSanitizer;
 use App\Support\PlainText;
 
@@ -33,6 +34,9 @@ class ColumnsBlock extends BlockType
             'columns.*.html' => ['nullable', 'string', 'max:100000'],
             'columns.*.image' => ['nullable', new MediaUrl],
             'columns.*.alt' => ['nullable', 'string', 'max:200'],
+            // As in the hero: optional, and shown only when both are filled in.
+            'columns.*.button_label' => ['nullable', 'string', 'max:60'],
+            'columns.*.button_url' => ['nullable', new SafeLink],
             'variant' => $this->variantRule(),
         ];
     }
@@ -45,6 +49,8 @@ class ColumnsBlock extends BlockType
             'columns.*.html' => 'column :second-position text',
             'columns.*.image' => 'column :second-position image',
             'columns.*.alt' => 'column :second-position alt text',
+            'columns.*.button_label' => 'column :second-position button label',
+            'columns.*.button_url' => 'column :second-position button URL',
             'variant' => 'columns background colour',
         ];
     }
@@ -56,6 +62,8 @@ class ColumnsBlock extends BlockType
                 'html' => $this->html($column, 'html', $sanitizer),
                 'image' => $this->text($column, 'image'),
                 'alt' => $this->text($column, 'alt'),
+                'button_label' => $this->text($column, 'button_label'),
+                'button_url' => $this->text($column, 'button_url'),
             ], array_values($data['columns'])),
             'variant' => $this->variant($data),
         ];

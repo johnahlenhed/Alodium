@@ -1,19 +1,24 @@
 ---
-import { classes, hasColumnContent, htmlText, PANEL_VARIANTS, safeImage, variantClass } from '../../lib/blocks.js';
+import { classes, columnButton, hasColumnContent, htmlText, PANEL_VARIANTS, safeImage, variantClass } from '../../lib/blocks.js';
 
 interface Props {
     id: string;
-    data: { columns: Array<{ html?: string | null; image?: string | null; alt?: string | null }>; variant?: string | null };
+    data: {
+        columns: Array<{ html?: string | null; image?: string | null; alt?: string | null; button_label?: string | null; button_url?: string | null }>;
+        variant?: string | null;
+    };
 }
 
 const { id, data } = Astro.props;
 
-// A column with neither text nor image is left out. (A block where both are empty
+// A column with no text, image or button is left out. (A block where both are empty
 // never gets here: BlockRenderer skips it with a warning.)
 const columns = data.columns.filter(hasColumnContent).map((column) => ({
     image: safeImage(column.image),
     alt: column.alt ?? '',
     html: htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? '') ? column.html : null,
+    label: column.button_label,
+    link: columnButton(column),
 }));
 const variant = variantClass(data.variant, PANEL_VARIANTS);
 // The layout follows the columns that are shown: three with one empty is laid out as two.
@@ -23,10 +28,17 @@ const layout = columns.length === 1 ? 'block-columns--single' : columns.length =
 <section class={classes('block', 'block-columns', layout, variant && 'block--panel', variant)} data-block-id={id}>
     {
         columns.map((column) => (
-            <div class="column">
+            <div class={classes('column', column.link && 'column--has-button')}>
                 {column.image && <img src={column.image} alt={column.alt} loading="lazy" decoding="async" />}
                 {/* Sanitised by the server (App\Services\ContentSanitizer). */}
                 {column.html && <div class="prose" set:html={column.html} />}
+                {column.link && (
+                    <div class="column__button">
+                        <a class="button button-primary" href={column.link.href} rel={column.link.external ? 'noopener noreferrer' : undefined}>
+                            {column.label}
+                        </a>
+                    </div>
+                )}
             </div>
         ))
     }

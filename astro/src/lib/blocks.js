@@ -67,6 +67,10 @@ export const isText = (value) => typeof value === 'string' && value.trim() !== '
 /** Visible text of sanitised HTML, for emptiness checks. */
 export const htmlText = (html) => (typeof html === 'string' ? html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim() : '');
 
-/** A column has content when it has text (or an inline image) or an allowed image. */
+/** A column's button, as in the hero: it needs both a label and a safe URL. */
+export const columnButton = (column) => (isText(column?.button_label) ? safeLink(column.button_url) : null);
+
+/** A column has content when it has text (or an inline image), an allowed image or a button. */
 export const hasColumnContent = (column) =>
-    Boolean(column) && (Boolean(safeImage(column.image)) || htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? ''));
+    Boolean(column) &&
+    (Boolean(safeImage(column.image)) || htmlText(column.html) !== '' || /<img\b/i.test(column.html ?? '') || Boolean(columnButton(column)));

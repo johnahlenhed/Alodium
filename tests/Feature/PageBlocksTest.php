@@ -370,9 +370,9 @@ class PageBlocksTest extends TestCase
 
         $page = Page::where('title', 'Services')->firstOrFail();
         $stored = [['id' => 'three', 'type' => 'columns', 'data' => ['columns' => [
-            ['html' => '<p>Design</p>', 'image' => '/storage/1/design.jpg', 'alt' => 'Sketches'],
-            ['html' => '<p>Build</p>', 'image' => null, 'alt' => null],
-            ['html' => '<p>Host</p>', 'image' => 'https://cdn.example.com/host.jpg', 'alt' => 'Servers'],
+            ['html' => '<p>Design</p>', 'image' => '/storage/1/design.jpg', 'alt' => 'Sketches', 'button_label' => null, 'button_url' => null],
+            ['html' => '<p>Build</p>', 'image' => null, 'alt' => null, 'button_label' => null, 'button_url' => null],
+            ['html' => '<p>Host</p>', 'image' => 'https://cdn.example.com/host.jpg', 'alt' => 'Servers', 'button_label' => null, 'button_url' => null],
         ], 'variant' => 'light']]];
         $this->assertSame($stored, $page->blockList());
 
@@ -401,6 +401,36 @@ class PageBlocksTest extends TestCase
             ->assertJsonPath('blocks.0.data.columns.2.html', '<p>Host and monitor</p>')
             ->assertJsonPath('blocks.0.data.columns.0.image', '/storage/1/design.jpg'); // Astro makes it absolute
         $this->getJson('/api/public/pages')->assertJsonPath('0.excerpt', 'Design Build Host and monitor');
+    }
+
+    public function test_a_column_button_is_stored_and_reaches_the_public_api(): void
+    {
+        $page = $this->page();
+
+        $this->save($page, ['blocks' => [['id' => 'cols', 'type' => 'columns', 'data' => ['columns' => [
+            ['html' => '<p>Basic</p>', 'button_label' => 'Choose basic', 'button_url' => '/signup?plan=basic'],
+            ['html' => '<p>Pro</p>', 'button_label' => '', 'button_url' => ''],
+            ['html' => '', 'button_label' => 'Contact sales', 'button_url' => 'mailto:sales@example.com'],
+        ]]]]])->assertSessionHasNoErrors();
+
+        $columns = $page->fresh()->blockList()[0]['data']['columns'];
+        $this->assertSame(['Choose basic', null, 'Contact sales'], array_column($columns, 'button_label'));
+        $this->assertSame(['/signup?plan=basic', null, 'mailto:sales@example.com'], array_column($columns, 'button_url'));
+
+        $this->getJson('/api/public/pages/about')->assertJsonPath('blocks.0.data.columns.2.button_label', 'Contact sales');
+        // Like the button block, a column's button is a call to action, not page text.
+        $this->getJson('/api/public/pages')->assertJsonPath('0.excerpt', 'Basic Pro');
+    }
+
+    public function test_a_column_button_needs_a_safe_link_and_a_short_label(): void
+    {
+        $this->save($this->page(), ['blocks' => [['type' => 'columns', 'data' => ['columns' => [
+            ['html' => '<p>a</p>', 'button_label' => 'Go', 'button_url' => 'javascript:alert(1)'],
+            ['html' => '<p>b</p>', 'button_label' => str_repeat('x', 61), 'button_url' => '/x'],
+        ]]]]])->assertSessionHasErrors([
+            'blocks.0.data.columns.0.button_url' => 'The column 1 button URL must be an http(s), mailto: or tel: link, or a path starting with /.',
+            'blocks.0.data.columns.1.button_label' => 'The column 2 button label field must not be greater than 60 characters.',
+        ]);
     }
 
     public function test_blocks_null_turns_a_block_page_back_into_a_legacy_page(): void
