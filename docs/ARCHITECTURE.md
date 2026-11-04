@@ -178,13 +178,19 @@ normalises on save; HTML fields go through `ContentSanitizer`. Astro checks
 again at render time (`safeLink`, `safeImage`). A hero as the first rendered
 block provides the page's `<h1>` (`CmsPage.astro`).
 
-**Columns.** `data.columns` is a list of two or three `{html, image, alt}` of
-equal width (`ColumnsBlock::MIN_COLUMNS`/`MAX_COLUMNS`, the same in
+**Columns.** `data.columns` is a list of two or three `{html, image, alt,
+button_label, button_url}` of equal width (`ColumnsBlock::MIN_COLUMNS`/`MAX_COLUMNS`, the same in
 `blocksReducer.js`). The editor's count field adds an empty column or cuts the
 last, asking first if it has content. On the site an empty column is left out
 and the layout follows the columns shown (`block-columns--single`, none for
 two, `block-columns--three`): two side by side from 720px, three from 960px
-(in the reading column while stacked), stacked below.
+(in the reading column while stacked), stacked below. A column's button, as
+in the hero, shows only with both a label and a safe URL; it sits at the
+bottom of its column so buttons line up, and on a brand, dark or light panel
+it has the default, dark or light hero's button colours (shared rules in
+`blocks.css`, so the hero's contrast pairs cover it). Lists, quotes, headings
+and links need no fields of their own: the column text is the same rich text
+as the text block.
 
 **Page background colour (`pages.background_color`).** Any `#RRGGBB` on which
 everything that sits straight on the page stays readable: the text, muted

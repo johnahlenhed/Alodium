@@ -1,10 +1,12 @@
 // Checks the columns block (no server needed):
 //   - ColumnsBlock.astro, rendered with Astro's container API, shows every
 //     column that has content, in order, with the class for how many there are
-//     (three with one empty is laid out as two, one left as the single column)
+//     (three with one empty is laid out as two, one left as the single column),
+//     and a column's button only with both a label and a safe URL
 //   - the CSS lays them out as expected at phone, tablet and desktop widths:
 //     always stacked on a phone, two side by side from 720px, three from
-//     960px, and the panel corners square where the block fills the screen
+//     960px, and the panel corners square where the block fills the screen;
+//     panels share the hero's button colours for their backgrounds
 //
 //   node scripts/check-blocks.mjs            (from astro/; src/styles/blocks.css)
 //   node scripts/check-blocks.mjs --built    (the CSS in dist/, after `npm run build:local`)
@@ -26,7 +28,7 @@ const check = (ok, message) => ok || errors.push(message);
 /** Each column's text and image, by the order they appear in the HTML. */
 function columnsIn(html) {
     const section = html.match(/<section class="([^"]*)"/)?.[1].split(/\s+/) ?? [];
-    const columns = html.split('<div class="column"').slice(1).map((part) => ({
+    const columns = html.split(/<div class="column(?: [^"]*)?"/).slice(1).map((part) => ({
         text: part.slice(part.indexOf('>') + 1).replace(/<[^>]*>/g, ' ').replace(/[^\w ]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ')[0] ?? '',
         image: part.match(/<img src="([^"]*)" alt="([^"]*)"/)?.slice(1) ?? null,
     }));
@@ -65,6 +67,21 @@ try {
     check(JSON.stringify(withImage.columns[2]?.image) === JSON.stringify(['https://cdn.example.com/c.jpg', 'Third image']), `third column image: ${JSON.stringify(withImage.columns[2]?.image)}`);
     check(['block-columns--three', 'block--panel', 'block--dark'].every((c) => withImage.classes.includes(c)), `three on a dark panel: classes ${withImage.classes.join(' ')}`);
     console.log('ok - render: three on a panel, with an image in the third');
+
+    // Buttons: shown with a label and a safe URL, external links get rel; a
+    // column with only a button is kept; a half-filled or unsafe one is ignored.
+    const buttons = await render({ columns: [
+        { html: '<p>Shop</p>', button_label: 'Buy now', button_url: 'https://shop.example.com' },
+        { html: '', button_label: 'About us', button_url: '/about' },
+        { html: '<p>Label only</p>', button_label: 'Nowhere', button_url: null },
+        { html: '', button_label: 'Bad', button_url: 'javascript:alert(1)' },
+    ] });
+    const anchors = [...buttons.matchAll(/<a class="button button-primary" href="([^"]*)"(?: rel="([^"]*)")?[^>]*>\s*([^<]*?)\s*<\/a>/g)].map((m) => [m[1], m[2] ?? null, m[3]]);
+    check(JSON.stringify(anchors) === JSON.stringify([['https://shop.example.com', 'noopener noreferrer', 'Buy now'], ['/about', null, 'About us']]), `column buttons: ${JSON.stringify(anchors)}`);
+    check((buttons.match(/class="column column--has-button"/g) ?? []).length === 2, 'column buttons: not exactly two columns marked column--has-button');
+    check(columnsIn(buttons).columns.length === 3, `column buttons: ${columnsIn(buttons).columns.length} columns shown, expected 3 (the javascript: one is empty)`);
+    check(!buttons.includes('javascript:'), 'column buttons: an unsafe URL reached the HTML');
+    console.log('ok - render: column buttons');
 } finally {
     await server.close();
 }
@@ -111,6 +128,14 @@ for (const [name, classes, square] of PANEL_CORNERS) {
     check(JSON.stringify(got) === JSON.stringify(square), `${name} on a panel: square corners at ${WIDTHS.join('/')}px are ${got.join('/')}, expected ${square.join('/')}`);
     console.log(`ok - layout: ${name} on a panel: corners`);
 }
+
+// Buttons on panels use the hero's colours for the same background, so the hero
+// pairs in check-contrast.mjs cover them. A rule that sets them must name each panel.
+for (const panel of ['.block--panel.block--brand', '.block--panel.block--dark', '.block--panel).block--light']) {
+    const shared = rules.some((rule) => '--button-bg' in rule.declarations && rule.selectors.some((s) => normal(s).includes(normal(panel)) && s.includes('.button-primary')));
+    check(shared, `no rule gives a button on ${panel.replace(')', '')} the hero's colours`);
+}
+console.log('ok - layout: panel buttons share the hero colours');
 
 if (errors.length) {
     console.error(`\n${errors.length} problem(s):\n  ${errors.join('\n  ')}`);

@@ -74,10 +74,30 @@ export default function ColumnsBlockEditor({ blockId, data, errors, onChange }) 
                             maxLength={200}
                             hint={ALT_HINT}
                         />
+                        <Field
+                            id={`${blockId}-column-${index}-button-label`}
+                            label={`Column ${index + 1} button label`}
+                            value={column.button_label}
+                            onChange={(button_label) => setColumn(index, { button_label })}
+                            error={errors[`data.columns.${index}.button_label`]}
+                            maxLength={60}
+                        />
+                        <Field
+                            id={`${blockId}-column-${index}-button-url`}
+                            label={`Column ${index + 1} button URL`}
+                            value={column.button_url}
+                            onChange={(button_url) => setColumn(index, { button_url })}
+                            error={errors[`data.columns.${index}.button_url`]}
+                            placeholder="https://... or /about"
+                            maxLength={2048}
+                        />
                     </fieldset>
                 ))}
             </div>
-            <p className="text-sm text-gray-500">An empty column (no text and no image) is left out on the site.</p>
+            <p className="text-sm text-gray-500">
+                A column's button only shows when both its label and URL are filled in. An empty column (no text, image
+                or button) is left out on the site.
+            </p>
             <VariantField
                 id={`${blockId}-variant`}
                 variants={['default', 'light', 'brand', 'dark']}

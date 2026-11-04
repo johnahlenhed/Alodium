@@ -43,7 +43,7 @@ export const BLOCK_TYPES = {
     columns: {
         label: 'Columns',
         icon: Columns2,
-        description: 'Two or three columns side by side, each with text and an optional image. Stacked on small screens.',
+        description: 'Two or three columns side by side, each with text, an optional image and an optional button. Stacked on small screens.',
         defaultData: {
             columns: [
                 { html: '', image: '', alt: '' },

@@ -124,6 +124,9 @@ function pairs(buttons) {
         ['No-background hero focus ring', '--color-focus', '--color-bg', UI],
     ];
 
+    // A column's button on a brand, dark or light panel has the default, dark or
+    // light hero's colours on the same background (blocks.css shares the rules),
+    // so the hero pairs below cover those buttons too.
     const solid = [
         ['Primary', '--color-on-brand', '--color-brand', TEXT],
         ['Primary edge on page', '--color-brand', '--color-bg', UI],
