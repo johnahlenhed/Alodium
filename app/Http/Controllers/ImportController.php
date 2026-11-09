@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ImportRun;
+use App\Models\Page;
+use App\Models\SiteSetting;
 use App\Services\WordPressImporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -87,7 +89,29 @@ class ImportController extends Controller
             ],
             'status' => $this->statusOf($run),
             'statusUrl' => route('import.runs.status', $run),
+            'frontPage' => $this->frontPageNote($run, $report),
         ]);
+    }
+
+    /**
+     * The "no front page" note: when the site has none set (so "/" lists the
+     * latest posts) and this import brought pages, one of which might be meant
+     * for it. null when a front page is set, even one not published yet. The
+     * suggestion is the run's guess (an imported page at /home), offered only
+     * while it is still published.
+     *
+     * @return array{suggestion: ?array{id: int, title: string, slug: string}}|null
+     */
+    private function frontPageNote(ImportRun $run, array $report): ?array
+    {
+        if (SiteSetting::current()->front_page_id !== null || $run->imported_pages < 1) {
+            return null;
+        }
+
+        $guess = $report['front_page_suggestion'] ?? null;
+        $page = is_array($guess) ? Page::onPublicSite()->find($guess['id'] ?? null, ['id', 'title', 'slug']) : null;
+
+        return ['suggestion' => $page?->only(['id', 'title', 'slug'])];
     }
 
     /** Progress of an import's image downloads (polled by the run page). */
