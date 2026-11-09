@@ -107,7 +107,7 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
-| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, item types found), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
+| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
 | `cache`, `cache_locks` | Database cache (also used for job uniqueness and import image locks). |
 | `sessions`, `password_reset_tokens` | Laravel defaults. |
@@ -386,6 +386,7 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
 | Media library upload and list, read submissions | yes | yes |
 | Analytics, WordPress import, users, site settings | yes | no |
 | Add a page to the menu from the page editor (`pages.navigation.add`) | yes | no (the menu is site settings; editors see where it is) |
+| Make a published page the front page in one click (`pages.front-page`, offered on the import run page) | yes | no |
 | Dashboard visitor, traffic and system data, and the Getting started list | yes | no (`DashboardController::build`) |
 
 **After saving a page.** Saving returns to the page's editor, with a message naming the page's address (and, after a rename, its old one). The editor's "On the public site" panel (`PublicSiteBuilds::pageStatus()`) shows one of these states:
@@ -642,6 +643,23 @@ Astro (`astro/.env`, `astro/.env.production`):
   stored once per item (a featured image is deleted with its item).
 - **Old links in imported content**: links to WordPress attachment pages and
   non-image files (PDF, MP3) keep pointing at the old site.
+- **Layout in imports**: the importer stores HTML only (imported pages are
+  classic pages, not block pages) and never maps WordPress's block editor
+  layout onto Alodium's blocks. Columns (any number), cover sections and
+  buttons are flattened by the sanitiser: their text, images and links are
+  kept one after another, and the columns, the cover's background and the
+  button styling are lost (a cover's heading then sits below the page title,
+  so the page has two `<h1>`). Each item where this happened gets a warning in
+  the run's report ("…its original layout wasn't preserved."), detected from
+  the block comments (`<!-- wp:columns -->`, `wp:cover`, `wp:button(s)`) or
+  their class names (`WordPressImporter::flattenedLayoutWarning()`). Converting
+  such a page to blocks gives one text block.
+- **Front page after an import**: WordPress keeps its front page as a site
+  option, which the export doesn't contain, so the import never sets one. When
+  the site has no front page after an import that brought pages, the run page
+  says so and links to Settings, Front page; a published page imported at
+  /home (by title or WordPress slug) is offered as a one-click guess
+  (`pages.front-page`), labelled as a guess.
 - **Shortcodes in imports**: only WordPress core's are converted
   (`App\Support\Shortcodes`: gallery, caption, wp_caption, audio, video,
   playlist, embed). A gallery becomes its images in one paragraph (no grid); a

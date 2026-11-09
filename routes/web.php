@@ -61,6 +61,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
     // The menu is site settings: the page editor's shortcut is admin-only too.
     Route::post('/pages/{page}/navigation', [PageController::class, 'addToNavigation'])->name('pages.navigation.add');
+    Route::post('/pages/{page}/front-page', [PageController::class, 'makeFrontPage'])->name('pages.front-page');
     Route::delete('/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
     Route::delete('/submissions/{submission}', [SubmissionController::class, 'destroy'])->name('submissions.destroy');
 
