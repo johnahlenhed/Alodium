@@ -107,7 +107,7 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
-| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
+| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, `notes` about the whole run (the dropped category and tag assignments), item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
 | `cache`, `cache_locks` | Database cache (also used for job uniqueness and import image locks). |
 | `sessions`, `password_reset_tokens` | Laravel defaults. |
@@ -654,6 +654,18 @@ Astro (`astro/.env`, `astro/.env.production`):
   the block comments (`<!-- wp:columns -->`, `wp:cover`, `wp:button(s)`) or
   their class names (`WordPressImporter::flattenedLayoutWarning()`). Converting
   such a page to blocks gives one text block.
+- **No categories or tags**: posts are a flat list; there is no category or
+  tag model. The WordPress import drops the category and tag assignments of the
+  posts it imports (`<category domain="category|post_tag">` on each item; the
+  terms listed in the export's channel aren't read) and says how many in the
+  run's notes ("12 category assignments … were not imported").
+  WordPress's default category, "uncategorized", and other taxonomies (post
+  formats, ...) aren't counted. After a migration onto Alodium, old
+  `/category/...` and `/tag/...` addresses don't resolve (they get the 404
+  page). Scoped on the `investigate/post-categories` branch and deferred: a
+  categories table with a post relation, the import mapping, a post form field
+  with a small rename page, and `/category/{slug}/` archive pages reusing the
+  blog list (about 3–4 days; `category` would join the reserved page slugs).
 - **Front page after an import**: WordPress keeps its front page as a site
   option, which the export doesn't contain, so the import never sets one. When
   the site has no front page after an import that brought pages, the run page
