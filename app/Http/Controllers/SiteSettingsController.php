@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Services\PublicSiteSettings;
 use App\Services\SvgSanitizer;
+use App\Support\LayoutOptions;
 use App\Support\SvgSize;
 use App\Support\ThemeOptions;
 use Illuminate\Http\RedirectResponse;
@@ -49,6 +50,9 @@ class SiteSettingsController extends Controller
                 'front_page_id' => $settings->front_page_id,
                 // null on a row from before the column: the default.
                 'logo_height' => $settings->shownLogoHeight(),
+                // null on a row from before the columns: the default, as the public site shows it.
+                'header_layout' => LayoutOptions::resolve($settings->header_layout, LayoutOptions::HEADER),
+                'footer_layout' => LayoutOptions::resolve($settings->footer_layout, LayoutOptions::FOOTER),
                 'navigation' => $navigation,
             ],
             'pendingFrontPage' => $pendingFrontPage?->only(['id', 'title', 'slug']),
@@ -60,6 +64,8 @@ class SiteSettingsController extends Controller
                 'buttons' => $this->options(ThemeOptions::BUTTONS),
                 'minContrast' => ThemeOptions::MIN_BRAND_CONTRAST,
                 'maxNavigation' => UpdateSiteSettingsRequest::MAX_NAVIGATION_ITEMS,
+                'headerLayouts' => LayoutOptions::choices(LayoutOptions::HEADER),
+                'footerLayouts' => LayoutOptions::choices(LayoutOptions::FOOTER),
                 'logoHeight' => ['min' => SiteSetting::LOGO_HEIGHT_MIN, 'max' => SiteSetting::LOGO_HEIGHT_MAX, 'default' => SiteSetting::LOGO_HEIGHT_DEFAULT],
             ],
         ]);

@@ -187,6 +187,73 @@ body {
     text-decoration-line: underline;
 }
 
+/*
+ * Header layouts from Settings (site_settings.header_layout, src/lib/
+ * layouts.js). The default, logo left and menu right, has no class. The
+ * others only rearrange the brand and the menu: no colours change, so the
+ * header background checks hold for every layout. "Centred": both centred,
+ * the menu on its own line(s) below. "Stacked": both on the left, the menu
+ * below, where a long menu has the full width. The brand (the logo or the
+ * built-in mark, and the name) is one element, .site-brand, so it moves the
+ * same way with or without an uploaded logo.
+ */
+.site-header--centered .site-header__inner,
+.site-header--stacked .site-header__inner {
+    flex-direction: column;
+}
+
+.site-header--stacked .site-header__inner {
+    align-items: flex-start;
+}
+
+.site-header--centered .site-nav ul {
+    justify-content: center;
+    margin-inline: 0;
+}
+
+.site-header--centered .site-brand__logo {
+    object-position: center;
+}
+
+/*
+ * "Logo left, menu centred": the brand on the left and the menu in the middle
+ * of the header (not of the space the brand leaves). Below 1024px, the brand
+ * on the left with the menu centred on its own line(s) below. From 1024px a
+ * grid of three columns: brand | menu | nothing. The outer two share what the
+ * menu leaves equally, which centres it; the brand's column is never
+ * narrower than the brand, so a brand wider than its share (a long name, a
+ * long menu) pushes the menu right rather than wrapping or overlapping.
+ * 1024px, not narrower: a 36px logo with a name and four links needs about
+ * 950px of header to be centred (measured in Chromium), and from 1024px the
+ * logo is at its full chosen height. justify-self: the link is as wide as
+ * the brand, not the whole column.
+ */
+.site-header--centered-menu .site-header__inner {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.site-header--centered-menu .site-nav {
+    align-self: center;
+}
+
+.site-header--centered-menu .site-nav ul {
+    justify-content: center;
+    margin-inline: 0;
+}
+
+@media (min-width: 1024px) {
+    .site-header--centered-menu .site-header__inner {
+        display: grid;
+        grid-template-columns: minmax(max-content, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+    }
+
+    .site-header--centered-menu .site-brand {
+        justify-self: start;
+    }
+}
+
 /* The current page (and, for Blog, a post): brand colour, bold, thick underline. */
 .site-nav a[aria-current],
 .site-footer__nav a[aria-current] {
@@ -433,5 +500,53 @@ body {
     .site-footer__text,
     .site-footer__note {
         grid-column: 1 / -1;
+    }
+}
+
+/*
+ * Footer layouts from Settings (site_settings.footer_layout, src/lib/
+ * layouts.js). The default (above) has no class. Like the header's, they only
+ * rearrange: every text stays on the footer background, so its checks hold.
+ *
+ * "Centred": one centred column, in the HTML's order (name, menu, text, note).
+ */
+.site-footer--centered .site-footer__inner {
+    justify-items: center;
+    text-align: center;
+}
+
+.site-footer--centered .site-footer__nav ul {
+    justify-content: center;
+    margin-inline: 0;
+}
+
+@media (min-width: 640px) {
+    .site-footer--centered .site-footer__inner {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/*
+ * "Three columns": the name, the menu as a list, and the footer text, in the
+ * HTML's order (so reading and tab order match what is seen), with the
+ * analytics note across the bottom. From 720px; narrower screens get the
+ * default footer. Without footer text the third column stays empty, so the
+ * menu keeps its place.
+ */
+@media (min-width: 720px) {
+    .site-footer--columns .site-footer__inner {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .site-footer--columns .site-footer__text {
+        grid-column: auto;
+    }
+
+    /* The links' text lines up with the column, as the name's does. */
+    .site-footer--columns .site-footer__nav ul {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-inline: calc(-1 * var(--space-3)) 0;
     }
 }

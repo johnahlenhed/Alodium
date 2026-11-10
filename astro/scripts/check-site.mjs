@@ -2,6 +2,7 @@
 // GET /api/public/site (run `npm run build:local` first, with Laravel running):
 //   - the name, footer text and navigation labels are escaped text
 //   - header and footer navigation equal the API's, in order, without the front page
+//   - the header and footer have the colour and layout classes the API's settings give
 //   - the logo <img> has the API's width and height (also as its CSS height) and the right alt text
 //   - <head> has the theme variables, data-button and only the selected font files
 //   - "/" renders the front page (the same content as /{slug}/) with one <h1>,
@@ -55,6 +56,8 @@ const expectedNav = site.navigation.filter((item) => !frontSlug || normalizePath
 const theme = buildTheme(site.theme);
 const expectedFonts = [...new Set([FONTS[site.theme.fontBody]?.file, FONTS[site.theme.fontHeading]?.file].filter(Boolean))].sort();
 const year = String(new Date().getFullYear());
+/** " site-header--centered" for a layout other than "standard" (or none, from an older API); "" otherwise. */
+const layoutSuffix = (block, layout) => (typeof layout === 'string' && layout !== 'standard' ? ` ${block}--${layout}` : '');
 // Raw markup from the settings that must never appear unescaped.
 const rawMarkup = [site.name, site.description, site.footer_text, ...site.navigation.map((item) => item.label)]
     .filter((text) => typeof text === 'string')
@@ -87,24 +90,27 @@ for (const file of pageFiles) {
     if ((footerText === undefined ? null : decode(footerText)) !== site.footer_text) fail(`footer text is ${JSON.stringify(footerText)}`);
     if (!html.includes('<p class="site-footer__note">This site uses cookie-free analytics.</p>')) fail('the analytics line is missing');
 
-    // The header's colour (nav_background_color): a scheme class and --nav-bg, or neither.
+    // The header's colour (nav_background_color): a scheme class and --nav-bg, or
+    // neither; then its layout class (header_layout), none for "standard".
     const header = first(html, /(<header\b[^>]*>)/) ?? '';
     const headerClass = first(header, /class="([^"]*)"/);
     const navBg = first(header, /style="--nav-bg: (#[0-9a-f]{6})"/);
+    const headerLayout = layoutSuffix('site-header', site.header_layout);
     if (site.nav_background_color) {
-        if (navBg !== site.nav_background_color.toLowerCase() || !/^site-header site-header--(light|dark)$/.test(headerClass ?? '')) fail(`the header is ${header}, not coloured ${site.nav_background_color}`);
-    } else if (headerClass !== 'site-header' || navBg !== undefined) {
-        fail(`the header is ${header}, with no colour set`);
+        if (navBg !== site.nav_background_color.toLowerCase() || !new RegExp(`^site-header site-header--(light|dark)${headerLayout}$`).test(headerClass ?? '')) fail(`the header is ${header}, not coloured ${site.nav_background_color}${headerLayout && ' with' + headerLayout}`);
+    } else if (headerClass !== `site-header${headerLayout}` || navBg !== undefined) {
+        fail(`the header is ${header}, with no colour set${headerLayout && ' and' + headerLayout}`);
     }
 
-    // The footer's colour (footer_background_color), the same way.
+    // The footer's colour (footer_background_color) and layout, the same way.
     const footer = first(html, /(<footer\b[^>]*>)/) ?? '';
     const footerClass = first(footer, /class="([^"]*)"/);
     const footerBg = first(footer, /style="--footer-bg: (#[0-9a-f]{6})"/);
+    const footerLayout = layoutSuffix('site-footer', site.footer_layout);
     if (site.footer_background_color) {
-        if (footerBg !== site.footer_background_color.toLowerCase() || !/^site-footer site-footer--(light|dark)$/.test(footerClass ?? '')) fail(`the footer is ${footer}, not coloured ${site.footer_background_color}`);
-    } else if (footerClass !== 'site-footer' || footerBg !== undefined) {
-        fail(`the footer is ${footer}, with no colour set`);
+        if (footerBg !== site.footer_background_color.toLowerCase() || !new RegExp(`^site-footer site-footer--(light|dark)${footerLayout}$`).test(footerClass ?? '')) fail(`the footer is ${footer}, not coloured ${site.footer_background_color}${footerLayout && ' with' + footerLayout}`);
+    } else if (footerClass !== `site-footer${footerLayout}` || footerBg !== undefined) {
+        fail(`the footer is ${footer}, with no colour set${footerLayout && ' and' + footerLayout}`);
     }
 
     const brand = first(html, /<a class="site-brand" href="\/">([\s\S]*?)<\/a><nav/) ?? '';

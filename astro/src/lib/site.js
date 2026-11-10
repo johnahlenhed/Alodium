@@ -14,6 +14,9 @@ export const SITE_DEFAULTS = Object.freeze({
     navBackground: null,
     /** The footer's colour, the same way: { color, scheme }, or null for the light grey. */
     footerBackground: null,
+    /** How the header and footer are arranged (src/lib/layouts.js). */
+    headerLayout: 'standard',
+    footerLayout: 'standard',
     logo: null,
     navigation: Object.freeze([
         Object.freeze({ label: 'Home', href: '/' }),

@@ -116,3 +116,57 @@ export function computedValue(rules, classes, width, property) {
     });
     return best?.value;
 }
+
+/**
+ * A compound selector of an optional tag and classes ("ul", ".a.b",
+ * "a.b:not(.c)"), or null for anything else (attributes, pseudo-classes, ...).
+ */
+function compoundSelector(selector) {
+    const tag = selector.match(/^[a-z][\w-]*/i)?.[0] ?? null;
+    const classes = tag ? classSelector(selector.slice(tag.length)) ?? (selector === tag ? { needs: [], excludes: [], specificity: 0 } : null) : classSelector(selector);
+    return classes && { tag, ...classes };
+}
+
+const matchesCompound = (compound, element) =>
+    (compound.tag === null || compound.tag === element.tag) && compound.needs.every((c) => element.classes.includes(c)) && !compound.excludes.some((c) => element.classes.includes(c));
+
+/** Whether winningDeclaration() can evaluate a selector (compounds joined by spaces); it ignores rules it can't. */
+export const isModelledSelector = (selector) => selector.trim().split(/\s+/).every((compound) => compoundSelector(compound) !== null);
+
+/**
+ * The declaration that applies to an element inside others: `chain` lists the
+ * element's ancestors and then the element, each as { tag, classes }, and
+ * `properties` the property and any shorthand that also sets it (for example
+ * ['margin-inline-start', 'margin-inline']). Knows selectors of compounds (see
+ * compoundSelector) joined by spaces (the descendant combinator); rules with
+ * any other selector are ignored. Of the rules that match, the one with the
+ * most classes wins, then the most tags, then the last. { property, value },
+ * or undefined when none sets it.
+ */
+export function winningDeclaration(rules, chain, width, properties) {
+    const element = chain.at(-1);
+    let best = null;
+    rules.forEach((rule, order) => {
+        const property = properties.find((name) => name in rule.declarations);
+        if (!property || !matchesWidth(rule.at, width)) return;
+        for (const selector of rule.selectors) {
+            const compounds = selector.trim().split(/\s+/).map(compoundSelector);
+            if (compounds.some((c) => c === null) || !matchesCompound(compounds.at(-1), element)) continue;
+            // Each remaining compound, right to left, must match an ancestor further up.
+            let ancestor = chain.length - 2;
+            const matched = compounds.slice(0, -1).reverse().every((compound) => {
+                while (ancestor >= 0 && !matchesCompound(compound, chain[ancestor])) ancestor--;
+                return ancestor-- >= 0;
+            });
+            if (!matched) continue;
+            const specificity = compounds.reduce((sum, c) => sum + c.specificity * 1000 + (c.tag ? 1 : 0), 0);
+            if (!best || specificity > best.specificity || (specificity === best.specificity && order >= best.order)) {
+                best = { specificity, order, property, value: rule.declarations[property] };
+            }
+        }
+    });
+    return best ? { property: best.property, value: best.value } : undefined;
+}
+
+/** computedValue() for an element inside others (see winningDeclaration). */
+export const computedValueIn = (rules, chain, width, property) => winningDeclaration(rules, chain, width, [property])?.value;

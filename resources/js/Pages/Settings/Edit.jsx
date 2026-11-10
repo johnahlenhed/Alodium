@@ -60,6 +60,27 @@ function ChoiceGroup({ legend, name, options, value, onChange, error }) {
     );
 }
 
+/** A dropdown for the header's or footer's layout, with what the chosen one looks like. */
+function LayoutField({ id, label, options, value, onChange, error }) {
+    const chosen = options.find((option) => option.value === value);
+    return (
+        <div>
+            <InputLabel htmlFor={id} value={label} />
+            <select id={id} className={fieldClass} value={value} aria-describedby={`${id}_help`} onChange={(e) => onChange(e.target.value)}>
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+            <p id={`${id}_help`} className="mt-1 text-sm text-gray-500">
+                {chosen?.description}
+            </p>
+            <InputError message={error} className="mt-2" />
+        </div>
+    );
+}
+
 export default function Edit({ settings, pendingFrontPage, logo, pages, options }) {
     const form = useForm({
         site_name: settings.site_name,
@@ -70,6 +91,8 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
         brand_color: settings.brand_color,
         nav_background_color: settings.nav_background_color ?? null,
         footer_background_color: settings.footer_background_color ?? null,
+        header_layout: settings.header_layout,
+        footer_layout: settings.footer_layout,
         font_body: settings.font_body,
         font_heading: settings.font_heading,
         corners: settings.corners,
@@ -297,6 +320,25 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
                         brandColor={data.brand_color}
                         siteName={data.site_name}
                     />
+
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <LayoutField
+                            id="header_layout"
+                            label="Header layout"
+                            options={options.headerLayouts}
+                            value={data.header_layout}
+                            onChange={(value) => setData('header_layout', value)}
+                            error={errors.header_layout}
+                        />
+                        <LayoutField
+                            id="footer_layout"
+                            label="Footer layout"
+                            options={options.footerLayouts}
+                            value={data.footer_layout}
+                            onChange={(value) => setData('footer_layout', value)}
+                            error={errors.footer_layout}
+                        />
+                    </div>
 
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         {[

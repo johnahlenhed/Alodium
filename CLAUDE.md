@@ -110,7 +110,7 @@ php artisan content:sanitize --dry-run   # How many stored posts/pages the sanit
 
 # Public site (in astro/, Laravel must be running)
 npm run build:local        # Build with astro/.env into astro/dist
-npm run check              # theme, settings, colour contrast and columns block checks (no server needed)
+npm run check              # theme, settings, colour contrast, columns block and header/footer layout checks (no server needed)
 npm run check:build        # Checks on the built HTML, incl. against the live /api/public/site
 ```
 
