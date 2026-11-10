@@ -79,7 +79,7 @@ whose canonical points elsewhere is). Without one, `/` shows the latest 6 posts.
 Checks (no test framework; `check:build` needs Laravel running, like the build):
 
 ```bash
-npm run check          # theme.js/fonts.js and settings.js checks, WCAG contrast of every colour pair, columns block layout
+npm run check          # theme.js/fonts.js and settings.js checks, WCAG contrast of every colour pair, columns block layout, header/footer layouts
 npm run build:local && npm run check:build   # one <h1>, skip link, aria-current, favicons, hosts, fonts, page column, columns CSS, site settings
 node scripts/derive-font-fallbacks.mjs        # after replacing a font file
 ```

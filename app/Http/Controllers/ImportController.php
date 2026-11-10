@@ -85,6 +85,8 @@ class ImportController extends Controller
                 'skipped' => $report['skipped'] ?? [],
                 'warnings' => $report['warnings'] ?? [],
                 'errors' => $report['errors'] ?? [],
+                // About the whole run (dropped category and tag assignments); none on older runs.
+                'notes' => $report['notes'] ?? [],
                 'found' => (object) ($report['found'] ?? []),
             ],
             'status' => $this->statusOf($run),

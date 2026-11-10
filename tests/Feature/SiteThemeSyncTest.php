@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Support\LayoutOptions;
 use App\Support\ThemeOptions;
 use Illuminate\Support\Facades\Process;
 use Tests\TestCase;
@@ -63,6 +64,23 @@ class SiteThemeSyncTest extends TestCase
             'buttons' => $defaults['buttons'],
         ]);
         $this->assertSame(config('app.name'), $defaults['site_name']);
+    }
+
+    public function test_the_header_and_footer_layouts_equal_the_ones_the_astro_build_accepts(): void
+    {
+        $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',
+            "const l = await import('./astro/src/lib/layouts.js'); console.log(JSON.stringify({ default: l.DEFAULT_LAYOUT, header: l.HEADER_LAYOUTS, footer: l.FOOTER_LAYOUTS }));"]);
+        if ($result->exitCode() === 127 || str_contains($result->errorOutput(), 'not found')) {
+            $this->markTestSkipped('Node.js is not installed, so the Astro layouts cannot be loaded.');
+        }
+        $this->assertTrue($result->successful(), $result->errorOutput());
+
+        $this->assertSame(
+            ['default' => LayoutOptions::DEFAULT, 'header' => array_keys(LayoutOptions::HEADER), 'footer' => array_keys(LayoutOptions::FOOTER)],
+            json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR),
+        );
+        $this->assertSame(LayoutOptions::DEFAULT, SiteSetting::defaults()['header_layout']);
+        $this->assertSame(LayoutOptions::DEFAULT, SiteSetting::defaults()['footer_layout']);
     }
 
     public function test_the_logo_height_bounds_equal_the_ones_the_astro_build_accepts(): void

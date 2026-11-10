@@ -1,4 +1,5 @@
 ---
+import { FOOTER_LAYOUTS, layoutClass } from '../lib/layouts.js';
 import { currentState } from '../lib/settings.js';
 
 interface Props {
@@ -8,6 +9,8 @@ interface Props {
         footerText: string | null;
         /** The footer's colour and which text it takes (src/lib/footerBackground.js), or null. */
         footerBackground: { color: string; scheme: 'light' | 'dark' } | null;
+        /** How the footer is arranged (src/lib/layouts.js); "standard" adds no class. */
+        footerLayout: string;
     };
     /** The same navigation as the header. */
     navigation: Array<{ label: string; href: string }>;
@@ -17,14 +20,14 @@ interface Props {
 const ANALYTICS_NOTE = 'This site uses cookie-free analytics.';
 
 const { settings, navigation } = Astro.props;
-const { footerBackground } = settings;
+const { footerBackground, footerLayout } = settings;
 const { pathname } = Astro.url;
 // The year the site was built (the site is static).
 const year = new Date().getFullYear();
 ---
 
 <footer
-    class:list={['site-footer', footerBackground && `site-footer--${footerBackground.scheme}`]}
+    class:list={['site-footer', footerBackground && `site-footer--${footerBackground.scheme}`, layoutClass('site-footer', FOOTER_LAYOUTS, footerLayout)]}
     style={footerBackground ? `--footer-bg: ${footerBackground.color}` : undefined}
 >
     <div class="site-footer__inner">

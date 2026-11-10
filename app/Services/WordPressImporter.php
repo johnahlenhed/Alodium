@@ -58,11 +58,19 @@ class WordPressImporter
     /** @var array<string, list<string>> attachment ids by the post they were uploaded to, in gallery order */
     private array $attachmentChildren = [];
 
-    /** @var array<int, array<string, int>> line => repair description => count (repairEncoding()) */
+    /**
+     * line => what repairEncoding() changed on it: how many control characters
+     * were removed, and the characters invalid bytes were read as.
+     *
+     * @var array<int, array{control?: int, utf8?: list<string>}>
+     */
     private array $repairs = [];
 
     /** @var array<int, string> line => the first parse problem libxml reported on it */
     private array $problemLines = [];
+
+    /** Category and tag assignments on the imported items, which Alodium has no model for (taxonomyNote()). */
+    private array $taxonomy = ['category' => 0, 'post_tag' => 0];
 
     /** HTML allowlist shared with page blocks (App\Services\ContentSanitizer). */
     public function __construct(private ContentSanitizer $sanitizer) {}
@@ -75,22 +83,26 @@ class WordPressImporter
      * `warnings` are per imported post or page: what was converted, lost or repaired
      * (a gallery, an audio player, invalid characters, a damaged part of the file).
      *
+     * `notes` are about the whole run, not one item (the category and tag
+     * assignments that were dropped).
+     *
      * `front_page_suggestion` is the first published page imported at /home (its
      * title or its WordPress slug), a guess at WordPress's own home page, offered
      * on the run page when the site has no front page (ImportController::show()).
      *
-     * @return array{imported_posts: int, imported_pages: int, skipped: list<array{title: string, type: string, reason: string}>, warnings: list<array{title: string, type: string, slug: string, message: string}>, errors: list<string>, found: array<string, int>, front_page_suggestion: ?array{id: int, title: string, slug: string}, run_id: int}
+     * @return array{imported_posts: int, imported_pages: int, skipped: list<array{title: string, type: string, reason: string}>, warnings: list<array{title: string, type: string, slug: string, message: string}>, errors: list<string>, notes: list<string>, found: array<string, int>, front_page_suggestion: ?array{id: int, title: string, slug: string}, run_id: int}
      */
     public function import(string $path, User $author, bool $downloadImages = false): array
     {
         $this->created = $this->attachmentMedia = $this->attachmentChildren = $this->repairs = $this->problemLines = [];
+        $this->taxonomy = ['category' => 0, 'post_tag' => 0];
         $run = ImportRun::create([
             'user_id' => $author->id,
             'status' => ImportRun::STATUS_IMPORTING,
             'download_images' => $downloadImages,
             'started_at' => now(),
         ]);
-        $this->results = ['imported_posts' => 0, 'imported_pages' => 0, 'skipped' => [], 'warnings' => [], 'errors' => [], 'found' => [], 'front_page_suggestion' => null, 'run_id' => $run->id];
+        $this->results = ['imported_posts' => 0, 'imported_pages' => 0, 'skipped' => [], 'warnings' => [], 'errors' => [], 'notes' => [], 'found' => [], 'front_page_suggestion' => null, 'run_id' => $run->id];
 
         $this->ensureMemoryLimit('256M');
         // A large export takes a while to parse and save.
@@ -173,6 +185,10 @@ class WordPressImporter
             'wp_namespace' => $wp,
         ]);
 
+        if (($note = $this->taxonomyNote()) !== null) {
+            $this->results['notes'][] = $note;
+        }
+
         // Before the jobs are queued: a synchronous queue finishes the run inside queueImageDownloads().
         $this->saveReport($run);
         $this->queueImageDownloads($run, $downloadImages);
@@ -190,6 +206,7 @@ class WordPressImporter
                 'skipped' => $this->results['skipped'],
                 'warnings' => $this->results['warnings'],
                 'errors' => $this->results['errors'],
+                'notes' => $this->results['notes'],
                 'found' => $this->results['found'],
                 'front_page_suggestion' => $this->results['front_page_suggestion'],
             ],
@@ -326,6 +343,9 @@ class WordPressImporter
 
         $this->results[$type === 'post' ? 'imported_posts' : 'imported_pages']++;
         $this->warn($type, $record, [...$warnings, ...$contentWarnings]);
+        if ($type === 'post') {
+            $this->countTaxonomy($item);
+        }
 
         // WordPress's front page is a site option, which the export doesn't contain; a
         // published page at /home is offered as a guess (never set by the import itself).
@@ -361,6 +381,47 @@ class WordPressImporter
         $html = trim(preg_replace('#<p>(\s|<br\s*/?>)*</p>#', '', $html) ?? $html);
 
         return [$html === '' ? null : $html, $warnings];
+    }
+
+    /**
+     * Counts an imported post's category and tag assignments
+     * (<category domain="category|post_tag" nicename="...">), which are dropped:
+     * Alodium has no categories or tags. WordPress's default category,
+     * "uncategorized", is not counted (WordPress gives it to every post without
+     * one, so it says nothing). Other taxonomies (post formats, ...) aren't either.
+     */
+    private function countTaxonomy(SimpleXMLElement $item): void
+    {
+        foreach ($item->category as $term) {
+            $domain = strtolower(trim((string) $term['domain']));
+            if (! isset($this->taxonomy[$domain])) {
+                continue;
+            }
+            if ($domain === 'category' && strtolower(trim((string) $term['nicename'])) === 'uncategorized') {
+                continue;
+            }
+            $this->taxonomy[$domain]++;
+        }
+    }
+
+    /** "12 category assignments and 3 tag assignments ... were not imported ...", or null when there were none. */
+    private function taxonomyNote(): ?string
+    {
+        $parts = [];
+        foreach (['category' => 'category', 'post_tag' => 'tag'] as $domain => $label) {
+            $count = $this->taxonomy[$domain];
+            if ($count > 0) {
+                $parts[] = $count === 1 ? "1 {$label} assignment" : "{$count} {$label} assignments";
+            }
+        }
+        if ($parts === []) {
+            return null;
+        }
+        $total = $this->taxonomy['category'] + $this->taxonomy['post_tag'];
+        $what = $this->taxonomy['post_tag'] === 0 ? 'categories' : ($this->taxonomy['category'] === 0 ? 'tags' : 'categories or tags');
+
+        return implode(' and ', $parts).' on the imported posts '.($total === 1 ? 'was' : 'were')
+            ." not imported: Alodium doesn't support {$what}. The posts themselves were imported without them.";
     }
 
     /**

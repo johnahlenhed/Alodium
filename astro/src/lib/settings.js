@@ -7,6 +7,7 @@
 // escaping, never set:html.
 
 import { footerScheme } from './footerBackground.js';
+import { DEFAULT_LAYOUT, FOOTER_LAYOUTS, HEADER_LAYOUTS } from './layouts.js';
 import { navScheme } from './navBackground.js';
 import { SITE_DEFAULTS } from './site.js';
 import { DEFAULT_SETTINGS, resolveSettings } from './theme.js';
@@ -84,6 +85,8 @@ export function normalizeSite(raw, { apiOrigin, warn = (message) => console.warn
         theme: resolvedTheme,
         navBackground: schemeColour('nav_background_color', raw.nav_background_color, navScheme(raw.nav_background_color, resolvedTheme.brand), 'the header keeps the page colour', warn),
         footerBackground: schemeColour('footer_background_color', raw.footer_background_color, footerScheme(raw.footer_background_color, resolvedTheme.brand), 'the footer keeps its grey', warn),
+        headerLayout: layout('header_layout', raw.header_layout, HEADER_LAYOUTS, warn),
+        footerLayout: layout('footer_layout', raw.footer_layout, FOOTER_LAYOUTS, warn),
         logo: logo(raw.logo, apiOrigin, warn),
         navigation: navigation(raw.navigation, warn),
         frontPage: frontPage(raw.front_page, warn),
@@ -103,6 +106,18 @@ function schemeColour(key, value, scheme, fallback, warn) {
         return null;
     }
     return { color: value.toLowerCase(), scheme };
+}
+
+/**
+ * One of the header's or footer's layouts (src/lib/layouts.js). Missing (an API
+ * from before the setting) is the default without a warning; anything else not
+ * in the list is the default with one.
+ */
+function layout(key, value, layouts, warn) {
+    if (value === undefined) return DEFAULT_LAYOUT;
+    if (typeof value === 'string' && layouts.includes(value)) return value;
+    warn(`"${key}" is not one of ${layouts.join(', ')}; using "${DEFAULT_LAYOUT}".`);
+    return DEFAULT_LAYOUT;
 }
 
 /** Through theme.js's allow-lists; each value that had to be replaced is reported. */
