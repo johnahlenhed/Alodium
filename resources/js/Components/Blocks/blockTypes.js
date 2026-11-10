@@ -6,7 +6,7 @@ import ColumnsBlockEditor from './ColumnsBlockEditor';
 import ContactFormBlockEditor from './ContactFormBlockEditor';
 import HeroBlockEditor from './HeroBlockEditor';
 import ImageBlockEditor from './ImageBlockEditor';
-import { SPACER_HEIGHT } from './spacer';
+import { SPACER_HEIGHT, SPACER_OPACITY } from './spacer';
 import SpacerBlockEditor from './SpacerBlockEditor';
 import TextBlockEditor from './TextBlockEditor';
 
@@ -85,10 +85,18 @@ export const BLOCK_TYPES = {
         label: 'Spacer',
         icon: MoveVertical,
         description: 'Empty space between two blocks, with an optional background colour.',
-        defaultData: { height: SPACER_HEIGHT.default, background_color: null },
+        defaultData: { height: SPACER_HEIGHT.default, background_color: null, opacity: SPACER_OPACITY.default },
         Editor: SpacerBlockEditor,
-        fields: ['height', 'background_color'],
-        summary: (data) => `${Number.isInteger(data.height) ? data.height : SPACER_HEIGHT.default} px${data.background_color ? `, ${data.background_color}` : ''}`,
+        fields: ['height', 'background_color', 'opacity'],
+        // "48 px", "48 px, <colour>" or "48 px, <colour>, 60% opacity": the opacity only with a colour, and not at 100%.
+        summary: (data) =>
+            [
+                `${Number.isInteger(data.height) ? data.height : SPACER_HEIGHT.default} px`,
+                data.background_color,
+                data.background_color && Number.isInteger(data.opacity) && data.opacity !== SPACER_OPACITY.default && `${data.opacity}% opacity`,
+            ]
+                .filter(Boolean)
+                .join(', '),
     },
 };
 

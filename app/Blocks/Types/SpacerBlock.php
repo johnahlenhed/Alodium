@@ -30,6 +30,17 @@ class SpacerBlock extends BlockType
     /** About two thirds of the smallest usual gap between blocks (--space-block, 48 to 72 px). */
     public const HEIGHT_DEFAULT = 32;
 
+    /**
+     * The colour's opacity, in percent. 100, fully opaque, is how every spacer
+     * looked before the field, so one stored without it is unchanged. Without a
+     * colour there is nothing to apply it to, so it is stored as the default.
+     */
+    public const OPACITY_MIN = 0;
+
+    public const OPACITY_MAX = 100;
+
+    public const OPACITY_DEFAULT = 100;
+
     public function name(): string
     {
         return 'spacer';
@@ -38,13 +49,17 @@ class SpacerBlock extends BlockType
     public function rules(): array
     {
         return [
-            'height' => ['nullable', 'integer', 'between:'.self::HEIGHT_MIN.','.self::HEIGHT_MAX],
+            // numeric too: "integer" alone lets true through as 1, rejected here only because the
+            // floor is 2; numeric rejects booleans whatever the bounds. The same for opacity below.
+            'height' => ['nullable', 'integer', 'numeric', 'between:'.self::HEIGHT_MIN.','.self::HEIGHT_MAX],
             'background_color' => ['nullable', function (string $attribute, mixed $value, Closure $fail) {
                 // The same format check as the brand and background colours, without their contrast rule.
                 if (! is_string($value) || ! preg_match(ColorContrast::HEX_PATTERN, $value)) {
                     $fail('Enter the colour as # followed by 6 hexadecimal digits, for example #F5F1EA.');
                 }
             }],
+            // For opacity, true as 1 is inside 0 to 100, so without numeric it would be stored.
+            'opacity' => ['nullable', 'integer', 'numeric', 'between:'.self::OPACITY_MIN.','.self::OPACITY_MAX],
         ];
     }
 
@@ -53,18 +68,24 @@ class SpacerBlock extends BlockType
         return [
             'height' => 'spacer height',
             'background_color' => 'spacer background colour',
+            'opacity' => 'spacer opacity',
         ];
     }
 
-    /** A missing or cleared height becomes the default; the colour is stored in capitals, as a page's is. */
+    /**
+     * A missing or cleared height or opacity becomes the default; the colour is
+     * stored in capitals, as a page's is. The opacity is only kept with a colour.
+     */
     public function sanitize(array $data, ContentSanitizer $sanitizer): array
     {
         $height = $data['height'] ?? null;
         $color = $this->text($data, 'background_color');
+        $opacity = $data['opacity'] ?? null;
 
         return [
             'height' => $height === null || $height === '' ? self::HEIGHT_DEFAULT : (int) $height,
             'background_color' => $color === null ? null : strtoupper($color),
+            'opacity' => $color === null || $opacity === null || $opacity === '' ? self::OPACITY_DEFAULT : (int) $opacity,
         ];
     }
 }

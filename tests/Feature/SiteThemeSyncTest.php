@@ -99,23 +99,29 @@ class SiteThemeSyncTest extends TestCase
         );
     }
 
-    public function test_the_spacer_height_bounds_equal_the_ones_the_editor_and_the_astro_build_use(): void
+    public function test_the_spacer_bounds_equal_the_ones_the_editor_and_the_astro_build_use(): void
     {
         $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',
             "const astro = await import('./astro/src/lib/spacer.js'); const admin = await import('./resources/js/Components/Blocks/spacer.js');"
-            .' const { step, ...bounds } = admin.SPACER_HEIGHT; console.log(JSON.stringify({ astro: astro.SPACER_HEIGHT, admin: bounds, step }));']);
+            .' const split = ({ step, ...bounds }) => ({ bounds, step });'
+            .' console.log(JSON.stringify({ height: { astro: astro.SPACER_HEIGHT, ...split(admin.SPACER_HEIGHT) }, opacity: { astro: astro.SPACER_OPACITY, ...split(admin.SPACER_OPACITY) } }));']);
         if ($result->exitCode() === 127 || str_contains($result->errorOutput(), 'not found')) {
             $this->markTestSkipped('Node.js is not installed, so the spacer bounds cannot be loaded.');
         }
         $this->assertTrue($result->successful(), $result->errorOutput());
 
-        $bounds = ['min' => SpacerBlock::HEIGHT_MIN, 'max' => SpacerBlock::HEIGHT_MAX, 'default' => SpacerBlock::HEIGHT_DEFAULT];
         $js = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
-        $this->assertSame($bounds, $js['astro']);
-        $this->assertSame($bounds, $js['admin']);
-        // The editor's slider reaches both ends and the default in whole steps.
-        foreach ($bounds as $value) {
-            $this->assertSame(0, ($value - SpacerBlock::HEIGHT_MIN) % $js['step']);
+        $php = [
+            'height' => ['min' => SpacerBlock::HEIGHT_MIN, 'max' => SpacerBlock::HEIGHT_MAX, 'default' => SpacerBlock::HEIGHT_DEFAULT],
+            'opacity' => ['min' => SpacerBlock::OPACITY_MIN, 'max' => SpacerBlock::OPACITY_MAX, 'default' => SpacerBlock::OPACITY_DEFAULT],
+        ];
+        foreach ($php as $field => $bounds) {
+            $this->assertSame($bounds, $js[$field]['astro'], "{$field}: astro/src/lib/spacer.js");
+            $this->assertSame($bounds, $js[$field]['bounds'], "{$field}: resources/js/Components/Blocks/spacer.js");
+            // The editor's slider reaches both ends and the default in whole steps.
+            foreach ($bounds as $value) {
+                $this->assertSame(0, ($value - $bounds['min']) % $js[$field]['step'], "{$field}: {$value} is not on the slider");
+            }
         }
     }
 

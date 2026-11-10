@@ -7,11 +7,12 @@
 //     always stacked on a phone, two side by side from 720px, three from
 //     960px, and the panel corners square where the block fills the screen;
 //     panels share the hero's button colours for their backgrounds
-//   - SpacerBlock.astro, also through BlockRenderer: the height (in rem) and
-//     colour reach the style attribute, a missing height is the default, and an
-//     invalid height or colour is replaced, never copied into the CSS
-//   - the CSS: a spacer is full width at every width, sized and coloured by its
-//     custom properties, and spaced like any other block
+//   - SpacerBlock.astro, also through BlockRenderer: the height (in rem),
+//     colour and opacity (only with a colour, and below 100) reach the style
+//     attribute, a missing height or opacity is the default, and an invalid
+//     value is replaced, never copied into the CSS
+//   - the CSS: a spacer is full width at every width, sized, coloured and faded
+//     by its custom properties, and spaced like any other block
 //
 //   node scripts/check-blocks.mjs            (from astro/; src/styles/blocks.css)
 //   node scripts/check-blocks.mjs --built    (the CSS in dist/, after `npm run build:local`)
@@ -114,6 +115,19 @@ try {
         ['a colour name', { height: 32, background_color: 'red' }, '--spacer-height: 2rem', 1],
         ['CSS after a colour', { height: 32, background_color: '#ffffff; position: fixed' }, '--spacer-height: 2rem', 1],
         ['a colour that is not a string', { height: 32, background_color: ['#ffffff'] }, '--spacer-height: 2rem', 1],
+        // Opacity: only with a colour, and only below 100 (fully opaque needs no property).
+        ['a colour at 60% opacity', { height: 48, background_color: '#F5F1EA', opacity: 60 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea; --spacer-opacity: 0.6', 0],
+        ['a colour at 0% opacity', { height: 48, background_color: '#F5F1EA', opacity: 0 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea; --spacer-opacity: 0', 0],
+        ['a colour at 7% opacity', { height: 48, background_color: '#F5F1EA', opacity: 7 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea; --spacer-opacity: 0.07', 0],
+        ['a colour at 100% opacity', { height: 48, background_color: '#F5F1EA', opacity: 100 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 0],
+        ['a colour stored before the opacity field', { height: 48, background_color: '#F5F1EA' }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 0],
+        ['a colour with a null opacity', { height: 48, background_color: '#F5F1EA', opacity: null }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 0],
+        ['an opacity without a colour', { height: 48, opacity: 40 }, '--spacer-height: 3rem', 0],
+        ['an opacity with an invalid colour', { height: 48, background_color: 'red', opacity: 40 }, '--spacer-height: 3rem', 1],
+        ['an opacity above 100', { height: 48, background_color: '#F5F1EA', opacity: 101 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 1],
+        ['an opacity below 0', { height: 48, background_color: '#F5F1EA', opacity: -1 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 1],
+        ['an opacity as a fraction', { height: 48, background_color: '#F5F1EA', opacity: 0.5 }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 1],
+        ['an opacity as text', { height: 48, background_color: '#F5F1EA', opacity: '60; display: none' }, '--spacer-height: 3rem; --spacer-bg: #f5f1ea', 1],
     ];
     const warn = console.warn;
     for (const [name, data, style, warnings] of SPACERS) {
@@ -135,13 +149,13 @@ try {
 
     // Through the renderer: the registry knows the type, and a spacer never stops the next block.
     const page = await container.renderToString(BlockRenderer, { props: { slug: 'p', blocks: [
-        { id: 's1', type: 'spacer', data: { height: 80, background_color: '#F5F1EA' } },
+        { id: 's1', type: 'spacer', data: { height: 80, background_color: '#F5F1EA', opacity: 50 } },
         { id: 't1', type: 'text', data: { html: '<p>After</p>' } },
         { id: 's2', type: 'spacer', data: { height: 24 } },
     ] } });
     const rendered = [...page.matchAll(/data-block-id="([^"]*)"/g)].map((m) => m[1]);
     check(JSON.stringify(rendered) === JSON.stringify(['s1', 't1', 's2']), `spacer in a page: blocks rendered ${JSON.stringify(rendered)}`);
-    check(page.includes('style="--spacer-height: 5rem; --spacer-bg: #f5f1ea"') && page.includes('style="--spacer-height: 1.5rem"'), 'spacer in a page: heights or colour missing');
+    check(page.includes('style="--spacer-height: 5rem; --spacer-bg: #f5f1ea; --spacer-opacity: 0.5"') && page.includes('style="--spacer-height: 1.5rem"'), 'spacer in a page: heights or colour missing');
     console.log('ok - render: spacers in a page, between other blocks');
 } finally {
     await server.close();
@@ -198,10 +212,10 @@ for (const panel of ['.block--panel.block--brand', '.block--panel.block--dark', 
 }
 console.log('ok - layout: panel buttons share the hero colours');
 
-// Spacer: full width, sized and coloured only by its custom properties, and the
+// Spacer: full width, sized, coloured and faded only by its custom properties, and the
 // usual block margin (no rule of its own touches spacing, so the blocks around
 // it keep theirs).
-const SPACER_CSS = { width: '100%', height: 'var(--spacer-height)', 'background-color': 'var(--spacer-bg,transparent)', margin: '0autovar(--space-block)' };
+const SPACER_CSS = { width: '100%', height: 'var(--spacer-height)', 'background-color': 'var(--spacer-bg,transparent)', opacity: 'var(--spacer-opacity,1)', margin: '0autovar(--space-block)' };
 for (const [property, expected] of Object.entries(SPACER_CSS)) {
     const got = WIDTHS.map((width) => normal(computedValue(rules, ['block', 'block-spacer'], width, property)));
     check(got.every((value) => value === normal(expected)), `spacer: ${property} at ${WIDTHS.join('/')}px is ${got.join(', ')}, expected ${expected}`);

@@ -192,22 +192,30 @@ it has the default, dark or light hero's button colours (shared rules in
 and links need no fields of their own: the column text is the same rich text
 as the text block.
 
-**Spacer.** `data` is `{height, background_color}`: a whole number of pixels
+**Spacer.** `data` is `{height, background_color, opacity}`: a whole number of pixels
 from 2 to 240 (`SpacerBlock::HEIGHT_MIN`/`MAX`; a missing or cleared height
-is stored as `HEIGHT_DEFAULT`, 32) and a `#RRGGBB` colour or null, stored in
-capitals. Nothing is written on a spacer, so any colour is accepted: only the
-format is checked, with no contrast rule. The bounds are also in
+is stored as `HEIGHT_DEFAULT`, 32), a `#RRGGBB` colour or null, stored in
+capitals, and the colour's opacity, a whole number from 0 to 100 percent
+(`OPACITY_MIN`/`MAX`; missing or cleared is `OPACITY_DEFAULT`, 100, fully
+opaque). Without a colour the opacity has nothing to apply to and is stored as
+100. A spacer saved before the field has no `opacity`; the site treats it as
+100, so it looks as before, and the next save adds it. Nothing is written on a spacer, so any colour is accepted: only the
+format is checked, with no contrast rule. The height and opacity bounds are also in
 `astro/src/lib/spacer.js` and `resources/js/Components/Blocks/spacer.js`
 (`SiteThemeSyncTest` compares all three). On the site it is an empty
 `<div class="block block-spacer" aria-hidden="true">`, full width like the
 hero, with `--spacer-height` (in rem, px ÷ 16, so it follows the visitor's font
-size as the logo height does) and `--spacer-bg` on its `style` attribute. It
+size as the logo height does), `--spacer-bg` and, with a colour below 100%,
+`--spacer-opacity` (0.6 for 60) on its `style` attribute. The opacity is CSS
+`opacity` on the element, not an `rgba()` colour: the element is empty, so it
+only fades the colour, and the colour stays one `#rrggbb`. It
 keeps the usual block margin, so it adds its height plus one usual gap and
 changes no other block's spacing. The build checks the values again and
 replaces an invalid one (default height, no colour) with a warning; only an
-exact `#rrggbb` reaches the `style` attribute. The editor has a slider in steps
+exact `#rrggbb` reaches the `style` attribute. The editor has a height slider in steps
 of 2 px (so it reaches every even height, the default included; the server
-accepts any whole number in range) and the shared `BackgroundColorField.jsx` without its contrast readout
+accepts any whole number in range), an opacity slider in steps of 5% shown
+only while a colour is chosen, and the shared `BackgroundColorField.jsx` without its contrast readout
 (`evaluate` and `sample` are optional there).
 
 **Page background colour (`pages.background_color`).** Any `#RRGGBB` on which
@@ -618,7 +626,7 @@ The README requires the worker to run with `--timeout=660` and
 | `check-contrast.mjs` | `npm run check` | WCAG contrast of the colour pairs listed in its `pairs()` (block variants included), with the colours read from `blocks.css`; also that every page background `pageBackground.js` accepts, and every header and footer colour `navBackground.js` and `footerBackground.js` accept (in the scheme they pick), meets the thresholds for the colours CSS puts on it, and that both rules' fixed colours equal `blocks.css` |
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
-| `check-blocks.mjs` | `npm run check`, and `--built` in `npm run check:build` | the columns block: `ColumnsBlock.astro` rendered with Astro's container API (which columns show, the class for two, three or one), and from `blocks.css` (or the built CSS) how many sit side by side at 375 to 1280px and where panel corners go square; the spacer block: `SpacerBlock.astro` alone and through `BlockRenderer` (height and colour in the `style` attribute, defaults, invalid values replaced and never copied into the CSS), and its CSS (full width, the usual block margin, no spacing rules of its own) |
+| `check-blocks.mjs` | `npm run check`, and `--built` in `npm run check:build` | the columns block: `ColumnsBlock.astro` rendered with Astro's container API (which columns show, the class for two, three or one), and from `blocks.css` (or the built CSS) how many sit side by side at 375 to 1280px and where panel corners go square; the spacer block: `SpacerBlock.astro` alone and through `BlockRenderer` (height, colour and opacity in the `style` attribute, defaults, invalid values replaced and never copied into the CSS), and its CSS (full width, the usual block margin, no spacing rules of its own) |
 | `check-header-footer.mjs` | `npm run check` | the header and footer layouts: `SiteHeader`/`SiteFooter` rendered with the container API (the layout class, nothing else in the HTML changed; the header with the mark, a logo with the name and a logo alone), how `site.css` arranges each at 375 to 1280px (where the brand sits, and that the mark and a logo are placed alike) (`winningDeclaration()` in `scripts/lib/css.mjs` handles descendant selectors), and that layout rules set no colours |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |
 | `derive-font-fallbacks.mjs` | (manual) | fallback font metrics in `fonts.js` |

@@ -43,7 +43,7 @@ class PageBlocksTest extends TestCase
             ]]],
             ['id' => 'button-1', 'type' => 'button', 'data' => ['label' => 'Buy', 'url' => 'https://shop.example.com', 'style' => 'secondary']],
             ['id' => 'form-1', 'type' => 'contact_form', 'data' => ['heading' => 'Get in touch', 'intro' => 'We reply fast']],
-            ['id' => 'spacer-1', 'type' => 'spacer', 'data' => ['height' => 48, 'background_color' => '#ABCDEF']],
+            ['id' => 'spacer-1', 'type' => 'spacer', 'data' => ['height' => 48, 'background_color' => '#ABCDEF', 'opacity' => 60]],
         ];
     }
 

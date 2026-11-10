@@ -8,3 +8,7 @@
 // the thin end, where a pixel or two shows.
 
 export const SPACER_HEIGHT = Object.freeze({ min: 2, max: 240, default: 32, step: 2 });
+
+// The colour's opacity, in percent (OPACITY_MIN, OPACITY_MAX, OPACITY_DEFAULT). Steps of 5:
+// 21 positions, each a round number, with 0, 50 and 100 all on the slider.
+export const SPACER_OPACITY = Object.freeze({ min: 0, max: 100, default: 100, step: 5 });
