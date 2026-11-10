@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\LayoutOptions;
 use App\Support\ThemeOptions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -62,6 +63,8 @@ class SiteSetting extends Model implements HasMedia
         'brand_color',
         'nav_background_color',
         'footer_background_color',
+        'header_layout',
+        'footer_layout',
         'font_body',
         'font_heading',
         'corners',
@@ -93,6 +96,9 @@ class SiteSetting extends Model implements HasMedia
             'nav_background_color' => null,
             // null: the footer has the light grey surface, as before this setting.
             'footer_background_color' => null,
+            // The arrangements both had before these settings (LayoutOptions).
+            'header_layout' => LayoutOptions::DEFAULT,
+            'footer_layout' => LayoutOptions::DEFAULT,
             'font_body' => ThemeOptions::DEFAULTS['fontBody'],
             'font_heading' => ThemeOptions::DEFAULTS['fontHeading'],
             'corners' => ThemeOptions::DEFAULTS['corners'],

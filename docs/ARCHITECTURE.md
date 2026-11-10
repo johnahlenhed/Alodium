@@ -103,11 +103,11 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `navigation_items` | The main navigation after Home, in `sort_order`. Each entry has either `page_id` (cascade on delete; `label` null = the page's title, hidden while the page isn't on the public site) or `url` (a path on the site such as `/blog`, or an http(s) address; `label` required). |
 | `revisions` | Snapshots before a published post/page is edited. Polymorphic `model`, `title`, `content`, `blocks`. Newest 20 kept. |
 | `media` | Spatie Media Library. Polymorphic owner, `collection_name` (`library` on users, `featured` on posts/pages, `logo` on site settings), `custom_properties` (imported images: `source_url`, `source_hash`; logo: `logo_width`, `logo_height`). |
-| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `footer_background_color` (`#RRGGBB` or null = the grey surface), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
+| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `footer_background_color` (`#RRGGBB` or null = the grey surface), `header_layout` and `footer_layout` (a value from `App\Support\LayoutOptions`; null = `standard`, the arrangement before the setting), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
 | `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
-| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
+| `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, `notes` about the whole run (the dropped category and tag assignments), item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
 | `cache`, `cache_locks` | Database cache (also used for job uniqueness and import image locks). |
 | `sessions`, `password_reset_tokens` | Laravel defaults. |
@@ -122,7 +122,7 @@ All under `/api`. Responses are JSON; `/api/*` errors are rendered as JSON.
 | `GET /public/posts/{slug}` | One post: the list fields without `excerpt`, plus `content`, `og_image`, `og_image_width`, `og_image_height`. 404 `{message}` for drafts and unknown slugs. |
 | `GET /public/pages` | Like posts, plus `blocks` (array, or null for legacy pages). |
 | `GET /public/pages/{slug}` | Like a post, plus `blocks` and `background_color` (null unless it passes the page background rule with the current brand colour). A block page returns `content: ""`. |
-| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
+| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, header_layout: "standard"\|"centered-menu"\|"centered"\|"stacked", footer_layout: "standard"\|"columns"\|"centered", logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
 | `POST /public/contact` | Body `name, email, message, website` (honeypot). `{success: true}` or 422 errors. Sends a notification mail. |
 | `POST /collect` | Starts a visit. Returns `{visit_id, token}`. |
 | `PATCH /collect/{visit}` | Duration/scroll depth; needs the visit's `token`. `{success: true}`. |
@@ -228,6 +228,43 @@ so with dark text it needs a lighter colour than the header, and the brand
 colour never decides. The two-scheme rejection message is shared
 (`ContrastChecks::schemeMessage()`), and so are the links' `--nav-text` and
 `--nav-accent`.
+
+**Header and footer layouts (`site_settings.header_layout`, `footer_layout`).**
+A short fixed list each, picked from a dropdown under Settings, Look; not a
+layout system.
+
+| Element | Value | Label | Arrangement |
+|---|---|---|---|
+| Header | `standard` | Logo left, menu right | The header as it was (no class): one flex row, the menu wrapping below on narrow screens |
+| Header | `centered-menu` | Logo left, menu centred | From 1024px a grid `minmax(max-content, 1fr) auto minmax(0, 1fr)`: brand, menu, nothing, so the menu is centred in the header; a brand wider than its share pushes the menu right instead of overlapping. Below 1024px the brand left, the menu centred on its own line below |
+| Header | `centered` | Logo centred, menu below | A flex column, both centred |
+| Header | `stacked` | Logo left, menu below | A flex column, both on the left |
+| Footer | `standard` | Name and menu side by side | The footer as it was (no class) |
+| Footer | `columns` | Three columns | Name, menu as a list, footer text, from 720px; the default footer below that |
+| Footer | `centered` | Centred | One centred column |
+
+The brand (the logo or the built-in mark, and the name) is one element,
+`.site-brand`, which the layouts place as one piece (no rule places the mark
+or the logo on its own), so it moves the same way with or without an
+uploaded logo; `check-header-footer.mjs` checks that
+for every header layout (the mark, a logo with the name, a logo alone). The
+1024px breakpoint of `centered-menu` was measured in Chromium: a 36px logo
+with a name and four links needs about 950px of header to centre the menu,
+and from 1024px the logo is at its full chosen height. The lists, labels
+and descriptions are in `App\Support\LayoutOptions` and, values only, in
+`astro/src/lib/layouts.js` (`SiteThemeSyncTest` compares them). Validation is
+`Rule::in` with `sometimes` (a Settings page from before the fields still
+saves); the API sends the stored value only if it is in the list, else
+`standard`, and `normalizeSite()` checks it again. `SiteHeader`/`SiteFooter`
+add `site-header--{layout}`/`site-footer--{layout}`, none for `standard`, so
+the default markup is unchanged. The rules in `site.css` only rearrange what
+is there (flex direction, alignment, grid columns): no layout adds content,
+changes the HTML order (so reading and tab order match in all of them) or
+sets a colour, so the background checks above hold for every layout;
+`check-header-footer.mjs` checks all of them, and fails on a layout rule
+whose selector it can't evaluate (`:has()`, `>`, attributes). Left out on purpose (see section
+12): a header over the hero image, a menu split either side of the logo, and
+footer content such as social links.
 
 **Backgrounds (`data.variant`).** `BlockType::VARIANTS` is `default`, `light`
 (the brand tint), `brand`, `dark` (a near-black shade of the brand) and `none`.
@@ -564,6 +601,7 @@ The README requires the worker to run with `--timeout=660` and
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
 | `check-blocks.mjs` | `npm run check`, and `--built` in `npm run check:build` | the columns block: `ColumnsBlock.astro` rendered with Astro's container API (which columns show, the class for two, three or one), and from `blocks.css` (or the built CSS) how many sit side by side at 375 to 1280px and where panel corners go square |
+| `check-header-footer.mjs` | `npm run check` | the header and footer layouts: `SiteHeader`/`SiteFooter` rendered with the container API (the layout class, nothing else in the HTML changed; the header with the mark, a logo with the name and a logo alone), how `site.css` arranges each at 375 to 1280px (where the brand sits, and that the mark and a logo are placed alike) (`winningDeclaration()` in `scripts/lib/css.mjs` handles descendant selectors), and that layout rules set no colours |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |
 | `derive-font-fallbacks.mjs` | (manual) | fallback font metrics in `fonts.js` |
 
@@ -654,6 +692,18 @@ Astro (`astro/.env`, `astro/.env.production`):
   the block comments (`<!-- wp:columns -->`, `wp:cover`, `wp:button(s)`) or
   their class names (`WordPressImporter::flattenedLayoutWarning()`). Converting
   such a page to blocks gives one text block.
+- **No categories or tags**: posts are a flat list; there is no category or
+  tag model. The WordPress import drops the category and tag assignments of the
+  posts it imports (`<category domain="category|post_tag">` on each item; the
+  terms listed in the export's channel aren't read) and says how many in the
+  run's notes ("12 category assignments … were not imported").
+  WordPress's default category, "uncategorized", and other taxonomies (post
+  formats, ...) aren't counted. After a migration onto Alodium, old
+  `/category/...` and `/tag/...` addresses don't resolve (they get the 404
+  page). Scoped on the `investigate/post-categories` branch and deferred: a
+  categories table with a post relation, the import mapping, a post form field
+  with a small rename page, and `/category/{slug}/` archive pages reusing the
+  blog list (about 3–4 days; `category` would join the reserved page slugs).
 - **Front page after an import**: WordPress keeps its front page as a site
   option, which the export doesn't contain, so the import never sets one. When
   the site has no front page after an import that brought pages, the run page
@@ -679,6 +729,17 @@ Astro (`astro/.env`, `astro/.env.production`):
   `medium` conversion instead.
 - **Editor preview**: `blocks.css` is written to work standalone for an editor
   preview in an iframe; that preview was not found.
+- **Header and footer layouts left out**: three were considered and not built.
+  A header that sits transparently over a hero image is not just CSS: the
+  header is outside `<main>`, so it would have to know the first block's hero
+  variant to choose its text colour (and the `none` variant has no overlay,
+  so its text would sit on the bare image, which no contrast check can
+  cover), and the hero would need top padding equal to a header height that
+  varies (a 24–96px logo, a menu that wraps onto more lines on a phone). A
+  menu split either side of a centred logo needs the menu in two lists, rules
+  for odd counts and long labels, and its own phone layout. Social links or
+  other footer columns need new content fields (and an editor for them), so
+  they are a feature of their own, not an arrangement.
 - **Favicon**: the public site always uses the Alodium favicon, whatever logo is uploaded.
 - **Front page in the navigation**: the server returns it; only Astro removes it.
 - **Old navigation columns**: `pages.show_in_nav`, `pages.nav_order`,

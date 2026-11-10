@@ -5,6 +5,7 @@
  * name: the visible name text, or the logo's alt text when the name is hidden.
  */
 import BrandMark from './BrandMark.astro';
+import { HEADER_LAYOUTS, layoutClass } from '../lib/layouts.js';
 import { currentState } from '../lib/settings.js';
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
         showSiteName: boolean;
         /** The header's colour and which text it takes (src/lib/navBackground.js), or null. */
         navBackground: { color: string; scheme: 'light' | 'dark' } | null;
+        /** How the header is arranged (src/lib/layouts.js); "standard" adds no class. */
+        headerLayout: string;
         logo: { url: string; width: number; height: number } | null;
     };
     /** navigationFor(settings): the navigation without the front page's own address. */
@@ -21,7 +24,7 @@ interface Props {
 }
 
 const { settings, navigation } = Astro.props;
-const { name, logo, navBackground } = settings;
+const { name, logo, navBackground, headerLayout } = settings;
 // Without a logo the name is always shown, otherwise the link would have no visible content.
 const showName = !logo || settings.showSiteName;
 const { pathname } = Astro.url;
@@ -32,7 +35,7 @@ const logoHeight = logo ? `--logo-height: ${logo.height / 16}rem` : undefined;
 ---
 
 <header
-    class:list={['site-header', navBackground && `site-header--${navBackground.scheme}`]}
+    class:list={['site-header', navBackground && `site-header--${navBackground.scheme}`, layoutClass('site-header', HEADER_LAYOUTS, headerLayout)]}
     style={navBackground ? `--nav-bg: ${navBackground.color}` : undefined}
 >
     <div class="site-header__inner">

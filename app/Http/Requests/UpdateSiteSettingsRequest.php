@@ -9,6 +9,7 @@ use App\Rules\FooterBackgroundColor;
 use App\Rules\NavBackgroundColor;
 use App\Rules\NavigationLink;
 use App\Services\SvgSanitizer;
+use App\Support\LayoutOptions;
 use App\Support\SvgSize;
 use App\Support\ThemeOptions;
 use Closure;
@@ -49,6 +50,9 @@ class UpdateSiteSettingsRequest extends FormRequest
             // Missing keeps the stored colour, so a Settings page loaded before this field still saves.
             'nav_background_color' => ['sometimes', 'nullable', new NavBackgroundColor(ThemeOptions::resolveBrand($this->input('brand_color')))],
             'footer_background_color' => ['sometimes', 'nullable', new FooterBackgroundColor(ThemeOptions::resolveBrand($this->input('brand_color')))],
+            // One of the fixed arrangements. Missing keeps the stored one, as above.
+            'header_layout' => ['sometimes', 'string', Rule::in(array_keys(LayoutOptions::HEADER))],
+            'footer_layout' => ['sometimes', 'string', Rule::in(array_keys(LayoutOptions::FOOTER))],
             'font_body' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
             'font_heading' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
             'corners' => ['required', 'string', Rule::in(array_keys(ThemeOptions::CORNERS))],
@@ -126,6 +130,8 @@ class UpdateSiteSettingsRequest extends FormRequest
             'site_name.regex' => "The site name can't contain line breaks, tabs or other control characters.",
             'site_description.regex' => "The description can't contain line breaks, tabs or other control characters.",
             'footer_text.regex' => "The footer text can't contain line breaks, tabs or other control characters.",
+            'header_layout.*' => 'Choose one of the header layouts.',
+            'footer_layout.*' => 'Choose one of the footer layouts.',
             'logo.file' => 'The logo must be an image file.',
             'logo_height.integer' => 'The logo height must be a whole number of pixels.',
             'logo_height.between' => 'The logo height must be between :min and :max pixels.',

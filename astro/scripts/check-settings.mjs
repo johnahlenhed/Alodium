@@ -16,6 +16,8 @@ const VALID = Object.freeze({
     theme: { brand: '#7A1F3D', fontBody: 'serif', fontHeading: 'system', corners: 'round', buttons: 'outline' },
     nav_background_color: '#1B2A4A',
     footer_background_color: '#F5F1EA',
+    header_layout: 'centered',
+    footer_layout: 'columns',
     logo: { url: `${API}/storage/9/conversions/logo-logo.png`, width: 240, height: 80 },
     navigation: [
         { label: 'Home', href: '/' },
@@ -54,6 +56,8 @@ test('a valid response is used as given, without warnings', () => {
         theme: { brand: '#7a1f3d', fontBody: 'serif', fontHeading: 'system', corners: 'round', buttons: 'outline' },
         navBackground: { color: '#1b2a4a', scheme: 'dark' },
         footerBackground: { color: '#f5f1ea', scheme: 'light' },
+        headerLayout: 'centered',
+        footerLayout: 'columns',
         logo: VALID.logo,
         navigation: VALID.navigation,
         frontPage: { slug: 'about' },
@@ -214,6 +218,32 @@ test('footer_background_color: as the header, with the footer\'s own checks', ()
         const { site, warnings } = footer(value, { ...VALID.theme, brand: '#767676' });
         assert.equal(site.footerBackground, null, JSON.stringify(value));
         assert.equal(warnings.length, 1, JSON.stringify(value));
+    }
+});
+
+test('header_layout and footer_layout: one of each list, otherwise "standard"', () => {
+    for (const value of ['standard', 'centered-menu', 'centered', 'stacked']) assert.equal(normalize({ header_layout: value }).site.headerLayout, value);
+    for (const value of ['standard', 'columns', 'centered']) assert.equal(normalize({ footer_layout: value }).site.footerLayout, value);
+    // Missing (an API from before the setting): the default, without a warning.
+    const older = normalize({ header_layout: undefined, footer_layout: undefined });
+    assert.deepEqual([older.site.headerLayout, older.site.footerLayout], ['standard', 'standard']);
+    assert.deepEqual(older.warnings, []);
+    // Anything else, the other element's layouts included: the default, with a warning.
+    for (const [key, field, value] of [
+        ['header_layout', 'headerLayout', 'columns'],
+        ['footer_layout', 'footerLayout', 'stacked'],
+        ['header_layout', 'headerLayout', 'transparent'],
+        ['header_layout', 'headerLayout', 'centered menu'],
+        ['footer_layout', 'footerLayout', 'Centered'],
+        ['header_layout', 'headerLayout', 'constructor'],
+        ['header_layout', 'headerLayout', null],
+        ['footer_layout', 'footerLayout', 42],
+        ['footer_layout', 'footerLayout', ['columns']],
+        ['header_layout', 'headerLayout', 'centered;}header{display:none'],
+    ]) {
+        const { site, warnings } = normalize({ [key]: value });
+        assert.equal(site[field], 'standard', `${key}: ${JSON.stringify(value)}`);
+        assert.equal(warnings.length, 1, `${key}: ${JSON.stringify(value)}`);
     }
 });
 

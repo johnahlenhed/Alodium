@@ -6,6 +6,7 @@ use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Support\FooterBackground;
+use App\Support\LayoutOptions;
 use App\Support\NavBackground;
 use App\Support\ThemeOptions;
 
@@ -31,6 +32,9 @@ class PublicSiteSettings
             'theme' => $this->theme($settings),
             'nav_background_color' => $this->navBackground($settings),
             'footer_background_color' => $this->footerBackground($settings),
+            // Checked against the list again: a value changed in the database is the default.
+            'header_layout' => LayoutOptions::resolve($settings->header_layout, LayoutOptions::HEADER),
+            'footer_layout' => LayoutOptions::resolve($settings->footer_layout, LayoutOptions::FOOTER),
             'logo' => $this->logo($settings),
             'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),

@@ -293,7 +293,7 @@ function FrontPageNote({ suggestion }) {
 }
 
 export default function Run({ run, status, statusUrl, frontPage = null }) {
-    const { imported_posts, imported_pages, skipped, warnings = [], errors, found = {} } = run;
+    const { imported_posts, imported_pages, skipped, warnings = [], errors, notes = [], found = {} } = run;
     const foundSummary = Object.entries(found)
         .map(([type, count]) => `${count} × ${type}`)
         .join(', ');
@@ -332,6 +332,14 @@ export default function Run({ run, status, statusUrl, frontPage = null }) {
                         attachments are used as featured images, and other types (menus,
                         revisions, custom post types) are ignored.
                     </p>
+
+                    {notes.length > 0 && (
+                        <ul className="space-y-1 text-sm text-gray-700" aria-label="Notes about this import">
+                            {notes.map((note, i) => (
+                                <li key={i}>{note}</li>
+                            ))}
+                        </ul>
+                    )}
 
                     {errors.length > 0 && (
                         <div className="rounded-md border border-danger-200 bg-danger-50 p-6">
