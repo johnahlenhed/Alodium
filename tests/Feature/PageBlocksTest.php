@@ -43,6 +43,7 @@ class PageBlocksTest extends TestCase
             ]]],
             ['id' => 'button-1', 'type' => 'button', 'data' => ['label' => 'Buy', 'url' => 'https://shop.example.com', 'style' => 'secondary']],
             ['id' => 'form-1', 'type' => 'contact_form', 'data' => ['heading' => 'Get in touch', 'intro' => 'We reply fast']],
+            ['id' => 'spacer-1', 'type' => 'spacer', 'data' => ['height' => 48, 'background_color' => '#ABCDEF']],
         ];
     }
 
@@ -127,7 +128,7 @@ class PageBlocksTest extends TestCase
 
         $stored = $page->fresh()->blocks;
         $this->assertSame(1, $stored['version']);
-        $this->assertSame(['hero', 'text', 'image', 'columns', 'button', 'contact_form'], array_column($stored['blocks'], 'type'));
+        $this->assertSame(['hero', 'text', 'image', 'columns', 'button', 'contact_form', 'spacer'], array_column($stored['blocks'], 'type'));
         $this->assertSame('Welcome', $stored['blocks'][0]['data']['heading']);
         $this->assertSame('secondary', $stored['blocks'][4]['data']['style']);
         $this->assertCount(2, $stored['blocks'][3]['data']['columns']);

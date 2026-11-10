@@ -7,6 +7,7 @@ import ColumnsBlock from './ColumnsBlock.astro';
 import ContactFormBlock from './ContactFormBlock.astro';
 import HeroBlock from './HeroBlock.astro';
 import ImageBlock from './ImageBlock.astro';
+import SpacerBlock from './SpacerBlock.astro';
 import TextBlock from './TextBlock.astro';
 
 export const BLOCK_TYPES = {
@@ -39,6 +40,10 @@ export const BLOCK_TYPES = {
     contact_form: {
         component: ContactFormBlock,
         check: () => null, // heading and intro are optional
+    },
+    spacer: {
+        component: SpacerBlock,
+        check: () => null, // never skipped: an invalid height or colour is replaced (src/lib/spacer.js)
     },
 };
 

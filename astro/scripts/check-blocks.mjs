@@ -1,4 +1,4 @@
-// Checks the columns block (no server needed):
+// Checks the columns and spacer blocks (no server needed):
 //   - ColumnsBlock.astro, rendered with Astro's container API, shows every
 //     column that has content, in order, with the class for how many there are
 //     (three with one empty is laid out as two, one left as the single column),
@@ -7,6 +7,11 @@
 //     always stacked on a phone, two side by side from 720px, three from
 //     960px, and the panel corners square where the block fills the screen;
 //     panels share the hero's button colours for their backgrounds
+//   - SpacerBlock.astro, also through BlockRenderer: the height (in rem) and
+//     colour reach the style attribute, a missing height is the default, and an
+//     invalid height or colour is replaced, never copied into the CSS
+//   - the CSS: a spacer is full width at every width, sized and coloured by its
+//     custom properties, and spaced like any other block
 //
 //   node scripts/check-blocks.mjs            (from astro/; src/styles/blocks.css)
 //   node scripts/check-blocks.mjs --built    (the CSS in dist/, after `npm run build:local`)
@@ -82,6 +87,62 @@ try {
     check(columnsIn(buttons).columns.length === 3, `column buttons: ${columnsIn(buttons).columns.length} columns shown, expected 3 (the javascript: one is empty)`);
     check(!buttons.includes('javascript:'), 'column buttons: an unsafe URL reached the HTML');
     console.log('ok - render: column buttons');
+
+    // --- spacer -----------------------------------------------------------------
+    const { default: SpacerBlock } = await server.ssrLoadModule('/src/components/blocks/SpacerBlock.astro');
+    const { default: BlockRenderer } = await server.ssrLoadModule('/src/components/blocks/BlockRenderer.astro');
+    /** The rendered spacer div's attributes, and whether it is empty. */
+    const spacerIn = (html) => {
+        const match = html.match(/<div class="block block-spacer"([^>]*)><\/div>/);
+        if (!match) return null;
+        const attributes = Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+        return { attributes, style: attributes.style ?? null };
+    };
+    const SPACERS = [
+        // name, data, expected style, expected number of build warnings
+        ['the default height', {}, '--spacer-height: 2rem', 0],
+        ['a null height and colour', { height: null, background_color: null }, '--spacer-height: 2rem', 0],
+        ['the smallest height', { height: 2 }, '--spacer-height: 0.125rem', 0],
+        ['an odd height below the old 16 px floor', { height: 15 }, '--spacer-height: 0.9375rem', 0],
+        ['a height below the minimum', { height: 1 }, '--spacer-height: 2rem', 1],
+        ['a height of zero', { height: 0 }, '--spacer-height: 2rem', 1],
+        ['the largest height, with a colour', { height: 240, background_color: '#1B2A4A' }, '--spacer-height: 15rem; --spacer-bg: #1b2a4a', 0],
+        ['a dark colour (no contrast check)', { height: 48, background_color: '#000000' }, '--spacer-height: 3rem; --spacer-bg: #000000', 0],
+        ['a height above the maximum', { height: 241, background_color: '#ABCDEF' }, '--spacer-height: 2rem; --spacer-bg: #abcdef', 1],
+        ['a height as text', { height: '48' }, '--spacer-height: 2rem', 1],
+        ['a height that is not whole', { height: 47.5 }, '--spacer-height: 2rem', 1],
+        ['a colour name', { height: 32, background_color: 'red' }, '--spacer-height: 2rem', 1],
+        ['CSS after a colour', { height: 32, background_color: '#ffffff; position: fixed' }, '--spacer-height: 2rem', 1],
+        ['a colour that is not a string', { height: 32, background_color: ['#ffffff'] }, '--spacer-height: 2rem', 1],
+    ];
+    const warn = console.warn;
+    for (const [name, data, style, warnings] of SPACERS) {
+        const logged = [];
+        console.warn = (...args) => logged.push(args.join(' '));
+        let html;
+        try {
+            html = await container.renderToString(SpacerBlock, { props: { id: 'sp', data } });
+        } finally {
+            console.warn = warn;
+        }
+        const spacer = spacerIn(html);
+        check(spacer !== null, `spacer, ${name}: no empty div.block.block-spacer in ${html}`);
+        check(spacer?.style === style, `spacer, ${name}: style "${spacer?.style}", expected "${style}"`);
+        check(spacer?.attributes['aria-hidden'] === 'true' && spacer?.attributes['data-block-id'] === 'sp', `spacer, ${name}: attributes ${JSON.stringify(spacer?.attributes)}`);
+        check(logged.length === warnings, `spacer, ${name}: ${logged.length} build warning(s), expected ${warnings}: ${logged.join(' | ')}`);
+        console.log(`ok - render: spacer, ${name}`);
+    }
+
+    // Through the renderer: the registry knows the type, and a spacer never stops the next block.
+    const page = await container.renderToString(BlockRenderer, { props: { slug: 'p', blocks: [
+        { id: 's1', type: 'spacer', data: { height: 80, background_color: '#F5F1EA' } },
+        { id: 't1', type: 'text', data: { html: '<p>After</p>' } },
+        { id: 's2', type: 'spacer', data: { height: 24 } },
+    ] } });
+    const rendered = [...page.matchAll(/data-block-id="([^"]*)"/g)].map((m) => m[1]);
+    check(JSON.stringify(rendered) === JSON.stringify(['s1', 't1', 's2']), `spacer in a page: blocks rendered ${JSON.stringify(rendered)}`);
+    check(page.includes('style="--spacer-height: 5rem; --spacer-bg: #f5f1ea"') && page.includes('style="--spacer-height: 1.5rem"'), 'spacer in a page: heights or colour missing');
+    console.log('ok - render: spacers in a page, between other blocks');
 } finally {
     await server.close();
 }
@@ -137,8 +198,21 @@ for (const panel of ['.block--panel.block--brand', '.block--panel.block--dark', 
 }
 console.log('ok - layout: panel buttons share the hero colours');
 
+// Spacer: full width, sized and coloured only by its custom properties, and the
+// usual block margin (no rule of its own touches spacing, so the blocks around
+// it keep theirs).
+const SPACER_CSS = { width: '100%', height: 'var(--spacer-height)', 'background-color': 'var(--spacer-bg,transparent)', margin: '0autovar(--space-block)' };
+for (const [property, expected] of Object.entries(SPACER_CSS)) {
+    const got = WIDTHS.map((width) => normal(computedValue(rules, ['block', 'block-spacer'], width, property)));
+    check(got.every((value) => value === normal(expected)), `spacer: ${property} at ${WIDTHS.join('/')}px is ${got.join(', ')}, expected ${expected}`);
+}
+const spacerRules = rules.filter((rule) => rule.selectors.some((s) => s.includes('block-spacer')));
+const spacing = spacerRules.flatMap((rule) => Object.keys(rule.declarations).filter((p) => /^(margin|padding)/.test(p)));
+check(spacerRules.length > 0 && spacing.length === 0, `spacer: its own rules set ${spacing.join(', ') || 'nothing'} for spacing, expected none`);
+console.log('ok - layout: spacer is full width and spaced like any other block');
+
 if (errors.length) {
     console.error(`\n${errors.length} problem(s):\n  ${errors.join('\n  ')}`);
     process.exit(1);
 }
-console.log(`All columns block checks passed (CSS from ${built ? 'dist/' : 'src/styles/blocks.css'}).`);
+console.log(`All columns and spacer block checks passed (CSS from ${built ? 'dist/' : 'src/styles/blocks.css'}).`);

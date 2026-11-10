@@ -156,6 +156,19 @@
     margin-bottom: var(--space-5);
 }
 
+/*
+ * spacer: empty space, full width like the hero so a colour reaches the edges.
+ * It is spaced like any other block (the usual gap above and below it), so it
+ * adds its height plus one gap and a colour never touches the next block's
+ * text; the other blocks' spacing is unchanged. --spacer-height and
+ * --spacer-bg are set on the element (SpacerBlock.astro).
+ */
+.block-spacer {
+    width: 100%;
+    height: var(--spacer-height);
+    background-color: var(--spacer-bg, transparent);
+}
+
 /* hero: full width */
 
 .block-hero {

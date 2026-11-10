@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Blocks\Types\SpacerBlock;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Support\LayoutOptions;
@@ -96,6 +97,26 @@ class SiteThemeSyncTest extends TestCase
             ['min' => SiteSetting::LOGO_HEIGHT_MIN, 'max' => SiteSetting::LOGO_HEIGHT_MAX],
             json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR),
         );
+    }
+
+    public function test_the_spacer_height_bounds_equal_the_ones_the_editor_and_the_astro_build_use(): void
+    {
+        $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',
+            "const astro = await import('./astro/src/lib/spacer.js'); const admin = await import('./resources/js/Components/Blocks/spacer.js');"
+            .' const { step, ...bounds } = admin.SPACER_HEIGHT; console.log(JSON.stringify({ astro: astro.SPACER_HEIGHT, admin: bounds, step }));']);
+        if ($result->exitCode() === 127 || str_contains($result->errorOutput(), 'not found')) {
+            $this->markTestSkipped('Node.js is not installed, so the spacer bounds cannot be loaded.');
+        }
+        $this->assertTrue($result->successful(), $result->errorOutput());
+
+        $bounds = ['min' => SpacerBlock::HEIGHT_MIN, 'max' => SpacerBlock::HEIGHT_MAX, 'default' => SpacerBlock::HEIGHT_DEFAULT];
+        $js = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($bounds, $js['astro']);
+        $this->assertSame($bounds, $js['admin']);
+        // The editor's slider reaches both ends and the default in whole steps.
+        foreach ($bounds as $value) {
+            $this->assertSame(0, ($value - SpacerBlock::HEIGHT_MIN) % $js['step']);
+        }
     }
 
     public function test_the_reserved_slugs_equal_the_ones_the_astro_page_route_skips(): void
