@@ -75,7 +75,11 @@ class WordPressImporter
      * `warnings` are per imported post or page: what was converted, lost or repaired
      * (a gallery, an audio player, invalid characters, a damaged part of the file).
      *
-     * @return array{imported_posts: int, imported_pages: int, skipped: list<array{title: string, type: string, reason: string}>, warnings: list<array{title: string, type: string, slug: string, message: string}>, errors: list<string>, found: array<string, int>, run_id: int}
+     * `front_page_suggestion` is the first published page imported at /home (its
+     * title or its WordPress slug), a guess at WordPress's own home page, offered
+     * on the run page when the site has no front page (ImportController::show()).
+     *
+     * @return array{imported_posts: int, imported_pages: int, skipped: list<array{title: string, type: string, reason: string}>, warnings: list<array{title: string, type: string, slug: string, message: string}>, errors: list<string>, found: array<string, int>, front_page_suggestion: ?array{id: int, title: string, slug: string}, run_id: int}
      */
     public function import(string $path, User $author, bool $downloadImages = false): array
     {
@@ -86,7 +90,7 @@ class WordPressImporter
             'download_images' => $downloadImages,
             'started_at' => now(),
         ]);
-        $this->results = ['imported_posts' => 0, 'imported_pages' => 0, 'skipped' => [], 'warnings' => [], 'errors' => [], 'found' => [], 'run_id' => $run->id];
+        $this->results = ['imported_posts' => 0, 'imported_pages' => 0, 'skipped' => [], 'warnings' => [], 'errors' => [], 'found' => [], 'front_page_suggestion' => null, 'run_id' => $run->id];
 
         $this->ensureMemoryLimit('256M');
         // A large export takes a while to parse and save.
@@ -187,6 +191,7 @@ class WordPressImporter
                 'warnings' => $this->results['warnings'],
                 'errors' => $this->results['errors'],
                 'found' => $this->results['found'],
+                'front_page_suggestion' => $this->results['front_page_suggestion'],
             ],
             ...$changes,
         ]);
@@ -304,7 +309,11 @@ class WordPressImporter
             $status = 'draft';
         }
 
-        [$content, $contentWarnings] = $this->cleanContent((string) $item->children($contentNs)->encoded, trim((string) $meta->post_id));
+        $source = (string) $item->children($contentNs)->encoded;
+        [$content, $contentWarnings] = $this->cleanContent($source, trim((string) $meta->post_id));
+        if (($layout = $this->flattenedLayoutWarning($source, $type)) !== null) {
+            $contentWarnings[] = $layout;
+        }
 
         $record = DB::transaction(fn () => $model::create([
             'author_id' => $author->id,
@@ -317,6 +326,13 @@ class WordPressImporter
 
         $this->results[$type === 'post' ? 'imported_posts' : 'imported_pages']++;
         $this->warn($type, $record, [...$warnings, ...$contentWarnings]);
+
+        // WordPress's front page is a site option, which the export doesn't contain; a
+        // published page at /home is offered as a guess (never set by the import itself).
+        if ($type === 'page' && $status === 'published' && $this->results['front_page_suggestion'] === null
+            && ($record->slug === 'home' || $this->field($meta->post_name) === 'home')) {
+            $this->results['front_page_suggestion'] = ['id' => $record->id, 'title' => $record->title, 'slug' => $record->slug];
+        }
 
         // The featured image is downloaded later, by the item's image job.
         $thumbnailId = $this->postMeta($meta, '_thumbnail_id');
@@ -345,6 +361,36 @@ class WordPressImporter
         $html = trim(preg_replace('#<p>(\s|<br\s*/?>)*</p>#', '', $html) ?? $html);
 
         return [$html === '' ? null : $html, $warnings];
+    }
+
+    /**
+     * The block editor's columns, cover sections and buttons (Gutenberg's block
+     * comments, or their class names in HTML without them) are not mapped to
+     * Alodium's blocks: the sanitiser keeps their text, images and links, one
+     * after another, and drops the layout. This says so, once per item, or null.
+     */
+    private function flattenedLayoutWarning(string $html, string $type): ?string
+    {
+        $found = [];
+        foreach ([
+            'columns' => '/<!--\s*wp:columns\b|\bwp-block-columns(?![\w-])/i',
+            'a cover section' => '/<!--\s*wp:cover\b|\bwp-block-cover(?![\w-])/i',
+            'buttons' => '/<!--\s*wp:buttons?\b|\bwp-block-buttons?(?![\w-])/i',
+        ] as $what => $pattern) {
+            if (preg_match($pattern, $html)) {
+                $found[] = $what;
+            }
+        }
+        if ($found === []) {
+            return null;
+        }
+
+        // "A cover section ... was", anything else (columns, buttons, or more than one) "were".
+        $verb = $found === ['a cover section'] ? 'was' : 'were';
+        $last = array_pop($found);
+        $list = ucfirst($found === [] ? $last : implode(', ', $found).' and '.$last);
+
+        return "{$list} in this {$type} {$verb} kept as ordinary text, images and links, one after another: its original layout wasn't preserved.";
     }
 
     /**
