@@ -3,7 +3,7 @@ import {
     connectionLost, formatMegabytes, groupReasons, initialPollState, isActive, moreFailures,
     pollDelay, pollFailed, pollSucceeded, progress, reasonLabel, showImagePanel, truncateMiddle,
 } from '@/utils/importRun';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
 function Stat({ label, value }) {
@@ -247,7 +247,52 @@ function ImagePanel({ initialStatus, statusUrl, errors }) {
     );
 }
 
-export default function Run({ run, status, statusUrl }) {
+/**
+ * After an import that brought pages, on a site with no front page: "/" lists the
+ * latest posts, which the owner may not expect. Points to Settings, Front page,
+ * and offers an imported page at /home in one click, labelled as a guess (the
+ * export doesn't say which page was WordPress's home page).
+ */
+function FrontPageNote({ suggestion }) {
+    const [saving, setSaving] = useState(false);
+    const choose = () =>
+        router.post(route('pages.front-page', suggestion.id), {}, {
+            preserveScroll: true,
+            onStart: () => setSaving(true),
+            onFinish: () => setSaving(false),
+        });
+
+    return (
+        <section aria-labelledby="front-page-note" className="rounded-md border border-brand-200 bg-brand-50 p-6 text-sm text-brand-900">
+            <h3 id="front-page-note" className="font-semibold">The site has no front page yet</h3>
+            <p className="mt-1">
+                Its home page lists the latest posts. The export doesn&rsquo;t say which page was the home page on
+                WordPress, so none was chosen. To show a page there instead:{' '}
+                <Link href={`${route('settings.edit')}#section-front-page`} className={linkClass}>
+                    Settings, Front page
+                </Link>
+            </p>
+            {suggestion && (
+                <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span>
+                        A guess: the imported page &ldquo;{suggestion.title}&rdquo; (/{suggestion.slug}) may have been
+                        the home page.
+                    </span>
+                    <button
+                        type="button"
+                        onClick={choose}
+                        disabled={saving}
+                        className="rounded-md border border-gray-400 bg-surface px-3 py-1.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50"
+                    >
+                        Make it the home page
+                    </button>
+                </p>
+            )}
+        </section>
+    );
+}
+
+export default function Run({ run, status, statusUrl, frontPage = null }) {
     const { imported_posts, imported_pages, skipped, warnings = [], errors, found = {} } = run;
     const foundSummary = Object.entries(found)
         .map(([type, count]) => `${count} × ${type}`)
@@ -361,6 +406,8 @@ export default function Run({ run, status, statusUrl }) {
                             </div>
                         </div>
                     )}
+
+                    {frontPage && <FrontPageNote suggestion={frontPage.suggestion} />}
 
                     {showImagePanel(status) && <ImagePanel initialStatus={status} statusUrl={statusUrl} errors={errors} />}
 

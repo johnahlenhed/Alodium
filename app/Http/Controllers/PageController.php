@@ -191,6 +191,30 @@ class PageController extends Controller
     }
 
     /**
+     * Admins: makes a published page the site's front page in one click (the
+     * import run page offers it for an imported "Home" page). The same rule as
+     * Settings, Front page: published pages only. The previous front page stays a
+     * normal page at its own address.
+     */
+    public function makeFrontPage(Page $page, PublicSiteSettings $site): RedirectResponse
+    {
+        if (! Page::onPublicSite()->whereKey($page->id)->exists()) {
+            return back()->with('warning', 'Only a published page can be the home page. Publish it first, then choose it.');
+        }
+
+        $before = $site->payload();
+        $settings = SiteSetting::current();
+        $settings->front_page_id = $page->id;
+        $settings->save();
+        // Settings aren't page content, so the page observer doesn't queue this one.
+        if ($site->payload() !== $before) {
+            RebuildAstroJob::dispatch();
+        }
+
+        return back()->with('success', "\"{$page->title}\" is now the site's home page. The public site shows it in a minute or two; change it under Settings, Front page.");
+    }
+
+    /**
      * After a save: what happened and the page's address on the public site. Whether
      * it is live yet is the editor's "On the public site" panel's job (a rebuild
      * takes a minute or two).
