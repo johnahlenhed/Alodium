@@ -80,7 +80,8 @@ tests/ ← Feature/, Unit/, Fakes/ (fake DNS and HTTP), Fixtures/
 - `public/tracker.js` is vanilla JS with no dependencies
 - API endpoints are `/api/collect` (POST), `/api/collect/{id}` (PATCH, needs the visit's token) and `/api/events` (POST)
 - All errors are caught silently — the tracker must never break the host site
-- UTM parameters are captured then removed from the visible URL
+- Only `utm_source`, `utm_medium` and `utm_campaign` are captured, cleaned by the rules in `App\Support\UtmValue` (lowercase, at most 100 characters, emails and ids dropped; the tracker and the link builder apply the same rules, `tests/Fixtures/utm-values.json`). `utm_term` and `utm_content` are never read or stored (a privacy decision). All five are removed from the visible URL
+- A bad UTM value is stored as null, never a validation error: a 422 would lose the whole page view
 
 ## Commands
 ```bash
@@ -102,6 +103,8 @@ node resources/js/Components/Blocks/blocksReducer.check.mjs   # Block editor lis
 node resources/js/utils/importRun.check.mjs                    # Import run page state
 node resources/js/theme.check.mjs                              # Admin colour tokens, light and dark: contrast, no undefined colours
 node resources/js/Pages/Dashboard.check.mjs                    # Renders the real dashboard for each role and for mismatched data (DashboardRenderTest runs it too)
+node resources/js/Pages/Analytics/Index.check.mjs              # Renders the real analytics page: Campaigns and Mediums tables, link builder (AnalyticsCampaignsTest runs it too)
+node resources/js/utils/utm.check.mjs                          # UTM rules in tracker.js and the link builder against the server's examples (AnalyticsCampaignsTest runs it too)
 
 # Background work
 php artisan queue:work     # Astro rebuilds, import image downloads, media conversions

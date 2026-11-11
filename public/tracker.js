@@ -4,11 +4,40 @@
     // Everything is wrapped in try/catch: the tracker must never break the host site.
     try {
         var API = (window.ALODIUM_TRACKER_URL || '/api').replace(/\/$/, '');
-        var UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+        // Sent: these three only, cleaned as App\Support\UtmValue does. utm_term and
+        // utm_content are removed from the address bar too, but never read or sent:
+        // they are where subscriber-level identifiers usually end up.
+        var UTM_SENT = ['utm_source', 'utm_medium', 'utm_campaign'];
+        var UTM_REMOVED = ['utm_term', 'utm_content'];
+        var UTM_MAX_LENGTH = 100;
         var startedAt = Date.now();
         var visitId = null;
         var token = null;
         var maxScroll = 0;
+
+        // A label, cleaned before it leaves the browser (the server cleans it again):
+        // invisible characters removed, whitespace collapsed, lowercase, at most 100
+        // characters; null when empty or when it looks like an email address or a
+        // personal id. Same rules and examples as App\Support\UtmValue
+        // (tests/Fixtures/utm-values.json). No /u regexes: a syntax error an old
+        // browser can't parse would stop the whole tracker.
+        function cleanUtm(value) {
+            if (typeof value !== 'string') return null;
+            value = value
+                .replace(/[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, '')
+                .replace(/[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+/g, ' ')
+                .trim()
+                .toLowerCase();
+            if (value === '' || value.indexOf('@') !== -1 || /\d{7,}/.test(value)) return null;
+            var words = value.split(/[^a-z0-9]+/);
+            for (var i = 0; i < words.length; i++) {
+                var word = words[i];
+                var mixed = /[a-z]/.test(word) && /\d/.test(word);
+                if (word.length >= 24 || (mixed && word.length >= 16) || (mixed && word.length >= 8 && /^[0-9a-f]+$/.test(word))) return null;
+            }
+            // By code points, as the server counts (an emoji is one character).
+            return Array.from(value).slice(0, UTM_MAX_LENGTH).join('').replace(/\s+$/, '');
+        }
 
         function send(method, path, body) {
             return fetch(API + path, {
@@ -20,8 +49,8 @@
             });
         }
 
-        // Capture UTM params, then strip them from the visible URL (the page URL
-        // stays shareable/clean, and the stored `url` is pathname-only anyway).
+        // Capture the UTM labels, then strip every UTM parameter from the visible URL
+        // (the page URL stays shareable and clean; the stored `url` is the path only).
         var params = new URLSearchParams(window.location.search);
         var payload = {
             url: window.location.pathname,
@@ -31,8 +60,10 @@
             language: navigator.language || null,
         };
         var hadUtm = false;
-        UTM_KEYS.forEach(function (key) {
-            payload[key] = params.get(key) || null;
+        UTM_SENT.forEach(function (key) {
+            payload[key] = cleanUtm(params.get(key));
+        });
+        UTM_SENT.concat(UTM_REMOVED).forEach(function (key) {
             if (params.has(key)) {
                 params.delete(key);
                 hadUtm = true;
