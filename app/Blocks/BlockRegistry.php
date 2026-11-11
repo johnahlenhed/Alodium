@@ -7,6 +7,7 @@ use App\Blocks\Types\ColumnsBlock;
 use App\Blocks\Types\ContactFormBlock;
 use App\Blocks\Types\HeroBlock;
 use App\Blocks\Types\ImageBlock;
+use App\Blocks\Types\SpacerBlock;
 use App\Blocks\Types\TextBlock;
 use App\Services\ContentSanitizer;
 use Illuminate\Support\Str;
@@ -28,6 +29,7 @@ class BlockRegistry
         ColumnsBlock::class,
         ButtonBlock::class,
         ContactFormBlock::class,
+        SpacerBlock::class,
     ];
 
     public const VERSION = 1;

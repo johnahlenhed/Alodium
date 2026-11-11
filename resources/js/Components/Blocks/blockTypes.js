@@ -1,11 +1,13 @@
 // Client registry of page block types. To add a type: one entry here
 // and one editor component. Must match the server types (App\Blocks\Types).
-import { Columns2, Image, LayoutTemplate, Mail, MousePointerClick, Type } from 'lucide-react';
+import { Columns2, Image, LayoutTemplate, Mail, MousePointerClick, MoveVertical, Type } from 'lucide-react';
 import ButtonBlockEditor from './ButtonBlockEditor';
 import ColumnsBlockEditor from './ColumnsBlockEditor';
 import ContactFormBlockEditor from './ContactFormBlockEditor';
 import HeroBlockEditor from './HeroBlockEditor';
 import ImageBlockEditor from './ImageBlockEditor';
+import { SPACER_HEIGHT, SPACER_OPACITY } from './spacer';
+import SpacerBlockEditor from './SpacerBlockEditor';
 import TextBlockEditor from './TextBlockEditor';
 
 const stripHtml = (html) => (html ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -78,6 +80,23 @@ export const BLOCK_TYPES = {
             blocks.filter((b) => b.type === 'contact_form').length > 1
                 ? 'This page has more than one contact form. Visitors may find that confusing.'
                 : null,
+    },
+    spacer: {
+        label: 'Spacer',
+        icon: MoveVertical,
+        description: 'Empty space between two blocks, with an optional background colour.',
+        defaultData: { height: SPACER_HEIGHT.default, background_color: null, opacity: SPACER_OPACITY.default },
+        Editor: SpacerBlockEditor,
+        fields: ['height', 'background_color', 'opacity'],
+        // "48 px", "48 px, <colour>" or "48 px, <colour>, 60% opacity": the opacity only with a colour, and not at 100%.
+        summary: (data) =>
+            [
+                `${Number.isInteger(data.height) ? data.height : SPACER_HEIGHT.default} px`,
+                data.background_color,
+                data.background_color && Number.isInteger(data.opacity) && data.opacity !== SPACER_OPACITY.default && `${data.opacity}% opacity`,
+            ]
+                .filter(Boolean)
+                .join(', '),
     },
 };
 

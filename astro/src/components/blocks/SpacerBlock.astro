@@ -1,0 +1,17 @@
+---
+import { spacerStyle, spacerStyleAttribute } from '../../lib/spacer.js';
+
+interface Props {
+    id: string;
+    data: { height?: number | null; background_color?: string | null };
+}
+
+const { id, data } = Astro.props;
+const style = spacerStyle(data);
+for (const problem of style.problems) {
+    console.warn(`[blocks] Spacer ${id}: ${problem}; built without it.`);
+}
+---
+
+{/* Empty and decorative: hidden from screen readers. Sized and coloured in blocks.css (.block-spacer). */}
+<div class="block block-spacer" data-block-id={id} aria-hidden="true" style={spacerStyleAttribute(style)}></div>
