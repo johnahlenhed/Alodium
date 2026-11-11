@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Blocks\Types\SpacerBlock;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Support\LayoutOptions;
@@ -96,6 +97,32 @@ class SiteThemeSyncTest extends TestCase
             ['min' => SiteSetting::LOGO_HEIGHT_MIN, 'max' => SiteSetting::LOGO_HEIGHT_MAX],
             json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR),
         );
+    }
+
+    public function test_the_spacer_bounds_equal_the_ones_the_editor_and_the_astro_build_use(): void
+    {
+        $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',
+            "const astro = await import('./astro/src/lib/spacer.js'); const admin = await import('./resources/js/Components/Blocks/spacer.js');"
+            .' const split = ({ step, ...bounds }) => ({ bounds, step });'
+            .' console.log(JSON.stringify({ height: { astro: astro.SPACER_HEIGHT, ...split(admin.SPACER_HEIGHT) }, opacity: { astro: astro.SPACER_OPACITY, ...split(admin.SPACER_OPACITY) } }));']);
+        if ($result->exitCode() === 127 || str_contains($result->errorOutput(), 'not found')) {
+            $this->markTestSkipped('Node.js is not installed, so the spacer bounds cannot be loaded.');
+        }
+        $this->assertTrue($result->successful(), $result->errorOutput());
+
+        $js = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
+        $php = [
+            'height' => ['min' => SpacerBlock::HEIGHT_MIN, 'max' => SpacerBlock::HEIGHT_MAX, 'default' => SpacerBlock::HEIGHT_DEFAULT],
+            'opacity' => ['min' => SpacerBlock::OPACITY_MIN, 'max' => SpacerBlock::OPACITY_MAX, 'default' => SpacerBlock::OPACITY_DEFAULT],
+        ];
+        foreach ($php as $field => $bounds) {
+            $this->assertSame($bounds, $js[$field]['astro'], "{$field}: astro/src/lib/spacer.js");
+            $this->assertSame($bounds, $js[$field]['bounds'], "{$field}: resources/js/Components/Blocks/spacer.js");
+            // The editor's slider reaches both ends and the default in whole steps.
+            foreach ($bounds as $value) {
+                $this->assertSame(0, ($value - $bounds['min']) % $js[$field]['step'], "{$field}: {$value} is not on the slider");
+            }
+        }
     }
 
     public function test_the_reserved_slugs_equal_the_ones_the_astro_page_route_skips(): void
