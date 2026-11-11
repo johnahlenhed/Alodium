@@ -32,14 +32,19 @@ class VisitSeeder extends Seeder
         }
         $referrers = ['google.com', 'twitter.com', 'instagram.com', null];
         $sources = ['google', 'instagram', 'newsletter', null];
+        // The medium and campaign each source's links would carry (App\Support\UtmValue keeps these three only).
+        $campaigns = ['google' => ['cpc', 'autumn-sale'], 'instagram' => ['social', 'autumn-sale'], 'newsletter' => ['email', 'november-news']];
         $devices = ['mobile', 'desktop'];
         $countries = ['SE', 'US', 'GB', 'DE', 'NO'];
 
         for ($i = 0; $i < 200; $i++) {
+            $source = $sources[array_rand($sources)];
             $visit = new Visit([
                 'url' => $urls[array_rand($urls)],
                 'referrer' => $referrers[array_rand($referrers)],
-                'utm_source' => $sources[array_rand($sources)],
+                'utm_source' => $source,
+                'utm_medium' => $campaigns[$source][0] ?? null,
+                'utm_campaign' => $campaigns[$source][1] ?? null,
                 'device_type' => $devices[array_rand($devices)],
                 'country' => $countries[array_rand($countries)],
                 'language' => 'en',

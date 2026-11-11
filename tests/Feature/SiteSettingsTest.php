@@ -495,7 +495,9 @@ class SiteSettingsTest extends TestCase
             $this->save(['logo_height' => $height])
                 ->assertSessionHasErrors(['logo_height' => 'The logo height must be between 24 and 96 pixels.']);
         }
-        foreach ([36.5, '40px', 'big', '', null] as $height) {
+        // true and false too: "integer" alone takes true as 1, so without "numeric" it would only be
+        // caught by the 24px minimum (with the range message), not as a value that isn't a number.
+        foreach ([36.5, '40px', 'big', '', null, true, false] as $height) {
             $this->save(['logo_height' => $height])
                 ->assertSessionHasErrors(['logo_height' => 'The logo height must be a whole number of pixels.']);
         }

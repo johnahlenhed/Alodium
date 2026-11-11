@@ -15,6 +15,12 @@
 //   - the layout rules only arrange: none sets a colour, background, opacity
 //     or variable, so the header and footer background checks
 //     (navBackground.js, footerBackground.js) hold for every layout
+//   - the header's padding (site_settings.header_padding): SiteHeader sets
+//     --header-padding only when it isn't the default 12px, and only for a
+//     whole number from 8 to 48; the CSS, evaluated at widths from 320 to
+//     1600px for every padding and logo height, keeps the default exactly,
+//     never goes below 8px, caps a phone's row with the logo at 80px, and
+//     nothing can make the header shorter than the logo plus the padding
 //
 //   node scripts/check-header-footer.mjs        (from astro/)
 
@@ -24,7 +30,9 @@ import { fileURLToPath } from 'node:url';
 import { getViteConfig } from 'astro/config';
 import { createServer } from 'vite';
 import { FOOTER_LAYOUTS, HEADER_LAYOUTS, layoutClass } from '../src/lib/layouts.js';
-import { isModelledSelector, parseRules, stripComments, winningDeclaration } from './lib/css.mjs';
+import { LIMITS } from '../src/lib/settings.js';
+import { SITE_DEFAULTS } from '../src/lib/site.js';
+import { computedValueIn, cssLength, isModelledSelector, parseRules, stripComments, winningDeclaration } from './lib/css.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const errors = [];
@@ -109,6 +117,39 @@ try {
         }
     }
     console.log(`ok - render: the brand in every header layout: ${Object.keys(BRANDS).join(', ')}`);
+
+    // The header's padding: --header-padding on <header> only when it isn't the
+    // default, in rem; next to --nav-bg on a coloured header. A value the build
+    // never gets from settings.js (out of range, not whole) adds nothing.
+    const startTag = (html) => html.match(/<header\b[^>]*>/)?.[0] ?? '';
+    const styleOf = (html) => startTag(html).match(/\sstyle="([^"]*)"/)?.[1] ?? null;
+    const plain = await renderHeader(header('standard'));
+    const PADDINGS = [
+        // headerPadding, navBackground, expected style attribute
+        [undefined, null, null],
+        [12, null, null],
+        [8, null, '--header-padding: 0.5rem'],
+        [30, null, '--header-padding: 1.875rem'],
+        [48, null, '--header-padding: 3rem'],
+        [12, { color: '#1b2a4a', scheme: 'dark' }, '--nav-bg: #1b2a4a'],
+        [48, { color: '#1b2a4a', scheme: 'dark' }, '--nav-bg: #1b2a4a; --header-padding: 3rem'],
+        [7, null, null],
+        [49, null, null],
+        [12.5, null, null],
+        ['20', null, null],
+        ['20rem; display: none', null, null],
+    ];
+    for (const [headerPadding, navBackground, expected] of PADDINGS) {
+        for (const brand of Object.keys(BRANDS)) {
+            const html = await renderHeader({ ...header('standard', navBackground, brand), headerPadding });
+            check(styleOf(html) === expected, `header padding ${JSON.stringify(headerPadding)}, ${brand}${navBackground ? ' on a colour' : ''}: style ${JSON.stringify(styleOf(html))}, expected ${JSON.stringify(expected)}`);
+            const reference = await renderHeader(header('standard', null, brand));
+            check(inside(html, 'header') === inside(reference, 'header'), `header padding ${JSON.stringify(headerPadding)}, ${brand}: the HTML inside the header changed`);
+        }
+    }
+    // The default renders exactly the start tag a site had before the setting.
+    check(startTag(await renderHeader({ ...header('standard'), headerPadding: SITE_DEFAULTS.headerPadding })) === startTag(plain), 'header padding: the default changes the <header> start tag');
+    console.log(`ok - render: header padding: none for the default, ${[...new Set(PADDINGS.filter(([, , e]) => e?.includes('padding')).map(([p]) => p))].join(', ')}px in rem, nothing for invalid values`);
 
     // The footer's content keeps the HTML's order in every layout: name, menu, text, note.
     const order = (html) => ['site-footer__name', 'site-footer__nav', 'site-footer__text', 'site-footer__note'].map((c) => html.indexOf(`class="${c}"`));
@@ -244,8 +285,68 @@ for (const name of layoutClasses) {
 }
 console.log(`ok - layout: ${layoutClasses.map((c) => `.${c}`).join(', ')} only arrange; no colours change`);
 
+// --- the header's padding and the logo ---------------------------------------------
+//
+// Evaluated from the CSS (cssLength), for every layout, padding and logo height:
+// the padding the header shows, and the row with the logo or the mark.
+
+const blocksCss = readFileSync(join(root, 'src', 'styles', 'blocks.css'), 'utf8');
+const rootVar = (name) => blocksCss.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
+const PADDING_WIDTHS = [320, 375, 512, 513, 600, 768, 1023, 1024, 1280, 1600];
+const PADDING_VALUES = [LIMITS.headerPadding.min, 10, SITE_DEFAULTS.headerPadding, 16, 20, 32, LIMITS.headerPadding.max];
+const LOGO_HEIGHTS = [null, LIMITS.logoHeight.min, 36, 48, 64, LIMITS.logoHeight.max]; // null: the built-in mark
+const headerOf = (layout) => el('header', 'site-header', ...[layoutClass('site-header', HEADER_LAYOUTS, layout)].filter(Boolean));
+const vars = (padding, logo) => ({ '--target-min': rootVar('--target-min'), '--header-padding': `${padding / 16}rem`, '--logo-height': `${(logo ?? 36) / 16}rem` });
+let cases = 0;
+for (const layout of HEADER_LAYOUTS) {
+    const inner = [headerOf(layout), el('div', 'site-header__inner')];
+    const brand = [...inner, el('a', 'site-brand')];
+    for (const width of PADDING_WIDTHS) {
+        const padding = winningDeclaration(rules, inner, width, ['padding-block', 'padding', 'padding-top', 'padding-bottom']);
+        check(padding?.property === 'padding-block', `header ${layout} at ${width}px: the padding comes from ${padding?.property ?? 'nothing'}, expected padding-block`);
+        const defaultPadding = computedValueIn(rules, [headerOf(layout)], width, '--header-padding');
+        check(cssLength(defaultPadding, width) === SITE_DEFAULTS.headerPadding, `header ${layout} at ${width}px: --header-padding defaults to ${defaultPadding}, expected ${SITE_DEFAULTS.headerPadding}px`);
+        const minHeight = cssLength(computedValueIn(rules, brand, width, 'min-height'), width, vars(12));
+        const markHeight = cssLength(computedValueIn(rules, [...brand, el('svg', 'site-brand__mark')], width, 'height'), width);
+
+        for (const chosen of PADDING_VALUES) {
+            const shown = cssLength(padding.value, width, vars(chosen));
+            for (const logoHeight of LOGO_HEIGHTS) {
+                cases++;
+                const logoChain = [...brand, el('img', 'site-brand__logo')];
+                const logoShown = logoHeight === null ? markHeight : cssLength(computedValueIn(rules, logoChain, width, 'height'), width, { ...vars(chosen, logoHeight), '--logo-shown': computedValueIn(rules, logoChain, width, '--logo-shown') });
+                const row = Math.max(minHeight, logoShown) + 2 * shown;
+                const name = `header ${layout} at ${width}px, padding ${chosen}, ${logoHeight === null ? 'mark' : `logo ${logoHeight}`}`;
+                // Never below the minimum, never more than chosen; 16px or less is never changed, nor anything from 1024px.
+                check(shown >= LIMITS.headerPadding.min && shown <= chosen, `${name}: shows ${shown}px of padding`);
+                if (chosen <= 16 || width >= 1024) check(shown === chosen, `${name}: shows ${shown}px of padding, expected the chosen ${chosen}`);
+                // The header is never shorter than the logo plus the minimum padding on both sides.
+                check(row >= logoShown + 2 * LIMITS.headerPadding.min, `${name}: the row is ${row}px for a ${logoShown}px logo`);
+                // On a phone the logo (or mark) and the padding take at most 80px, the height the logo
+                // cap was chosen for. (The model has the brand on one line; a name that wraps beside a
+                // very wide logo on a 320px screen adds a line, with or without this setting.)
+                if (width <= 512) check(row <= 80, `${name}: the row is ${row}px on a phone, more than 80`);
+            }
+        }
+        // A site that never changed it: 12px at every width, as before the setting.
+        check(cssLength(padding.value, width, vars(SITE_DEFAULTS.headerPadding)) === 12, `header ${layout} at ${width}px: the default padding is not 12px`);
+    }
+}
+console.log(`ok - layout: header padding: ${cases} cases (${HEADER_LAYOUTS.length} layouts, ${PADDING_WIDTHS.length} widths, paddings ${PADDING_VALUES.join('/')}, logos mark/${LOGO_HEIGHTS.slice(1).join('/')}): at least ${LIMITS.headerPadding.min}px, the default unchanged, a phone row at most 80px`);
+
+// Nothing may make the header shorter than its content: no height, maximum or
+// overflow on the header, its inner box, the brand or the menu (the logo and
+// the mark set their own height, which the header then grows to fit).
+const CONSTRAINING = ['height', 'max-height', 'block-size', 'max-block-size', 'overflow', 'overflow-y', 'overflow-block', 'contain'];
+const CONTAINERS = /\.(site-header(?:__inner|--[\w-]+)?|site-brand|site-nav)(?![\w-])[^\s]*$/;
+const constraining = rules.flatMap((rule) =>
+    rule.selectors.filter((selector) => CONTAINERS.test(selector.trim())).flatMap((selector) =>
+        Object.keys(rule.declarations).filter((property) => CONSTRAINING.includes(property)).map((property) => `${selector} { ${property} }`)));
+check(constraining.length === 0, `the header could be cut short: ${constraining.join(', ')}`);
+console.log('ok - layout: nothing limits the header\'s height, so it always fits the logo');
+
 if (errors.length) {
     console.error(`\n${errors.length} problem(s):\n- ${errors.join('\n- ')}`);
     process.exit(1);
 }
-console.log('\nHeader and footer layouts: all checks passed.');
+console.log('\nHeader and footer layouts and the header padding: all checks passed.');

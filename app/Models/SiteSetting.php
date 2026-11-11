@@ -38,6 +38,23 @@ class SiteSetting extends Model implements HasMedia
     public const LOGO_HEIGHT_MAX = 96;
 
     /**
+     * The header's padding above and below its content (header_padding, in px):
+     * 12 is what it always had (0.75rem). The minimum keeps the focus ring, which
+     * sits 5px outside a link, inside the header (it would be cut off at the top
+     * of the window); the header has no fixed height, so it is never shorter than
+     * the logo plus twice the padding. Phones show at most 16px (site.css).
+     * astro/src/lib/settings.js has the same bounds (SiteThemeSyncTest).
+     */
+    public const HEADER_PADDING_DEFAULT = 12;
+
+    public const HEADER_PADDING_MIN = 8;
+
+    public const HEADER_PADDING_MAX = 48;
+
+    /** The Settings slider's step: every value on it is a multiple of 4, the default included. */
+    public const HEADER_PADDING_STEP = 4;
+
+    /**
      * The PNG conversion's maximum height: twice the largest shown height, so the
      * logo stays sharp on high-density screens. SVG logos store their proportions
      * at this height too. The width follows the aspect ratio.
@@ -64,6 +81,7 @@ class SiteSetting extends Model implements HasMedia
         'nav_background_color',
         'footer_background_color',
         'header_layout',
+        'header_padding',
         'footer_layout',
         'font_body',
         'font_heading',
@@ -77,6 +95,7 @@ class SiteSetting extends Model implements HasMedia
     protected $casts = [
         'show_site_name' => 'boolean',
         'logo_height' => 'integer',
+        'header_padding' => 'integer',
         'show_blog_in_nav' => 'boolean',
         'show_contact_in_nav' => 'boolean',
         'front_page_id' => 'integer',
@@ -98,6 +117,7 @@ class SiteSetting extends Model implements HasMedia
             'footer_background_color' => null,
             // The arrangements both had before these settings (LayoutOptions).
             'header_layout' => LayoutOptions::DEFAULT,
+            'header_padding' => self::HEADER_PADDING_DEFAULT,
             'footer_layout' => LayoutOptions::DEFAULT,
             'font_body' => ThemeOptions::DEFAULTS['fontBody'],
             'font_heading' => ThemeOptions::DEFAULTS['fontHeading'],
@@ -171,6 +191,18 @@ class SiteSetting extends Model implements HasMedia
         $height = $this->logo_height ?? self::LOGO_HEIGHT_DEFAULT;
 
         return max(self::LOGO_HEIGHT_MIN, min(self::LOGO_HEIGHT_MAX, $height));
+    }
+
+    /**
+     * header_padding within its bounds, as shownLogoHeight(): null (a row from
+     * before the column, or cleared in Settings) is the default, and a value
+     * outside the range is clamped. The form request rejects one on save.
+     */
+    public function shownHeaderPadding(): int
+    {
+        $padding = $this->header_padding ?? self::HEADER_PADDING_DEFAULT;
+
+        return max(self::HEADER_PADDING_MIN, min(self::HEADER_PADDING_MAX, $padding));
     }
 
     /**

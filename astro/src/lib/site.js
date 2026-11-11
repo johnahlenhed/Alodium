@@ -17,6 +17,8 @@ export const SITE_DEFAULTS = Object.freeze({
     /** How the header and footer are arranged (src/lib/layouts.js). */
     headerLayout: 'standard',
     footerLayout: 'standard',
+    /** The header's padding above and below its content, in px: 12 (0.75rem) is what it always had. */
+    headerPadding: 12,
     logo: null,
     navigation: Object.freeze([
         Object.freeze({ label: 'Home', href: '/' }),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\Visit;
+use App\Support\UtmValue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -19,11 +20,6 @@ class TrackingController extends Controller
         $validated = $request->validate([
             'url' => ['required', 'string', 'max:2048'],
             'referrer' => ['nullable', 'string', 'max:2048'],
-            'utm_source' => ['nullable', 'string', 'max:255'],
-            'utm_medium' => ['nullable', 'string', 'max:255'],
-            'utm_campaign' => ['nullable', 'string', 'max:255'],
-            'utm_content' => ['nullable', 'string', 'max:255'],
-            'utm_term' => ['nullable', 'string', 'max:255'],
             'device_type' => ['nullable', 'string', 'max:50'],
             'screen_width' => ['nullable', 'integer', 'min:0'],
             'language' => ['nullable', 'string', 'max:35'],
@@ -33,6 +29,10 @@ class TrackingController extends Controller
         // the tracker that created the visit: the token is only ever returned here.
         $visit = Visit::create([
             ...$validated,
+            // Not validated, so a bad value can't cost the page view (a 422 here drops the
+            // whole visit, as the tracker ignores errors): each is cleaned, or null.
+            // utm_term and utm_content are never read (UtmValue).
+            ...UtmValue::fromInput($request->all()),
             'country' => $this->countryFor($request->ip()),
             'token' => Str::random(40),
         ]);
