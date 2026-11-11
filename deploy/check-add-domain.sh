@@ -39,7 +39,8 @@ readme_env() { awk '/^### 4\. / { s = 1 } /^### 5\. / { exit } s && /^```ini$/ {
 readme_nginx() { awk '/^### 5\. / { s = 1 } /^### 6\. / { exit } s && /^`\/etc\/nginx\/sites-available\/alodium`:$/ { f = 1; next } f && /^```nginx$/ { g = 1; next } g && /^```$/ { exit } g' "$README"; }
 # Section 6's blocks are indented (they are in a numbered list).
 readme_geoip_env() { awk '/^### 6\. / { s = 1 } /^### 7\. / { exit } s && /^ *```ini$/ { g = 1; next } g && /^ *```$/ { exit } g { sub(/^ +/, ""); print }' "$README"; }
-readme_geoip_commands() { awk '/^### 6\. / { s = 1 } /^### 7\. / { exit } s && /^ *sudo -u www-data / { sub(/^ +/, ""); sub(/ +#.*$/, ""); print }' "$README"; }
+# Only step 3's download commands: step 2's "sudo -u www-data php artisan config:cache" is the script's refresh_config_cache.
+readme_geoip_commands() { awk '/^### 6\. / { s = 1 } /^### 7\. / { exit } s && /^3\. / { t = 1 } t && /^ *sudo -u www-data / { sub(/^ +/, ""); sub(/ +#.*$/, ""); print }' "$README"; }
 
 set -- # the sourced script would otherwise see this script's arguments
 # shellcheck source=SCRIPTDIR/add-domain.sh

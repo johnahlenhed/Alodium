@@ -182,7 +182,7 @@ class SiteStatus
 
         if (($rebuild['status'] ?? null) === 'failed') {
             $add('warning', "Your latest changes didn't reach the public site: updating it failed. Visitors still see the previous version.",
-                'The last rebuild failed (storage/logs/astro-rebuild.log; the build output is in laravel.log). A failed build is retried once; publishing or saving the settings starts a new one.');
+                'The last rebuild failed (storage/logs/astro-rebuild.log; the build output is in storage/logs/laravel-*.log). A failed build is retried once; publishing or saving the settings starts a new one.');
         }
         if ($failed > 0) {
             $add('warning', $failed === 1 ? '1 background task failed, such as updating the public site or copying images.' : "{$failed} background tasks failed, such as updating the public site or copying images.",
@@ -190,7 +190,7 @@ class SiteStatus
         }
         if ($backup !== null && $backup['age_hours'] > $maxHours) {
             $add('warning', "The automatic backup of your site hasn't run for more than a day and a half.",
-                "The newest file in storage/app/backups is more than {$maxHours} hours old. db:backup runs daily at 02:00 UTC from the scheduler: check www-data's crontab (README step 8) and laravel.log.");
+                "The newest file in storage/app/backups is more than {$maxHours} hours old. db:backup runs daily at 02:00 UTC from the scheduler: check www-data's crontab (README step 8) and storage/logs/laravel-*.log.");
         }
         // On a live site no backup at all is a problem, unless it was set up today;
         // locally it usually just means none was made.
@@ -199,7 +199,7 @@ class SiteStatus
                 ? $add('info', "Your site's first automatic backup is made overnight, at 02:00 UTC.",
                     'No file in storage/app/backups yet, as expected on a new site. db:backup runs daily from the scheduler (README step 8).')
                 : $add('warning', 'No backup of your site has been made yet.',
-                    "No file in storage/app/backups, and the site was set up more than {$maxHours} hours ago. db:backup should run daily at 02:00 UTC: check the scheduler (README step 8) and laravel.log.");
+                    "No file in storage/app/backups, and the site was set up more than {$maxHours} hours ago. db:backup should run daily at 02:00 UTC: check the scheduler (README step 8) and storage/logs/laravel-*.log.");
         }
 
         $offsite = $this->offsite();
@@ -211,7 +211,7 @@ class SiteStatus
                     'Off-server copies are configured (BACKUP_S3_*), but no successful upload has been recorded. php artisan db:backup-test-remote shows what fails.');
         } elseif ($offsite['configured'] && $offsite['ageHours'] > $maxHours) {
             $add('warning', "Your backups haven't been copied to off-site storage for more than a day and a half.",
-                "The last off-server upload is more than {$maxHours} hours old. Check laravel.log; php artisan db:backup-test-remote shows what fails.");
+                "The last off-server upload is more than {$maxHours} hours old. Check storage/logs/laravel-*.log; sudo -u www-data php artisan db:backup-test-remote shows what fails.");
         }
 
         // In every environment: without the file, visitor countries are silently empty.
