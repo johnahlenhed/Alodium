@@ -91,10 +91,17 @@ for (const file of pageFiles) {
     if (!html.includes('<p class="site-footer__note">This site uses cookie-free analytics.</p>')) fail('the analytics line is missing');
 
     // The header's colour (nav_background_color): a scheme class and --nav-bg, or
-    // neither; then its layout class (header_layout), none for "standard".
+    // neither; then its layout class (header_layout), none for "standard"; and its
+    // padding (header_padding) as --header-padding in rem, none for the default 12px.
     const header = first(html, /(<header\b[^>]*>)/) ?? '';
     const headerClass = first(header, /class="([^"]*)"/);
-    const navBg = first(header, /style="--nav-bg: (#[0-9a-f]{6})"/);
+    const headerStyle = first(header, /style="([^"]*)"/) ?? '';
+    const navBg = first(headerStyle, /^--nav-bg: (#[0-9a-f]{6})(?:;|$)/);
+    const padding = first(headerStyle, /(?:^|; )--header-padding: ([\d.]+)rem$/);
+    const expectedPadding = site.header_padding === undefined || site.header_padding === 12 ? undefined : String(site.header_padding / 16);
+    if (padding !== expectedPadding) fail(`the header is ${header}, expected ${expectedPadding ? `--header-padding: ${expectedPadding}rem` : 'no --header-padding'} for header_padding ${site.header_padding}`);
+    const known = [navBg && `--nav-bg: ${navBg}`, padding && `--header-padding: ${padding}rem`].filter(Boolean).join('; ');
+    if (headerStyle !== known) fail(`the header's style is "${headerStyle}"; only --nav-bg and --header-padding are expected`);
     const headerLayout = layoutSuffix('site-header', site.header_layout);
     if (site.nav_background_color) {
         if (navBg !== site.nav_background_color.toLowerCase() || !new RegExp(`^site-header site-header--(light|dark)${headerLayout}$`).test(headerClass ?? '')) fail(`the header is ${header}, not coloured ${site.nav_background_color}${headerLayout && ' with' + headerLayout}`);

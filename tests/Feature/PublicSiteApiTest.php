@@ -46,6 +46,7 @@ class PublicSiteApiTest extends TestCase
                 'footer_background_color' => null,
                 'header_layout' => 'standard',
                 'footer_layout' => 'standard',
+                'header_padding' => 12,
                 'logo' => null,
                 'navigation' => [
                     ['label' => 'Home', 'href' => '/'],
@@ -65,7 +66,7 @@ class PublicSiteApiTest extends TestCase
 
         $json = $this->getJson('/api/public/site')->assertOk()->json();
 
-        $this->assertSame(['name', 'description', 'footer_text', 'show_site_name', 'theme', 'nav_background_color', 'footer_background_color', 'header_layout', 'footer_layout', 'logo', 'navigation', 'front_page'], array_keys($json));
+        $this->assertSame(['name', 'description', 'footer_text', 'show_site_name', 'theme', 'nav_background_color', 'footer_background_color', 'header_layout', 'footer_layout', 'header_padding', 'logo', 'navigation', 'front_page'], array_keys($json));
         $this->assertSame(['brand', 'fontBody', 'fontHeading', 'corners', 'buttons'], array_keys($json['theme']));
         $this->assertSame(['url', 'width', 'height'], array_keys($json['logo']));
         $this->assertSame(['slug'], array_keys($json['front_page']));

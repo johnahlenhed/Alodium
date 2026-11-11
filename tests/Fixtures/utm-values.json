@@ -1,0 +1,174 @@
+{
+  "_about": "UTM values and what is stored for each (null: dropped, the page view is still counted). App\\Support\\UtmValue::clean(), public/tracker.js and resources/js/utils/utm.js must all give these results: tests/Unit/UtmValueTest.php and resources/js/utils/utm.check.mjs.",
+  "strings": [
+    {
+      "value": "newsletter",
+      "stored": "newsletter"
+    },
+    {
+      "value": "Newsletter",
+      "stored": "newsletter"
+    },
+    {
+      "value": "  NewsLetter  ",
+      "stored": "newsletter"
+    },
+    {
+      "value": "CPC",
+      "stored": "cpc"
+    },
+    {
+      "value": "Spring_Sale_2026",
+      "stored": "spring_sale_2026"
+    },
+    {
+      "value": "Black-Friday-2026",
+      "stored": "black-friday-2026"
+    },
+    {
+      "value": "Q4   Retargeting",
+      "stored": "q4 retargeting"
+    },
+    {
+      "value": "line\nbreak\ttab",
+      "stored": "line break tab"
+    },
+    {
+      "value": "zero​width",
+      "stored": "zerowidth"
+    },
+    {
+      "value": "no break space",
+      "stored": "no break space"
+    },
+    {
+      "value": "Höstkampanj ÅÄÖ",
+      "stored": "höstkampanj åäö"
+    },
+    {
+      "value": "facebook.com",
+      "stored": "facebook.com"
+    },
+    {
+      "value": "2026-11-11",
+      "stored": "2026-11-11"
+    },
+    {
+      "value": "internationalization",
+      "stored": "internationalization"
+    },
+    {
+      "value": "summer25",
+      "stored": "summer25"
+    },
+    {
+      "value": "abc123",
+      "stored": "abc123"
+    },
+    {
+      "value": "deadbeef",
+      "stored": "deadbeef"
+    },
+    {
+      "value": "covid19",
+      "stored": "covid19"
+    },
+    {
+      "value": "123456",
+      "stored": "123456"
+    },
+    {
+      "value": "🎉 launch",
+      "stored": "🎉 launch"
+    },
+    {
+      "value": "very long campaign name very long campaign name very long campaign name very long campaign name very long campaign name very long campaign name very long campaign name ",
+      "stored": "very long campaign name very long campaign name very long campaign name very long campaign name very"
+    },
+    {
+      "value": "🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉",
+      "stored": "🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉🎉"
+    },
+    {
+      "value": "",
+      "stored": null
+    },
+    {
+      "value": "   ",
+      "stored": null
+    },
+    {
+      "value": "​",
+      "stored": null
+    },
+    {
+      "value": "anna@example.com",
+      "stored": null
+    },
+    {
+      "value": "Anna.Svensson@Example.COM",
+      "stored": null
+    },
+    {
+      "value": "user@",
+      "stored": null
+    },
+    {
+      "value": "1234567",
+      "stored": null
+    },
+    {
+      "value": "subscriber_98765432",
+      "stored": null
+    },
+    {
+      "value": "20261111",
+      "stored": null
+    },
+    {
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "stored": null
+    },
+    {
+      "value": "a8f5f167f44f4964e6c998dee827110c",
+      "stored": null
+    },
+    {
+      "value": "EAIaIQobChMI9ptx3aB8gQMVhc1kCh0z",
+      "stored": null
+    },
+    {
+      "value": "abcdefghijklmnopqrstuvwxyzab",
+      "stored": null
+    },
+    {
+      "value": "5f2b9c1e",
+      "stored": null
+    },
+    {
+      "value": "id-5F2B9C1E",
+      "stored": null
+    },
+    {
+      "value": "x1y2z3w4v5u6t7s8",
+      "stored": null
+    },
+    {
+      "value": "campaign campaign campaign campaign campaign campaign campaign campaign campaign campaign campaign campaign campaign x@y.z",
+      "stored": null
+    }
+  ],
+  "notStrings": [
+    42,
+    3.5,
+    true,
+    false,
+    null,
+    [
+      "newsletter"
+    ],
+    {
+      "source": "newsletter"
+    }
+  ]
+}

@@ -64,6 +64,8 @@ body {
      * attributes. SiteHeader sets it on the logo from Settings (logo.height).
      */
     --logo-height: 2.25rem;
+    /* The padding above and below the content (Settings, header_padding); SiteHeader sets it when it isn't 12px. */
+    --header-padding: 0.75rem;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-bg);
 }
@@ -91,7 +93,20 @@ body {
     background: var(--nav-bg);
 }
 
-/* On narrow screens the navigation wraps onto a second row. */
+/*
+ * On narrow screens the navigation wraps onto a second row.
+ *
+ * The padding is the one chosen in Settings (--header-padding, 8 to 48px) on
+ * wide screens, less on narrow ones, as the logo is: the cap is
+ * clamp(1rem, 6.25vw - 1rem, 3rem), 16px up to a 512px-wide viewport, growing
+ * to the full 48px at 1024px. So on a phone the logo and the padding take at
+ * most 48 + 2 × 16 = 80px, whatever both settings are (a name that wraps
+ * beside a very wide logo on a 320px screen adds a line, as it always did).
+ * The two caps grow over the same widths. A chosen padding of 16px
+ * or less, the default 12px among them, is never changed. The header has no
+ * height of its own: it is always as tall as its content plus the padding, so
+ * a large logo is never cut off or squeezed. Settings/Edit.jsx describes the same rule.
+ */
 .site-header__inner {
     display: flex;
     flex-wrap: wrap;
@@ -100,7 +115,7 @@ body {
     gap: var(--space-1) var(--space-6);
     width: var(--wide-column-width);
     margin-inline: auto;
-    padding-block: var(--space-3);
+    padding-block: min(var(--header-padding), clamp(1rem, 6.25vw - 1rem, 3rem));
 }
 
 .site-brand {

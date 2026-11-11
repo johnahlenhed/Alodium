@@ -103,9 +103,9 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `navigation_items` | The main navigation after Home, in `sort_order`. Each entry has either `page_id` (cascade on delete; `label` null = the page's title, hidden while the page isn't on the public site) or `url` (a path on the site such as `/blog`, or an http(s) address; `label` required). |
 | `revisions` | Snapshots before a published post/page is edited. Polymorphic `model`, `title`, `content`, `blocks`. Newest 20 kept. |
 | `media` | Spatie Media Library. Polymorphic owner, `collection_name` (`library` on users, `featured` on posts/pages, `logo` on site settings), `custom_properties` (imported images: `source_url`, `source_hash`; logo: `logo_width`, `logo_height`). |
-| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `footer_background_color` (`#RRGGBB` or null = the grey surface), `header_layout` and `footer_layout` (a value from `App\Support\LayoutOptions`; null = `standard`, the arrangement before the setting), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
+| `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `footer_background_color` (`#RRGGBB` or null = the grey surface), `header_layout` and `footer_layout` (a value from `App\Support\LayoutOptions`; null = `standard`, the arrangement before the setting), `header_padding` (px of padding above and below the header's content, 8–48; null = the default 12), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
-| `visits` | One page view: `url`, `referrer`, `utm_*`, `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
+| `visits` | One page view: `url`, `referrer`, `utm_source`, `utm_medium` and `utm_campaign` (cleaned lowercase labels of at most 100 characters, or null; `utm_term` and `utm_content` were dropped, see "UTM tags" in section 4), `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
 | `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, `notes` about the whole run (the dropped category and tag assignments), item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
@@ -122,9 +122,9 @@ All under `/api`. Responses are JSON; `/api/*` errors are rendered as JSON.
 | `GET /public/posts/{slug}` | One post: the list fields without `excerpt`, plus `content`, `og_image`, `og_image_width`, `og_image_height`. 404 `{message}` for drafts and unknown slugs. |
 | `GET /public/pages` | Like posts, plus `blocks` (array, or null for legacy pages). |
 | `GET /public/pages/{slug}` | Like a post, plus `blocks` and `background_color` (null unless it passes the page background rule with the current brand colour). A block page returns `content: ""`. |
-| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, header_layout: "standard"\|"centered-menu"\|"centered"\|"stacked", footer_layout: "standard"\|"columns"\|"centered", logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
+| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, header_layout: "standard"\|"centered-menu"\|"centered"\|"stacked", footer_layout: "standard"\|"columns"\|"centered", header_padding: 8–48, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
 | `POST /public/contact` | Body `name, email, message, website` (honeypot). `{success: true}` or 422 errors. Sends a notification mail. |
-| `POST /collect` | Starts a visit. Returns `{visit_id, token}`. |
+| `POST /collect` | Starts a visit. Returns `{visit_id, token}`. `utm_source`, `utm_medium` and `utm_campaign` are cleaned, never validated: a bad one is stored as null and the visit is kept. Anything else UTM is ignored. |
 | `PATCH /collect/{visit}` | Duration/scroll depth; needs the visit's `token`. `{success: true}`. |
 | `POST /events` | An event for a visit; needs the token. `{success: true}`. |
 | `POST /webhook/rebuild` | Header `X-Webhook-Secret`. 202 `{message}` or 401. |
@@ -160,6 +160,61 @@ visit is lost.
   endpoint or proxying it to get past filter lists would mean working around
   that choice. Visitor numbers are a lower bound: real traffic can be higher.
   The dashboard's Site status says so.
+
+### UTM tags (data minimisation)
+
+A link to the site can carry UTM parameters (`?utm_source=newsletter&
+utm_medium=email&utm_campaign=autumn-sale`) saying where a visitor came from.
+Alodium keeps as little of that as the reports need.
+
+- **Collected:** `utm_source`, `utm_medium` and `utm_campaign`, as short
+  labels. Each is cleaned by one set of rules (`App\Support\UtmValue`):
+  invisible characters removed, whitespace collapsed, lowercase (so
+  "Newsletter" and "newsletter" are one source), at most 100 characters.
+  A value that looks like it identifies a person rather than a campaign is
+  dropped: one with an "@" (an email address), 7 or more digits in a row (a
+  subscriber, customer or phone number), or a word that looks like a code
+  (24 or more characters; 16 or more mixing letters and digits; 8 or more
+  hexadecimal characters mixing both, as in a UUID or a list id). It's a
+  heuristic, so it also drops numeric campaign ids and dates written as
+  20261111; the link builder warns about those.
+- **Not collected, on purpose:** `utm_term` and `utm_content`. They were
+  stored from the start but never used, and they are the two parameters where
+  email and ad tools most often put subscriber-level identifiers. Dropping
+  them is a privacy-by-design decision: migration
+  `2026_11_11_110000_drop_utm_term_and_utm_content_from_visits_table` deleted
+  the columns and the values in them. The tracker still removes them from the
+  address bar, without reading them, so an identifier isn't left there to be
+  bookmarked or shared.
+- **Cleaned before it leaves the browser.** `public/tracker.js` applies the
+  same rules, so a dropped value is never sent; the server applies them again,
+  since anyone can post to `/api/collect`. The link builder (`resources/js/
+  utils/utm.js`) uses them to warn before a link is shared. All three must
+  agree on `tests/Fixtures/utm-values.json`
+  (`tests/Unit/UtmValueTest.php`, `resources/js/utils/utm.check.mjs`).
+- **A UTM value never costs the visit.** The values aren't validated: a value
+  that is too long is shortened, and one that is invalid or not text is stored
+  as null. Before, a value over 255 characters failed validation, and since
+  the tracker ignores errors, the whole page view was lost.
+- **Stored values were cleaned too.** Migration
+  `2026_11_11_120000_clean_utm_values_in_visits_table` ran the same rules over
+  the existing rows (lowercase, identifying values removed). It can't be
+  undone, and no page view is deleted.
+- **Only the landing page carries them.** Each `visits` row is one page view,
+  and the tracker is cookieless with no session, so the values are on the
+  page view the link opened. A campaign's count is its landing page views.
+
+In the admin, `/analytics` shows **Campaigns** (views per campaign, with the
+source and medium each came with: `VisitStatistics::campaigns()`, top 10; and
+the page those views landed on most, "/offer" and "/offer/" counted as one
+(`UrlToContent::normalize()`), equal counts by path, with "and N more pages"
+when there were others. The page links to its edit screen when it is a post
+or a page, as on the dashboard's Top content; other paths are plain text) and
+**Mediums** (`topBy('utm_medium')`), for the chosen period, next to Traffic
+sources, where `utm_source` wins over the referrer (`TrafficSource`). The
+**campaign link builder** on the same page makes a tagged link from a page
+address, a source, a medium and a campaign, all required, with the values as
+they will be stored. Nothing is saved: the labels are in the link itself.
 
 ## 5. Blocks
 
@@ -340,6 +395,22 @@ offer them:
    2.25rem): `SiteSetting::logoImage()` gives the API that height and the
    width that keeps the proportions, and `SiteHeader.astro` sets
    `--logo-height` from it.
+
+   The header's padding above and below its content is `header_padding`
+   (Settings, Look: 8–48 px, default 12 = the old fixed `--space-3`; slider
+   steps of 4, `SiteSetting::HEADER_PADDING_*`, the same bounds in
+   `astro/src/lib/settings.js`, default in `site.js`). `SiteHeader.astro` sets
+   `--header-padding` only when it isn't 12, so an unchanged site has exactly
+   the HTML it had. The padding and the logo height are independent; the
+   header has no height of its own (it is its content plus the padding), so
+   it always fits the logo: at least the logo plus 2 × 8 px. The minimum keeps
+   the focus ring (3 px plus a 2 px offset outside a link) inside the header.
+   On narrow screens the padding is capped like the logo, over the same
+   widths: `min(chosen, clamp(1rem, 6.25vw - 1rem, 3rem))`, at most 16 px up
+   to 512 px wide and the full value from 1024 px, so on a phone the logo
+   (capped at 48) and the padding take at most 80 px, the height the logo cap
+   was chosen for; 16 px or less is never changed. (A name that wraps beside a
+   very wide logo on a 320 px screen adds a line, as it did before the setting.)
 3. A rebuild is queued only if `PublicSiteSettings::payload()` differs before
    and after the save.
 4. Astro: `getSite()` in `api.js` fetches `/public/site` once per build. A
@@ -587,6 +658,19 @@ The README requires the worker to run with `--timeout=660` and
   the props the server actually sends. Each dashboard section sits in a
   `SectionBoundary`, so a section that fails anyway shows a note (reported to
   Sentry) instead of blanking the page.
+- `node resources/js/Pages/Analytics/Index.check.mjs` renders the real
+  `Analytics/Index.jsx` and its campaign link builder the same way: the
+  Campaigns (with each row's page, its edit link and "and N more pages") and
+  Mediums tables row by row, an empty period, and props from a server without
+  the UTM tables or without the page. `tests/Feature/AnalyticsCampaignsTest.php`
+  runs it with the props the server sends.
+- `node resources/js/utils/utm.check.mjs` checks the UTM rules in the browser
+  code against `tests/Fixtures/utm-values.json`: `utm.js` (the link builder),
+  and `public/tracker.js` itself, run in a `node:vm` sandbox with a stand-in
+  window (what it sends for each example; that `utm_term` and `utm_content`
+  are never sent but are removed from the address bar; other parameters and
+  the `#fragment` kept), plus the links `buildCampaignUrl()` makes.
+  `tests/Feature/AnalyticsCampaignsTest.php` runs it too.
 - `node resources/js/theme.check.mjs` checks the admin colour tokens
   (section 6, "Admin colours"), in the light and the dark theme:
   - the dark theme redefines every token of the light one;
@@ -627,7 +711,7 @@ The README requires the worker to run with `--timeout=660` and
 | `check-build.mjs` | `npm run check:build` | one `<h1>`, skip link, aria-current, favicons, external hosts, fonts |
 | `check-layout.mjs` | `npm run check:build` | the page column rule and overflow safety in the built CSS |
 | `check-blocks.mjs` | `npm run check`, and `--built` in `npm run check:build` | the columns block: `ColumnsBlock.astro` rendered with Astro's container API (which columns show, the class for two, three or one), and from `blocks.css` (or the built CSS) how many sit side by side at 375 to 1280px and where panel corners go square; the spacer block: `SpacerBlock.astro` alone and through `BlockRenderer` (height, colour and opacity in the `style` attribute, defaults, invalid values replaced and never copied into the CSS), and its CSS (full width, the usual block margin, no spacing rules of its own) |
-| `check-header-footer.mjs` | `npm run check` | the header and footer layouts: `SiteHeader`/`SiteFooter` rendered with the container API (the layout class, nothing else in the HTML changed; the header with the mark, a logo with the name and a logo alone), how `site.css` arranges each at 375 to 1280px (where the brand sits, and that the mark and a logo are placed alike) (`winningDeclaration()` in `scripts/lib/css.mjs` handles descendant selectors), and that layout rules set no colours |
+| `check-header-footer.mjs` | `npm run check` | the header and footer layouts: `SiteHeader`/`SiteFooter` rendered with the container API (the layout class, nothing else in the HTML changed; the header with the mark, a logo with the name and a logo alone), how `site.css` arranges each at 375 to 1280px (where the brand sits, and that the mark and a logo are placed alike) (`winningDeclaration()` in `scripts/lib/css.mjs` handles descendant selectors), and that layout rules set no colours; the header padding: `--header-padding` only when not 12 and only for 8–48, and, with `cssLength()` in `css.mjs` evaluating the CSS at 320 to 1600px for every layout, padding and logo height, that the default stays 12, the padding never goes below 8, a phone's logo and padding stay within 80px, and no rule limits the header's height or overflow |
 | `check-site.mjs` | `npm run check:build` | built HTML against the live `/public/site` response (needs Laravel) |
 | `derive-font-fallbacks.mjs` | (manual) | fallback font metrics in `fonts.js` |
 
@@ -690,6 +774,17 @@ Astro (`astro/.env`, `astro/.env.production`):
 
 - **Tracker blockers**: visitors who block trackers are never counted, by
   design. The counts are a lower bound (section 4, "Tracker blockers").
+- **UTM tags: left out on purpose** (section 4, "UTM tags"):
+  - **Filtering** the analytics page by a source, medium or campaign. Every
+    statistics query would need the filter (about 1½–2 days).
+  - **Saved campaigns**: the link builder stores nothing; there is no list of
+    campaigns or links with their own statistics (about 2–3 days).
+  - **Attribution beyond the landing page** (pages per visit, contact form
+    submissions per campaign). This needs a session or visitor id kept across
+    page views, which conflicts with the cookieless design, so it is left out
+    deliberately rather than postponed.
+  - `utm_term` and `utm_content` are not collected (a privacy decision, not a
+    gap to close).
 
 - **Sanitiser and relative images**: `allowRelativeMedias()` still keeps
   relative `<img src>` values other than `/storage/...` (e.g. `../x.jpg`);

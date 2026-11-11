@@ -53,6 +53,8 @@ class SiteSettingsController extends Controller
                 // null on a row from before the columns: the default, as the public site shows it.
                 'header_layout' => LayoutOptions::resolve($settings->header_layout, LayoutOptions::HEADER),
                 'footer_layout' => LayoutOptions::resolve($settings->footer_layout, LayoutOptions::FOOTER),
+                // null on a row from before the column: the default.
+                'header_padding' => $settings->shownHeaderPadding(),
                 'navigation' => $navigation,
             ],
             'pendingFrontPage' => $pendingFrontPage?->only(['id', 'title', 'slug']),
@@ -67,6 +69,7 @@ class SiteSettingsController extends Controller
                 'headerLayouts' => LayoutOptions::choices(LayoutOptions::HEADER),
                 'footerLayouts' => LayoutOptions::choices(LayoutOptions::FOOTER),
                 'logoHeight' => ['min' => SiteSetting::LOGO_HEIGHT_MIN, 'max' => SiteSetting::LOGO_HEIGHT_MAX, 'default' => SiteSetting::LOGO_HEIGHT_DEFAULT],
+                'headerPadding' => ['min' => SiteSetting::HEADER_PADDING_MIN, 'max' => SiteSetting::HEADER_PADDING_MAX, 'default' => SiteSetting::HEADER_PADDING_DEFAULT, 'step' => SiteSetting::HEADER_PADDING_STEP],
             ],
         ]);
     }

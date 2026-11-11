@@ -42,8 +42,10 @@ class UpdateSiteSettingsRequest extends FormRequest
             'footer_text' => ['nullable', 'string', 'max:200', self::PLAIN_TEXT],
             'show_site_name' => ['required', 'boolean'],
             // Missing keeps the stored height, so a Settings page loaded before this
-            // field existed still saves. Out of range is rejected, not clamped.
-            'logo_height' => ['sometimes', 'integer', 'between:'.SiteSetting::LOGO_HEIGHT_MIN.','.SiteSetting::LOGO_HEIGHT_MAX],
+            // field existed still saves. Out of range is rejected, not clamped. numeric
+            // too: "integer" alone takes true as 1, rejected then only because the
+            // minimum is 24; numeric rejects booleans whatever the bounds.
+            'logo_height' => ['sometimes', 'integer', 'numeric', 'between:'.SiteSetting::LOGO_HEIGHT_MIN.','.SiteSetting::LOGO_HEIGHT_MAX],
 
             'brand_color' => ['required', new BrandColor],
             // Checked with the brand colour in this same form (it can change in the same save).
@@ -52,6 +54,9 @@ class UpdateSiteSettingsRequest extends FormRequest
             'footer_background_color' => ['sometimes', 'nullable', new FooterBackgroundColor(ThemeOptions::resolveBrand($this->input('brand_color')))],
             // One of the fixed arrangements. Missing keeps the stored one, as above.
             'header_layout' => ['sometimes', 'string', Rule::in(array_keys(LayoutOptions::HEADER))],
+            // Missing keeps the stored padding, as above; null clears it (the default).
+            // numeric too, as for the logo height.
+            'header_padding' => ['sometimes', 'nullable', 'integer', 'numeric', 'between:'.SiteSetting::HEADER_PADDING_MIN.','.SiteSetting::HEADER_PADDING_MAX],
             'footer_layout' => ['sometimes', 'string', Rule::in(array_keys(LayoutOptions::FOOTER))],
             'font_body' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
             'font_heading' => ['required', 'string', Rule::in(array_keys(ThemeOptions::FONTS))],
@@ -134,7 +139,11 @@ class UpdateSiteSettingsRequest extends FormRequest
             'footer_layout.*' => 'Choose one of the footer layouts.',
             'logo.file' => 'The logo must be an image file.',
             'logo_height.integer' => 'The logo height must be a whole number of pixels.',
+            'logo_height.numeric' => 'The logo height must be a whole number of pixels.',
             'logo_height.between' => 'The logo height must be between :min and :max pixels.',
+            'header_padding.integer' => 'The header padding must be a whole number of pixels.',
+            'header_padding.numeric' => 'The header padding must be a whole number of pixels.',
+            'header_padding.between' => 'The header padding must be between :min and :max pixels.',
             'logo.mimetypes' => 'The logo must be a PNG, JPEG, WebP or SVG image. GIF is not supported.',
             'logo.max' => 'The logo can be at most 2 MB.',
             'logo.dimensions' => 'The logo must be between 64 and 4000 pixels wide and high.',

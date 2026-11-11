@@ -35,6 +35,7 @@ class PublicSiteSettings
             // Checked against the list again: a value changed in the database is the default.
             'header_layout' => LayoutOptions::resolve($settings->header_layout, LayoutOptions::HEADER),
             'footer_layout' => LayoutOptions::resolve($settings->footer_layout, LayoutOptions::FOOTER),
+            'header_padding' => $settings->shownHeaderPadding(),
             'logo' => $this->logo($settings),
             'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),

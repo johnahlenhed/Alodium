@@ -99,6 +99,25 @@ class SiteThemeSyncTest extends TestCase
         );
     }
 
+    public function test_the_header_padding_bounds_equal_the_ones_the_astro_build_accepts(): void
+    {
+        $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',
+            "const { LIMITS } = await import('./astro/src/lib/settings.js'); const { SITE_DEFAULTS } = await import('./astro/src/lib/site.js');"
+            .' console.log(JSON.stringify({ ...LIMITS.headerPadding, default: SITE_DEFAULTS.headerPadding }));']);
+        if ($result->exitCode() === 127 || str_contains($result->errorOutput(), 'not found')) {
+            $this->markTestSkipped('Node.js is not installed, so the Astro settings cannot be loaded.');
+        }
+        $this->assertTrue($result->successful(), $result->errorOutput());
+
+        $bounds = ['min' => SiteSetting::HEADER_PADDING_MIN, 'max' => SiteSetting::HEADER_PADDING_MAX, 'default' => SiteSetting::HEADER_PADDING_DEFAULT];
+        $this->assertSame($bounds, json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR));
+        $this->assertSame(SiteSetting::HEADER_PADDING_DEFAULT, SiteSetting::defaults()['header_padding']);
+        // The Settings slider (its bounds and step come from the server) reaches both ends and the default.
+        foreach ($bounds as $value) {
+            $this->assertSame(0, ($value - SiteSetting::HEADER_PADDING_MIN) % SiteSetting::HEADER_PADDING_STEP, "{$value} is not on the slider");
+        }
+    }
+
     public function test_the_spacer_bounds_equal_the_ones_the_editor_and_the_astro_build_use(): void
     {
         $result = Process::path(base_path())->run(['node', '--input-type=module', '-e',

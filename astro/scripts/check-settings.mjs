@@ -18,6 +18,7 @@ const VALID = Object.freeze({
     footer_background_color: '#F5F1EA',
     header_layout: 'centered',
     footer_layout: 'columns',
+    header_padding: 24,
     logo: { url: `${API}/storage/9/conversions/logo-logo.png`, width: 240, height: 80 },
     navigation: [
         { label: 'Home', href: '/' },
@@ -58,6 +59,7 @@ test('a valid response is used as given, without warnings', () => {
         footerBackground: { color: '#f5f1ea', scheme: 'light' },
         headerLayout: 'centered',
         footerLayout: 'columns',
+        headerPadding: 24,
         logo: VALID.logo,
         navigation: VALID.navigation,
         frontPage: { slug: 'about' },
@@ -244,6 +246,26 @@ test('header_layout and footer_layout: one of each list, otherwise "standard"', 
         const { site, warnings } = normalize({ [key]: value });
         assert.equal(site[field], 'standard', `${key}: ${JSON.stringify(value)}`);
         assert.equal(warnings.length, 1, `${key}: ${JSON.stringify(value)}`);
+    }
+});
+
+test('header_padding: a whole number from 8 to 48, otherwise 12', () => {
+    for (const value of [8, 12, 30, 48]) {
+        const { site, warnings } = normalize({ header_padding: value });
+        assert.equal(site.headerPadding, value);
+        assert.deepEqual(warnings, []);
+    }
+    // Missing (an API from before the setting): the default, without a warning.
+    const older = normalize({ header_padding: undefined });
+    assert.equal(older.site.headerPadding, 12);
+    assert.deepEqual(older.warnings, []);
+    assert.equal(SITE_DEFAULTS.headerPadding, 12);
+    // Anything else: the default, with a warning. The server never sends these.
+    for (const value of [7, 0, -12, 49, 500, 12.5, '12', '12px', '0.75rem', null, true, [12], { px: 12 }, Number.NaN, Infinity, '12; display: none']) {
+        const { site, warnings } = normalize({ header_padding: value });
+        assert.equal(site.headerPadding, 12, JSON.stringify(value));
+        assert.equal(warnings.length, 1, JSON.stringify(value));
+        assert.match(warnings[0], /"header_padding" is not a whole number from 8 to 48; using 12\./);
     }
 });
 
