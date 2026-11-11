@@ -492,11 +492,13 @@ install_astro() {
 }
 
 # Once per run: a cached config (php artisan config:cache) doesn't see .env changes.
+# As the web user, never root: a cache file root writes (bootstrap/cache/config.php)
+# can't be replaced by www-data later (README, "Updating the application").
 refresh_config_cache() {
     $CONFIG_STALE || return 0
     CONFIG_STALE=false
     [[ -f $APP_DIR/bootstrap/cache/config.php ]] || return 0
-    run_in "$APP_DIR" php artisan config:cache
+    run_in "$APP_DIR" sudo -u "$WEB_USER" php artisan config:cache
 }
 
 setup_step() {

@@ -2,8 +2,9 @@
 /**
  * Renders a page's blocks in order. A block of a type without a component, or
  * with missing required data, is skipped with a build warning: one bad block
- * never breaks the build. Markup and class names are kept simple on purpose,
- * because the editor preview has to produce the same HTML.
+ * never breaks the build. Markup and class names are kept simple on purpose.
+ * (The admin has no block preview; one would need to produce this same HTML.
+ * docs/ARCHITECTURE.md, section 12.)
  */
 import { BLOCK_TYPES, checkBlock } from './registry.js';
 

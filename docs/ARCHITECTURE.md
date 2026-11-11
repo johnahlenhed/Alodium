@@ -731,7 +731,7 @@ of these steps replaces a value that is already set:
 | `APP_URL`, `PUBLIC_SITE_URL`, `MAIL_FROM_ADDRESS` (`hello@` the site domain) | `deploy/add-domain.sh setup`, from the domains; it fills in only empty values and `.env.example`'s placeholders, and keeps values of their own unless `--force` |
 | `MAXMIND_LICENSE_KEY` | `deploy/add-domain.sh geoip` |
 | `APP_ENV`, `APP_DEBUG`, `ASTRO_REBUILD_SCRIPT` | by hand, README steps 3 and 9 |
-| everything else, including `DB_QUEUE_RETRY_AFTER` | the defaults in `.env.example` |
+| everything else, including `DB_QUEUE_RETRY_AFTER` and `LOG_STACK=daily` (one log file per day, the newest `LOG_DAILY_DAYS` = 14 kept) | the defaults in `.env.example` |
 
 `app:configure-env` writes `.env` in one pass, checks that every value reads back
 as written (the same `.env` parser Laravel uses), quotes values only where `.env` needs it,
@@ -785,13 +785,23 @@ Astro (`astro/.env`, `astro/.env.production`):
     deliberately rather than postponed.
   - `utm_term` and `utm_content` are not collected (a privacy decision, not a
     gap to close).
-
 - **Sanitiser and relative images**: `allowRelativeMedias()` still keeps
   relative `<img src>` values other than `/storage/...` (e.g. `../x.jpg`);
   only protocol-relative `//host` sources are removed.
-- **Import run page in a browser**: the polling, the focus move, the progress
-  bar, the stall hint and the layout are covered by the pure module's node
-  check and the PHP tests, not by browser tests.
+- **Admin pages in a browser**: there are no browser tests for the admin, and
+  these were never opened in a real browser, only rendered with React's server
+  renderer or checked as pure functions: the import run page (polling, the
+  focus move, the progress bar, the stall hint, the layout), the Settings
+  sliders for the logo height and the header padding, the spacer block's
+  editor (its sliders and colour field), and on Analytics the campaign link
+  builder (typing, the warnings, Copy link and its clipboard fallback) and the
+  Campaigns table's Page column at narrow widths. The public site's header,
+  layouts and blocks were measured in headless Chromium during development;
+  that isn't part of the checks either.
+- **Colour samples in Settings**: the header and footer background colour
+  fields show a small sample (the name and two links in a row) that ignores the
+  chosen layout, the header padding and the logo. It shows the colours and the
+  text they get, not the arrangement.
 - **`download_images` on the server** still defaults to off when the field is
   missing; only the upload form checks it by default.
 - **Runs from before the run page** (no `report`, `imported_*` or
@@ -848,17 +858,19 @@ Astro (`astro/.env`, `astro/.env.production`):
   libxml still reports a parse problem in is imported as a draft, with a warning.
 - **Imported images** point at the original file; the block picker stores the
   `medium` conversion instead.
-- **Editor preview**: `blocks.css` is written to work standalone for an editor
-  preview in an iframe; that preview was not found.
+- **No block preview in the admin**: the block editor edits fields only; the
+  page is seen on the public site after a rebuild. `blocks.css` is written to
+  work standalone, so a preview could load it in an iframe, but none does.
 - **Header and footer layouts left out**: three were considered and not built.
   A header that sits transparently over a hero image is not just CSS: the
   header is outside `<main>`, so it would have to know the first block's hero
   variant to choose its text colour (and the `none` variant has no overlay,
   so its text would sit on the bare image, which no contrast check can
   cover), and the hero would need top padding equal to a header height that
-  varies (a 24–96px logo, a menu that wraps onto more lines on a phone). A
-  menu split either side of a centred logo needs the menu in two lists, rules
-  for odd counts and long labels, and its own phone layout. Social links or
+  varies (a 24–96px logo, 8–48px of header padding, a menu that wraps onto
+  more lines on a phone). A menu split either side of a centred logo needs
+  the menu in two lists, rules for odd counts and long labels, and its own
+  phone layout. Social links or
   other footer columns need new content fields (and an editor for them), so
   they are a feature of their own, not an arrangement.
 - **Favicon**: the public site always uses the Alodium favicon, whatever logo is uploaded.
@@ -885,3 +897,27 @@ Astro (`astro/.env`, `astro/.env.production`):
 - **Build rate-limit exemption** assumes the build reaches Laravel directly.
   Behind a proxy such as Cloudflare's orange cloud, requests would come from the
   proxy's IPs: the build would be limited to 60/min and fail on a larger site.
+- **No restore command**: `db:backup` makes backups, but restoring one is the
+  manual process in the README ("Database backups": `gunzip -c … | mysql`,
+  between `artisan down` and `up`). It was tested end to end on MySQL 8 (a
+  scratch database and an in-place restore matched the original table by
+  table), not on the production server.
+- **Restoring an older backup leaves newer tables**: the dump drops and
+  recreates only the tables it contains, so a table created after the backup
+  (by a later update's migration) stays, while the restored `migrations` table
+  says that migration hasn't run, and `migrate` then fails on the existing
+  table. The README says to restore into an empty database in that case. The
+  newest migrations that create tables are `import_runs` (2026-10-27) and
+  `navigation_items` (2026-10-28); November's only add, drop or clean columns.
+  So it matters for a backup from before 28 October restored over a newer
+  database.
+- **Logs on servers set up before daily logs**: `.env.example` has
+  `LOG_STACK=daily` (one `storage/logs/laravel-YYYY-MM-DD.log` per day, 14
+  kept). A server whose `.env` came from an older `.env.example` still has
+  `LOG_STACK=single`, one `laravel.log` that is never rotated and grows with
+  every rebuild's build output, until it is switched (README, "Updating the
+  application"). `worker.log` is rotated by Supervisor's defaults (50 MB, 10
+  old copies); `astro-rebuild.log` grows by one line per build and is never
+  rotated. With daily files, an `artisan` command run as root can create that
+  day's log file owned by root, which the web server can't write: run
+  `artisan` as `www-data` on a server.
