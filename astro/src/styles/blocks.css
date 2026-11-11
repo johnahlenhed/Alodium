@@ -1,8 +1,9 @@
 /*
  * Styles for page blocks, rich text (.prose: block text, posts and legacy page
  * content), buttons and the contact form, and every variable they use.
- * Self-contained: it depends on nothing in BaseLayout or site.css, so the admin
- * editor preview can load this same file in an iframe. Header, footer and page
+ * Self-contained: it depends on nothing in BaseLayout or site.css, so a block
+ * preview in the admin could load this same file in an iframe. The admin has
+ * no such preview (docs/ARCHITECTURE.md, section 12). Header, footer and page
  * layout are in site.css.
  *
  * Theming. Four variables are chosen by the client: --color-brand,
@@ -255,7 +256,7 @@
  * Buttons: the hero's button, the button block and the contact form's submit
  * button share these. Each variant only sets the --button-* colours. The
  * style is chosen with data-button on <html>: "solid" (also when the attribute
- * is missing, as in the editor preview) or "outline".
+ * is missing) or "outline".
  */
 
 .button,

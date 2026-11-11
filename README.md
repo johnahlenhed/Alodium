@@ -75,7 +75,7 @@ FLUSH PRIVILEGES;
 DB_DATABASE=alodium
 DB_USERNAME=alodium
 DB_PASSWORD=the-password-you-chose
-# Locally, write emails (invitations, password resets) to storage/logs/laravel.log
+# Locally, write emails (invitations, password resets) to the log, storage/logs/laravel-YYYY-MM-DD.log
 # instead of sending them. Or keep resend and set RESEND_API_KEY.
 MAIL_MAILER=log
 ```
@@ -263,14 +263,14 @@ php artisan storage:link
 > email, so it works before Resend is set up.
 >
 > To allow sign-ups temporarily, set `AUTH_REGISTRATION=true` in `.env` and
-> run `php artisan config:cache`. Accounts made that way are editors; an
+> run `sudo -u www-data php artisan config:cache`. Accounts made that way are editors; an
 > admin can change their role on the Users page.
 
 #### Email (Resend)
 
 Add and verify the sending domain in Resend **before any mail is sent**, otherwise sending fails. In the Resend dashboard, add the domain under *Domains* and add the DNS records it shows (DKIM, plus SPF and the return-path records) at your DNS provider. Wait until Resend shows the domain as verified.
 
-Create an API key with **Sending access** only. `php artisan app:configure-env` asks for it, so run it again if you skipped the key earlier. `MAIL_FROM_ADDRESS` must be an address on the verified domain. `add-domain.sh` sets it to `hello@SITE_DOMAIN` in step 4. If you verify another domain, set it to an address on that one.
+Create an API key with **Sending access** only. `php artisan app:configure-env` asks for it, so run it again if you skipped the key earlier (after this step, as `sudo -u www-data php artisan app:configure-env`). `MAIL_FROM_ADDRESS` must be an address on the verified domain. `add-domain.sh` sets it to `hello@SITE_DOMAIN` in step 4. If you verify another domain, set it to an address on that one.
 
 Set file ownership so PHP-FPM and the queue worker (both `www-data`) can write to storage:
 
@@ -482,7 +482,7 @@ The analytics resolve each visitor's country from their IP with the **MaxMind Ge
 
    ```bash
    cd /var/www/alodium
-   php artisan config:cache
+   sudo -u www-data php artisan config:cache
    ```
 
 3. Download the database as `www-data`, so the monthly update (below) can replace the file later:
@@ -570,7 +570,7 @@ ASTRO_REBUILD_SCRIPT=/var/www/alodium/rebuild-astro.sh
 `WEBHOOK_SECRET` was generated in step 3. `DB_QUEUE_RETRY_AFTER=720` comes from `.env.example`. It must stay higher than the worker's `--timeout` (660), or a second worker starts the same build while the first is still running.
 
 ```bash
-php artisan config:cache
+sudo -u www-data php artisan config:cache
 supervisorctl restart alodium-worker:*
 ```
 
@@ -586,14 +586,14 @@ curl -X POST https://ADMIN_DOMAIN/api/webhook/rebuild -H "X-Webhook-Secret: $(se
 The response is `202 Accepted`, and the build runs in the background. Check progress in:
 
 - `storage/logs/astro-rebuild.log`: start, finish or failure of each build
-- `storage/logs/laravel.log`: build output and errors
+- `storage/logs/laravel-YYYY-MM-DD.log`: build output and errors (one file per day; see "Log files" under [Updating the application](#updating-the-application))
 - `storage/logs/worker.log`: the queue worker
 
 A failed build is retried once. The live site keeps the previous version until a build succeeds. Then open `https://SITE_DOMAIN`.
 
 ### 10. Database backups
 
-`php artisan db:backup` runs every day at 02:00 UTC through the scheduler (step 8). It writes a compressed dump to `storage/app/backups/alodium-backup-YYYY-MM-DD-HHMM.sql.gz` and keeps the newest 30. A backup counts as successful only if `mysqldump` exits cleanly and the dump is complete. Failures are logged to `storage/logs/laravel.log` at error level.
+`php artisan db:backup` runs every day at 02:00 UTC through the scheduler (step 8). It writes a compressed dump to `storage/app/backups/alodium-backup-YYYY-MM-DD-HHMM.sql.gz` and keeps the newest 30. A backup counts as successful only if `mysqldump` exits cleanly and the dump is complete. Failures are logged to the day's `storage/logs/laravel-YYYY-MM-DD.log` at error level.
 
 Backup files are readable only by `www-data` (they contain user accounts and password hashes). Make a manual backup as that user, so the file gets the same owner:
 
@@ -611,15 +611,15 @@ ls -lh storage/app/backups/
 To restore a backup manually:
 
 ```bash
-php artisan down        # stop visitors and editors from writing during the restore
+sudo -u www-data php artisan down        # stop visitors and editors from writing during the restore
 gunzip -c storage/app/backups/alodium-backup-YYYY-MM-DD-0200.sql.gz | \
   mysql -u <DB_USERNAME> -p alodium
-php artisan up
+sudo -u www-data php artisan up
 ```
 
 Replace `<DB_USERNAME>` with the `DB_USERNAME` from your `.env`. `mysql` asks for its `DB_PASSWORD`.
 
-The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. After restoring, trigger an Astro rebuild with the webhook (step 9) so the public site matches the restored content.
+The restore replaces the current tables with the ones in the backup. Changes made after the backup was taken are lost. Tables that didn't exist when the backup was taken are left as they are; this only matters after an update whose migrations created new tables (the restored `migrations` table then says they haven't run, and `migrate` would fail on the table that is still there). To go back past such an update, restore into an empty database instead: drop and recreate `alodium` (as in step 1) before loading the backup. After restoring, trigger an Astro rebuild with the webhook (step 9) so the public site matches the restored content.
 
 #### Off-server copies (recommended)
 
@@ -634,7 +634,7 @@ Local backups don't survive the loss of the server. When object storage is confi
 **3. Add the bucket** by running the setup command again and answering *yes* to off-server backups. It asks only for what is still missing, then caches the config:
 
 ```bash
-php artisan app:configure-env
+sudo -u www-data php artisan app:configure-env
 ```
 
 It asks for the access key ID, the secret (hidden), the bucket, the endpoint and the region. For Cloudflare R2 the endpoint is `https://<account-id>.r2.cloudflarestorage.com` (EU jurisdiction: `https://<account-id>.eu.r2.cloudflarestorage.com`) and the region is `auto`. The result in `.env`:
@@ -677,9 +677,9 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
   -in alodium-backup-YYYY-MM-DD-0200.sql.gz.enc -out alodium-backup-YYYY-MM-DD-0200.sql.gz
 
 # 3. Restore (on the server, from /var/www/alodium)
-php artisan down
+sudo -u www-data php artisan down
 gunzip -c alodium-backup-YYYY-MM-DD-0200.sql.gz | mysql -u <DB_USERNAME> -p alodium
-php artisan up
+sudo -u www-data php artisan up
 ```
 
 As above, `<DB_USERNAME>` is the `DB_USERNAME` from your `.env`.
@@ -747,7 +747,7 @@ aws s3 sync s3://alodium-backups/media/ /var/www/alodium/storage/app/public/ \
 
 chown -R www-data:www-data /var/www/alodium/storage/app/public
 cd /var/www/alodium
-php artisan storage:link        # only if public/storage doesn't exist yet
+sudo -u www-data php artisan storage:link        # only if public/storage doesn't exist yet
 ```
 
 Restore the database first: Spatie's `media` table says which files belong to which post or page. The sync also brings back files that were deleted on purpose, which is harmless, because nothing in the database points to them. If image conversions (thumbnails, WebP, the social sharing image) are missing, regenerate them:
@@ -765,13 +765,13 @@ Sentry collects unhandled errors from production in a dashboard, with stack trac
 3. Add it by running the setup command again, and paste the DSN when it asks. It asks only for what is still missing, then caches the config. `SENTRY_TRACES_SAMPLE_RATE=0.1` is already in `.env.example`.
 
    ```bash
-   php artisan app:configure-env
+   sudo -u www-data php artisan app:configure-env
    ```
 
 4. Verify:
 
    ```bash
-   php artisan sentry:test   # sends a test event; it should appear in Sentry within a minute
+   sudo -u www-data php artisan sentry:test   # sends a test event; it should appear in Sentry within a minute
    ```
 
 No frontend rebuild is needed. Laravel passes the same DSN to the browser when the page loads, so the locally built assets work unchanged.
@@ -861,8 +861,8 @@ Admins create users on the **Users** page (name, email and role). The new user g
 
 ```bash
 cd /var/www/alodium
-php artisan user:set-password client@example.com              # type it, hidden
-php artisan user:set-password client@example.com --generate   # or print a random one once
+sudo -u www-data php artisan user:set-password client@example.com              # type it, hidden
+sudo -u www-data php artisan user:set-password client@example.com --generate   # or print a random one once
 ```
 
 Hand a generated password over securely, for example as a password manager share, and ask the user to change it under **Profile**. For an email with no account yet, the command creates an admin (it asks first).
@@ -882,7 +882,7 @@ The images are downloaded after the upload, on the queue, so **the queue worker 
 | Per import | 1500 images, 1 GiB | `IMPORT_MAX_IMAGES_PER_RUN`, `IMPORT_MAX_TOTAL_BYTES` |
 | Free disk space | stops below 2 GiB | `IMPORT_MIN_FREE_DISK_BYTES` |
 
-Run `php artisan config:cache` after changing them.
+Run `sudo -u www-data php artisan config:cache` after changing them.
 
 **After a deploy**, import `docs/testdata/ssrf-smoke.xml` (from the repository) with the box checked. It checks that the server refuses to download from internal addresses. A correct result: 1 post imported, 5 images found, 0 downloaded, 5 skipped, all "Address not allowed (private or internal)". Then delete the draft "SSRF smoke test (delete me)" under **Posts**. Any other result means the image downloads must not be used until it is fixed; see `docs/ARCHITECTURE.md`, section 9.
 
@@ -897,12 +897,25 @@ Plugin content is not imported. WordPress's own shortcodes (galleries, captions,
 cd /var/www/alodium
 git pull
 composer install --no-dev --optimize-autoloader   # if composer.json/composer.lock changed
-php artisan migrate --force                       # if migrations were added
 cd astro && npm install --legacy-peer-deps && cd ..
 chown -R www-data:www-data /var/www/alodium       # files pulled as root are owned by root
-php artisan config:cache
+sudo -u www-data php artisan migrate --force      # if migrations were added
+sudo -u www-data php artisan config:cache
 supervisorctl restart alodium-worker:*
 ```
+
+**Run `php artisan` as `www-data`** once the app belongs to it (step 3's `chown`, and the one above): `sudo -u www-data php artisan …`. A command run as root can leave files behind that only root can write, such as the cached config in `bootstrap/cache` or, with daily log files, that day's log file in `storage/logs`. The site then fails with a 500 until they belong to `www-data` again (`chown -R www-data:www-data storage bootstrap/cache`). Only the first setup in step 3 runs `artisan` as root, before its `chown`.
+
+**Log files.** Laravel writes one log file per day, `storage/logs/laravel-YYYY-MM-DD.log`, and keeps the newest 14 (`LOG_STACK=daily` in `.env.example`; `LOG_DAILY_DAYS` sets how many). A server set up with an older `.env.example` has `LOG_STACK=single`: a single `laravel.log` that is never rotated and grows with every rebuild's build output. Switch it once:
+
+```bash
+cd /var/www/alodium
+grep -n '^LOG_STACK=' .env                        # LOG_STACK=single: change it
+sudo -u www-data sed -i 's/^LOG_STACK=single$/LOG_STACK=daily/' .env
+sudo -u www-data php artisan config:cache         # .env changes need a fresh config cache
+```
+
+New entries then go to the dated files. The old `laravel.log` is no longer written to: keep it as long as its history is useful, then delete it. `worker.log` is rotated by Supervisor (by default at 50 MB, keeping 10 old copies), and `astro-rebuild.log` grows by one line per build.
 
 Admin panel assets are always built locally, **from the same commit the server has just pulled**, and copied up in the same update:
 
@@ -954,13 +967,13 @@ Publishing, editing, unpublishing or deleting posts and pages in the admin panel
 | Public site shows old or placeholder content | `astro/.env.production` is missing or points to the wrong `API_URL`. It is gitignored and must be created on the server. |
 | Rebuilds never happen | The worker is not running (`supervisorctl status`), `ASTRO_REBUILD_SCRIPT` is not set, or `config:cache` was not run after editing `.env`. |
 | Build is killed after 60 seconds | The worker is missing `--timeout=660`. |
-| `.env` changes have no effect | Configuration is cached. Run `php artisan config:cache`. |
+| `.env` changes have no effect | Configuration is cached. Run `sudo -u www-data php artisan config:cache`. |
 | Uploads fail with `413 Request Entity Too Large` | `client_max_body_size` is missing in Nginx. |
 | Uploads fail without an error | Upload limits in `/etc/php/8.4/fpm/php.ini`. Restart `php8.4-fpm` after editing. |
 | `git pull` fails with "dubious ownership" | The repo is owned by www-data. Run `git config --global --add safe.directory /var/www/alodium` once. |
 | Building assets on the server runs out of memory | Build them locally and copy them with `scp -r public/build/*`. |
 | Certbot: "Could not automatically find a matching server block" | `server_name` is an IP address or doesn't match the domain. Fix `server_name`, reload Nginx, then run `certbot install --cert-name SITE_DOMAIN`. |
-| Invitation or password reset emails only appear in `laravel.log` | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `php artisan config:cache` after fixing `.env`. Until it works, set the password with `php artisan user:set-password EMAIL` ([step 13](#13-users-and-roles)). |
+| Invitation or password reset emails only appear in the log (`storage/logs`) | `MAIL_MAILER` is still `log`, or the Resend sending domain isn't verified. Run `sudo -u www-data php artisan config:cache` after fixing `.env`. Until it works, set the password with `sudo -u www-data php artisan user:set-password EMAIL` ([step 13](#13-users-and-roles)). |
 | Astro build fails with `astro: not found` | Dependencies are missing. Run `npm install --legacy-peer-deps` in `astro/` and make sure the files are owned by `www-data`. |
 
 ## License

@@ -44,6 +44,8 @@ class AddDomainSetupTest extends TestCase
         $this->stub('systemctl', $log);
         $this->stub('supervisorctl', $log);
         $this->stub('php', $log);
+        // Logs who the command runs as, then runs it (the stubs above), as sudo would.
+        $this->stub('sudo', $log."\n[[ \$1 == -u ]] && shift 2\nexec \"\$@\"");
         $this->stub('npm', $log."\nmkdir -p node_modules");
         $this->stub('crontab', <<<'BASH'
             user=root
@@ -146,6 +148,8 @@ class AddDomainSetupTest extends TestCase
             "supervisorctl update | {$app}",
             "crontab -u root - | {$app}",
             "npm install --legacy-peer-deps | {$app}/astro",
+            // As the web user (ALODIUM_WEB_USER here), never root: README, "Updating the application".
+            "sudo -u root php artisan config:cache | {$app}",
             "php artisan config:cache | {$app}",
         ], array_map(fn ($call) => str_replace(self::ROOT, $app, $call), $this->callsFrom($app)));
     }
@@ -219,7 +223,7 @@ class AddDomainSetupTest extends TestCase
             'would run: supervisorctl reread',
             "would add to root's crontab: ".self::CRON,
             "would run (in {$this->box}/app/astro): npm install --legacy-peer-deps",
-            "would run (in {$this->box}/app): php artisan config:cache",
+            "would run (in {$this->box}/app): sudo -u root php artisan config:cache",
         ] as $line) {
             $this->assertStringContainsString($line, $output);
         }
