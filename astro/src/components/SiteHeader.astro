@@ -6,7 +6,8 @@
  */
 import BrandMark from './BrandMark.astro';
 import { HEADER_LAYOUTS, layoutClass } from '../lib/layouts.js';
-import { currentState } from '../lib/settings.js';
+import { currentState, isWithin, LIMITS } from '../lib/settings.js';
+import { SITE_DEFAULTS } from '../lib/site.js';
 
 interface Props {
     /** From getSite() (src/lib/api.js). */
@@ -17,6 +18,8 @@ interface Props {
         navBackground: { color: string; scheme: 'light' | 'dark' } | null;
         /** How the header is arranged (src/lib/layouts.js); "standard" adds no class. */
         headerLayout: string;
+        /** The padding above and below the content, in px (LIMITS.headerPadding). */
+        headerPadding: number;
         logo: { url: string; width: number; height: number } | null;
     };
     /** navigationFor(settings): the navigation without the front page's own address. */
@@ -24,7 +27,7 @@ interface Props {
 }
 
 const { settings, navigation } = Astro.props;
-const { name, logo, navBackground, headerLayout } = settings;
+const { name, logo, navBackground, headerLayout, headerPadding } = settings;
 // Without a logo the name is always shown, otherwise the link would have no visible content.
 const showName = !logo || settings.showSiteName;
 const { pathname } = Astro.url;
@@ -32,11 +35,16 @@ const { pathname } = Astro.url;
 // Its width/height attributes reserve the space; CSS sets the height (no layout shift),
 // from the height chosen in Settings, in rem as before (36px = the old 2.25rem).
 const logoHeight = logo ? `--logo-height: ${logo.height / 16}rem` : undefined;
+// The header's padding, in rem like the logo height: only when it isn't the default, so a
+// site that never changed it has exactly the HTML it had before. Checked again here, as it
+// goes into a style attribute: only a whole number in range gets through.
+const padding = headerPadding !== SITE_DEFAULTS.headerPadding && isWithin(headerPadding, LIMITS.headerPadding) ? `--header-padding: ${headerPadding / 16}rem` : undefined;
+const headerStyle = [navBackground && `--nav-bg: ${navBackground.color}`, padding].filter(Boolean).join('; ') || undefined;
 ---
 
 <header
     class:list={['site-header', navBackground && `site-header--${navBackground.scheme}`, layoutClass('site-header', HEADER_LAYOUTS, headerLayout)]}
-    style={navBackground ? `--nav-bg: ${navBackground.color}` : undefined}
+    style={headerStyle}
 >
     <div class="site-header__inner">
         <a class="site-brand" href="/">

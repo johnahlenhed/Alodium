@@ -170,3 +170,35 @@ export function winningDeclaration(rules, chain, width, properties) {
 
 /** computedValue() for an element inside others (see winningDeclaration). */
 export const computedValueIn = (rules, chain, width, property) => winningDeclaration(rules, chain, width, [property])?.value;
+
+/**
+ * A CSS length in px at a viewport `width`: numbers in px, rem (16px) or vw, and
+ * unitless ones; + - * /; calc(), min(), max() and clamp(); and var(--name),
+ * looked up in `vars` (each value itself an expression) or taken from the var's
+ * fallback. Anything else throws, so a declaration this can't read fails a
+ * check instead of passing unread. Only for this project's own CSS: the text is
+ * reduced to numbers, operators and the three functions before it is evaluated.
+ */
+export function cssLength(expression, width, vars = {}, depth = 0) {
+    if (depth > 8) throw new Error(`cssLength: variables nested too deep in "${expression}"`);
+    let text = String(expression);
+    // Innermost var() first, so a fallback holding another var() works.
+    for (let guard = 0; /var\(/.test(text); guard++) {
+        if (guard > 20) throw new Error(`cssLength: can't resolve the variables in "${expression}"`);
+        text = text.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/, (m, name, fallback) => {
+            const value = vars[name] ?? fallback;
+            if (value === undefined) throw new Error(`cssLength: ${name} has no value in "${expression}"`);
+            return `(${cssLength(value, width, vars, depth + 1)})`;
+        });
+    }
+    const UNIT = { px: 1, rem: 16, vw: width / 100 };
+    text = text
+        .replace(/\bcalc\(/g, '(')
+        .replace(/(\d*\.?\d+)(px|rem|vw)\b/g, (m, n, unit) => String(Number(n) * UNIT[unit]));
+    const rest = text.replace(/\b(min|max|clamp)\(/g, '(');
+    if (!/^[\d.\s+\-*/(),e]*$/.test(rest) || /[a-df-z]/i.test(rest)) throw new Error(`cssLength: can't read "${expression}" (left "${rest}")`);
+    const clamp = (low, value, high) => Math.max(low, Math.min(value, high));
+    const result = new Function('min', 'max', 'clamp', `"use strict"; return (${text});`)(Math.min, Math.max, clamp);
+    if (!Number.isFinite(result)) throw new Error(`cssLength: "${expression}" is not a length`);
+    return result;
+}

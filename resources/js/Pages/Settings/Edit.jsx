@@ -92,6 +92,7 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
         nav_background_color: settings.nav_background_color ?? null,
         footer_background_color: settings.footer_background_color ?? null,
         header_layout: settings.header_layout,
+        header_padding: settings.header_padding,
         footer_layout: settings.footer_layout,
         font_body: settings.font_body,
         font_heading: settings.font_heading,
@@ -157,6 +158,9 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
     const logoHeightCss = `min(${data.logo_height / 16}rem, clamp(3rem, 9.375vw, 6rem))`;
     // The narrowest window that shows the chosen height in full (9.375vw = height).
     const fullSizeFrom = Math.ceil(data.logo_height / 0.09375);
+    // The header's padding is capped the same way (.site-header__inner): at most 16px up to a
+    // 512px-wide window, the full 48px from 1024px (6.25vw - 1rem = padding).
+    const paddingFullFrom = Math.ceil((data.header_padding + 16) / 0.0625);
 
     return (
         <AuthenticatedLayout header={<h2 className="text-page-title font-semibold text-gray-800">Site settings</h2>}>
@@ -338,6 +342,44 @@ export default function Edit({ settings, pendingFrontPage, logo, pages, options 
                             onChange={(value) => setData('footer_layout', value)}
                             error={errors.footer_layout}
                         />
+                    </div>
+
+                    <div>
+                        <InputLabel htmlFor="header_padding" value="Space above and below the header content" />
+                        <div className="mt-2 flex items-center gap-4">
+                            <input
+                                id="header_padding"
+                                type="range"
+                                min={options.headerPadding.min}
+                                max={options.headerPadding.max}
+                                step={options.headerPadding.step}
+                                value={data.header_padding}
+                                aria-describedby="header_padding_help"
+                                aria-valuetext={`${data.header_padding} pixels`}
+                                onChange={(e) => setData('header_padding', Number(e.target.value))}
+                                className="w-full max-w-xs accent-brand-600"
+                            />
+                            <output htmlFor="header_padding" className="w-14 flex-none text-sm tabular-nums text-gray-900">
+                                {data.header_padding} px
+                            </output>
+                            {data.header_padding !== options.headerPadding.default && (
+                                <button
+                                    type="button"
+                                    onClick={() => setData('header_padding', options.headerPadding.default)}
+                                    className="flex-none text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                                >
+                                    Reset to {options.headerPadding.default} px
+                                </button>
+                            )}
+                        </div>
+                        <p id="header_padding_help" className="mt-1 text-sm text-gray-500">
+                            {options.headerPadding.min} to {options.headerPadding.max} pixels, above and below the logo,
+                            name and menu. The header always grows to fit the logo, so a large logo is never cut off.
+                            {data.header_padding > 16
+                                ? ` Shown in full on screens at least ${paddingFullFrom} px wide; narrower screens use less, down to 16 px on a phone.`
+                                : ' Shown at this size on every screen.'}
+                        </p>
+                        <InputError message={errors.header_padding} className="mt-2" />
                     </div>
 
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

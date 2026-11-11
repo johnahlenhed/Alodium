@@ -14,9 +14,21 @@ import { DEFAULT_SETTINGS, resolveSettings } from './theme.js';
 
 /**
  * The server's limits (App\Http\Requests\UpdateSiteSettingsRequest). logoHeight is
- * the height the header shows the logo at (SiteSetting::LOGO_HEIGHT_MIN/MAX).
+ * the height the header shows the logo at (SiteSetting::LOGO_HEIGHT_MIN/MAX);
+ * headerPadding the header's padding above and below its content, in px
+ * (SiteSetting::HEADER_PADDING_MIN/MAX; the default is in src/lib/site.js).
  */
-export const LIMITS = Object.freeze({ name: 80, description: 300, footerText: 200, logoSide: 4000, logoHeight: Object.freeze({ min: 24, max: 96 }) });
+export const LIMITS = Object.freeze({
+    name: 80,
+    description: 300,
+    footerText: 200,
+    logoSide: 4000,
+    logoHeight: Object.freeze({ min: 24, max: 96 }),
+    headerPadding: Object.freeze({ min: 8, max: 48 }),
+});
+
+/** A whole number of px within one of LIMITS' { min, max }. */
+export const isWithin = (value, { min, max }) => Number.isInteger(value) && value >= min && value <= max;
 
 const CONTROL_CHARACTERS = /\p{Cc}/u;
 const characters = (text) => [...text].length; // code points, like the server's mb_strlen
@@ -87,6 +99,7 @@ export function normalizeSite(raw, { apiOrigin, warn = (message) => console.warn
         footerBackground: schemeColour('footer_background_color', raw.footer_background_color, footerScheme(raw.footer_background_color, resolvedTheme.brand), 'the footer keeps its grey', warn),
         headerLayout: layout('header_layout', raw.header_layout, HEADER_LAYOUTS, warn),
         footerLayout: layout('footer_layout', raw.footer_layout, FOOTER_LAYOUTS, warn),
+        headerPadding: headerPadding(raw.header_padding, warn),
         logo: logo(raw.logo, apiOrigin, warn),
         navigation: navigation(raw.navigation, warn),
         frontPage: frontPage(raw.front_page, warn),
@@ -121,6 +134,18 @@ function layout(key, value, layouts, warn) {
 }
 
 /** Through theme.js's allow-lists; each value that had to be replaced is reported. */
+/**
+ * The header's padding in px, within LIMITS.headerPadding. Missing (an API from
+ * before the setting) is the default without a warning; anything else out of
+ * range or not a whole number is the default with one.
+ */
+function headerPadding(value, warn) {
+    if (value === undefined) return SITE_DEFAULTS.headerPadding;
+    if (isWithin(value, LIMITS.headerPadding)) return value;
+    warn(`"header_padding" is not a whole number from ${LIMITS.headerPadding.min} to ${LIMITS.headerPadding.max}; using ${SITE_DEFAULTS.headerPadding}.`);
+    return SITE_DEFAULTS.headerPadding;
+}
+
 function theme(value, warn) {
     const resolved = resolveSettings(value);
     const given = value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
