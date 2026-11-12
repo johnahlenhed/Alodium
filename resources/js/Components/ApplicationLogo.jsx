@@ -1,14 +1,17 @@
 /**
- * The Alodium mark, the same drawing as astro/src/assets/alodium-mark.svg
- * (only its viewBox and path: the file also holds an 8 KB content credential).
- * Drawn in currentColor, so set the colour with a text-* class: text-on-nav in
- * the navigation bar, text-primary on the login page. public/favicon.svg and
- * favicon.ico are copies of the public site's.
+ * The Alodium mark in the admin, the same drawing as public/favicon.svg (its
+ * viewBox and path only). Drawn in currentColor rather than the favicon's fixed
+ * colour, so set the colour with a text-* class: text-on-nav in the navigation
+ * bar, text-primary on the login page. The public site's mark is separate
+ * (astro/src/assets/alodium-mark.svg).
  */
 export default function ApplicationLogo(props) {
     return (
-        <svg viewBox="11 10 1024 997" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="Alodium" {...props}>
-            <path fillRule="evenodd" d="M523.101 10.4127L1035.1 503.511L784.006 722.121V1006.41H636.879V849.562L523.101 947.594L409.324 849.562V1006.41H262.197V722.121L11.1014 503.511L523.101 10.4127ZM815.393 502.531L523.101 220.2L230.81 502.531L523.101 757.413L815.393 502.531Z" />
+        <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="Alodium" {...props}>
+            <path
+                fillRule="evenodd"
+                d="M62.72,8.0 L61.87,71.73 L8.0,118.96 L61.87,166.28 L62.72,230.01 L94.02,230.01 L95.25,195.49 L119.24,215.69 L144.56,195.49 L145.8,230.01 L177.09,230.01 L177.94,166.37 L232.0,119.05 L177.94,71.54 L177.09,8.0 L145.8,8.0 L144.56,42.52 L120.76,22.23 L95.25,42.52 L94.02,8.0 Z M119.43,64.52 L183.07,118.96 L120.57,173.49 L56.93,119.05 Z"
+            />
         </svg>
     );
 }
