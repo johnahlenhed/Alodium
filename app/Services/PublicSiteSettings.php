@@ -8,6 +8,7 @@ use App\Models\SiteSetting;
 use App\Support\FooterBackground;
 use App\Support\LayoutOptions;
 use App\Support\NavBackground;
+use App\Support\PrivacyNotice;
 use App\Support\ThemeOptions;
 
 /**
@@ -39,6 +40,8 @@ class PublicSiteSettings
             'logo' => $this->logo($settings),
             'navigation' => $this->navigation(),
             'front_page' => $this->frontPage($settings),
+            // The footer links to the privacy notice while it is published (App\Support\PrivacyNotice).
+            'privacy_page' => PrivacyNotice::publicLink(),
         ];
     }
 

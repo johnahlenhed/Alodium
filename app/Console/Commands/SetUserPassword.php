@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Support\PrivacyNotice;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -69,9 +70,14 @@ class SetUserPassword extends Command
             $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
             $this->info("Password updated for {$user->email}.");
         } else {
+            // A fresh install: this is the site's first account (README step 3).
+            $newSite = ! User::query()->exists();
             // The role explicitly, not the column default (ARCHITECTURE.md section 12, "Role default").
             $user = User::create(['name' => $name, 'email' => $email, 'password' => $password, 'role' => 'admin']);
             $this->info("Admin account created for {$user->email}.");
+            if ($newSite) {
+                $this->createPrivacyNotice($user);
+            }
         }
 
         if ($this->option('generate')) {
@@ -114,6 +120,25 @@ class SetUserPassword extends Command
         }
 
         return $password;
+    }
+
+    /**
+     * A new site's default privacy notice (App\Support\PrivacyNotice), as a draft
+     * by its first admin. A problem with it never stops the account being made.
+     */
+    private function createPrivacyNotice(User $admin): void
+    {
+        try {
+            $page = PrivacyNotice::createDraft($admin);
+        } catch (\Throwable $e) {
+            $this->warn('The default privacy notice was not created: '.$e->getMessage());
+
+            return;
+        }
+
+        if ($page !== null) {
+            $this->line('A draft privacy notice was added under Pages ("'.PrivacyNotice::TITLE.'", /'.PrivacyNotice::SLUG.'). Add your contact details, check it, and publish it: the footer links to it once it is published.');
+        }
     }
 
     /** The first validation error, or null. The same rules as the admin's forms. */

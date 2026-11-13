@@ -18,6 +18,13 @@ Schedule::command('db:backup')->dailyAt('02:00')->withoutOverlapping();
 // Copies new and changed media to the off-server bucket (only when BACKUP_S3_* is set).
 Schedule::command('media:backup-remote')->dailyAt('02:30')->withoutOverlapping();
 
+// Deletes page views (and their events) older than ANALYTICS_RETENTION_DAYS (90 by default).
+Schedule::command('analytics:prune')->dailyAt('03:30')->withoutOverlapping();
+
+// Deletes expired rows from the database cache, which Laravel only removes when they are
+// read again: the GeoIP lookups (keyed on a daily HMAC of the IP) and rate-limit counters.
+Schedule::command('cache:prune-expired')->hourly()->withoutOverlapping();
+
 // Refreshes the GeoIP country database (storage/app/geoip, README deployment step 6)
 // on the 1st of each month. Only with MAXMIND_LICENSE_KEY set: without a key the
 // download fails. The dashboard's Site status warns when the file is missing or old.

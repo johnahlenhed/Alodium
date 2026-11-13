@@ -233,7 +233,7 @@ php artisan app:configure-env
 
 It writes everything to `.env` in one go and then runs `php artisan config:cache` once.
 
-- **Generated, nothing to type:** `WEBHOOK_SECRET` (step 9) and `BACKUP_ENCRYPTION_PASSPHRASE` (step 10). Copy the passphrase from `.env` into a password manager now; without it, off-server backups can't be restored.
+- **Generated, nothing to type:** `WEBHOOK_SECRET` (step 9), `BACKUP_ENCRYPTION_PASSPHRASE` (step 10) and `GEOIP_CACHE_SALT` (the key for the GeoIP lookup cache, step 6). Copy the passphrase from `.env` into a password manager now; without it, off-server backups can't be restored.
 - **The database:** it asks for the user name (`alodium` by default) and generates its password when you leave the password empty. At the end it prints the SQL that creates that user. Run it in `sudo mysql`. If you type a password of your own instead, create the user with that password: the same SQL as step 1's, with `CREATE USER` and `GRANT`.
 - **Asked for, each can be skipped:** the Resend API key (Email, below), the Sentry DSN (step 11) and the off-server backup bucket (step 10). Leave an answer empty to skip it. The summary says what won't work until it is set.
 - **Safe to run again:** it never replaces a value that is already set, so it only asks for what is still missing. Run it again when you have the Resend key or the bucket.
@@ -256,6 +256,17 @@ php artisan storage:link
 > The email is new, so it asks to create an admin account, asks for the name,
 > and then for the password twice. The password is typed at a hidden prompt:
 > it isn't shown, and it isn't kept in the shell history.
+>
+> The site's first account also adds a draft page, **Privacy** (`/privacy`): a
+> privacy notice describing what the analytics record, with the retention
+> period filled in. Open it under **Pages**, replace "[Add your contact details
+> here before publishing.]", check the text fits the client, and publish it. The
+> footer's "cookie-free analytics" then links to it. It can't be published or
+> scheduled while that line is still in it; saving it as a draft is fine.
+>
+> A site set up before the notice existed gets it with
+> `sudo -u www-data php artisan privacy-notice:seed` (the draft is credited to the
+> first admin, or `--author=EMAIL`). It never replaces a page already at `/privacy`.
 >
 > With `--generate` instead, it makes a strong random password and prints it
 > once, for handing a fresh login to the client without choosing it yourself.
@@ -346,11 +357,23 @@ ping ADMIN_DOMAIN
 `/etc/nginx/sites-available/alodium`:
 
 ```nginx
+# The tracker's requests (/api/collect, /api/collect/{visit}, /api/events) aren't
+# logged: an access log line holds the visitor's IP address and user agent. A map on
+# the original address, because "access_log off" in a location of its own would not
+# apply: the request ends in the index.php location (try_files), which does log it.
+map $request_uri $alodium_log_request {
+    ~^/api/(collect|events)(/|\?|$)  0;
+    default                            1;
+}
+
 # Laravel: admin panel, public content API, tracker
 server {
     listen 80;
     server_name ADMIN_DOMAIN;
     root /var/www/alodium/public;
+
+    # Ubuntu's default log and format, minus the tracker's requests (map above).
+    access_log /var/log/nginx/access.log combined if=$alodium_log_request;
 
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";
@@ -429,10 +452,12 @@ certbot --nginx -d SITE_DOMAIN -d www.SITE_DOMAIN -d ADMIN_DOMAIN
 Certbot gets one certificate for all three names, adds the HTTPS settings to the blocks above, and redirects HTTP to HTTPS. For reference, the result looks like this. The Laravel and Astro rules inside the blocks are unchanged and shortened here to `...`:
 
 ```nginx
+# map $request_uri $alodium_log_request { ... }   (unchanged, from above)
+
 server {
     server_name ADMIN_DOMAIN;
     root /var/www/alodium/public;
-    # ... all the Laravel rules from above ...
+    # ... all the Laravel rules from above, access_log included ...
 
     listen 443 ssl; # managed by Certbot
     ssl_certificate /etc/letsencrypt/live/SITE_DOMAIN/fullchain.pem; # managed by Certbot
@@ -467,7 +492,7 @@ Test both sites in a browser: `https://SITE_DOMAIN` and `https://ADMIN_DOMAIN`. 
 
 ### 6. GeoIP database (visitor countries)
 
-The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** notes it while the file is missing (as information, since nothing else is affected; the technical detail is under "Details for your developer").
+The analytics resolve each visitor's country from their IP with the **MaxMind GeoLite2-Country** database, read locally on the server. No IP is sent to a third party, and IPs are never stored, only the country code. A lookup is cached until the end of the day (UTC) under an HMAC of the IP and the date, keyed with `GEOIP_CACHE_SALT`, so the cache holds nothing that can be turned back into an IP without that secret, and the same IP gets a new key every day. Without the secret, lookups aren't cached. Expired cache rows are deleted hourly by the scheduler (step 8). The file is not in the repository (it is large, and MaxMind's licence doesn't allow redistributing it), so download it here. Without it, every visit is recorded without a country: the Countries panel stays empty, and visits recorded before the file is installed never get one. The dashboard's **Site status** notes it while the file is missing (as information, since nothing else is affected; the technical detail is under "Details for your developer").
 
 **One MaxMind account per client.** Every deployment uses a free MaxMind account and license key of its own, belonging to that client, never a key shared between clients: each install is then the client's own use of the GeoLite2 data, under MaxMind's terms.
 
@@ -542,7 +567,7 @@ crontab -u www-data -e
 * * * * * cd /var/www/alodium && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-The scheduler runs `content:publish-scheduled` every minute. It publishes posts and pages whose scheduled time has passed, which then triggers an Astro rebuild. Without this cron entry, scheduled content is never published. It also runs the database backups (step 10) and, monthly, the GeoIP database update (step 6).
+The scheduler runs `content:publish-scheduled` every minute. It publishes posts and pages whose scheduled time has passed, which then triggers an Astro rebuild. Without this cron entry, scheduled content is never published. It also runs the database backups (step 10), monthly the GeoIP database update (step 6), nightly `analytics:prune` (deletes page views older than `ANALYTICS_RETENTION_DAYS`, 90 by default) and hourly `cache:prune-expired` (deletes expired cache rows, which Laravel's database cache otherwise keeps).
 
 ### 9. Automatic Astro rebuilds
 

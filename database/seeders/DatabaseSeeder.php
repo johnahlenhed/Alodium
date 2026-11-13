@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\PrivacyNotice;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -24,12 +25,15 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        User::factory()->create([
+        $admin = User::factory()->create([
             'name' => 'Admin',
             'email' => 'admin@example.com',
             'password' => bcrypt('password'),
             'role' => 'admin',
         ]);
+
+        // The draft privacy notice every new site starts with (user:set-password does the same).
+        PrivacyNotice::createDraft($admin);
 
         $this->call(VisitSeeder::class);
     }

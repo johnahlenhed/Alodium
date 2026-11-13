@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\Visit;
+use App\Support\GeoIpCache;
 use App\Support\UtmValue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -79,8 +80,10 @@ class TrackingController extends Controller
     /**
      * Resolve a country code from the IP with the local GeoIP database. The IP
      * itself is never stored: only the resulting country code reaches the visits
-     * table. Lookups are cached per IP (keyed by hash); a null result is not
-     * cached, so visitors get a country as soon as a missing database is
+     * table. Lookups are cached until the end of the UTC day under a keyed,
+     * daily-changing hash of the IP (GeoIpCache), or not cached at all when
+     * GEOIP_CACHE_SALT isn't set. A null result is not kept (it is looked up
+     * again), so visitors get a country as soon as a missing database is
      * installed. Any failure yields null, so geolocation never blocks tracking.
      */
     private function countryFor(?string $ip): ?string
@@ -90,17 +93,24 @@ class TrackingController extends Controller
         }
 
         try {
-            return Cache::remember('geo:'.sha1($ip), now()->addDay(), function () use ($ip) {
-                // false is "no result": the address isn't in the database (local and
-                // private ones never are), or there is no database to read. The
-                // dashboard's Site status warns about the second (SiteStatus::geoip()).
-                $position = Location::get($ip);
+            $key = GeoIpCache::key($ip);
 
-                return $position === false ? null : ($position->countryCode ?: null);
-            });
+            return $key === null
+                ? $this->lookUpCountry($ip)
+                : Cache::remember($key, GeoIpCache::expiresAt(), fn () => $this->lookUpCountry($ip));
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function lookUpCountry(string $ip): ?string
+    {
+        // false is "no result": the address isn't in the database (local and
+        // private ones never are), or there is no database to read. The
+        // dashboard's Site status warns about the second (SiteStatus::geoip()).
+        $position = Location::get($ip);
+
+        return $position === false ? null : ($position->countryCode ?: null);
     }
 
     /**

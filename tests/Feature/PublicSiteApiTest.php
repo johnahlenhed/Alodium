@@ -54,6 +54,7 @@ class PublicSiteApiTest extends TestCase
                     ['label' => 'Contact', 'href' => '/contact'],
                 ],
                 'front_page' => null,
+                'privacy_page' => null,
             ]);
 
         $this->assertDatabaseCount('site_settings', 0);
@@ -66,7 +67,7 @@ class PublicSiteApiTest extends TestCase
 
         $json = $this->getJson('/api/public/site')->assertOk()->json();
 
-        $this->assertSame(['name', 'description', 'footer_text', 'show_site_name', 'theme', 'nav_background_color', 'footer_background_color', 'header_layout', 'footer_layout', 'header_padding', 'logo', 'navigation', 'front_page'], array_keys($json));
+        $this->assertSame(['name', 'description', 'footer_text', 'show_site_name', 'theme', 'nav_background_color', 'footer_background_color', 'header_layout', 'footer_layout', 'header_padding', 'logo', 'navigation', 'front_page', 'privacy_page'], array_keys($json));
         $this->assertSame(['brand', 'fontBody', 'fontHeading', 'corners', 'buttons'], array_keys($json['theme']));
         $this->assertSame(['url', 'width', 'height'], array_keys($json['logo']));
         $this->assertSame(['slug'], array_keys($json['front_page']));
@@ -253,8 +254,9 @@ class PublicSiteApiTest extends TestCase
         $settingsQueries = count(DB::getQueryLog());
         DB::disableQueryLog();
 
-        // API: settings row, its media, navigation entries, their pages (one query), front page.
-        $this->assertSame(5, $apiQueries);
+        // API: settings row, its media, navigation entries, their pages (one query), front page,
+        // whether the privacy notice is published. The same however many pages there are.
+        $this->assertSame(6, $apiQueries);
         // Settings page: the settings row and its media, the pages, the navigation entries, the
         // shared unread count. (actingAs() skips the user lookup a real request makes from the session.)
         $this->assertSame(5, $settingsQueries);

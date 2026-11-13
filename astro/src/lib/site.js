@@ -26,4 +26,6 @@ export const SITE_DEFAULTS = Object.freeze({
         Object.freeze({ label: 'Contact', href: '/contact' }),
     ]),
     frontPage: null,
+    /** The published privacy notice ({ slug }) the footer links to, or null. */
+    privacyPage: null,
 });

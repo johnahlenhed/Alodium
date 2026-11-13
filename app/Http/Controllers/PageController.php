@@ -12,6 +12,7 @@ use App\Models\SiteSetting;
 use App\Rules\PageBackgroundColor;
 use App\Services\PublicSiteBuilds;
 use App\Services\PublicSiteSettings;
+use App\Support\PrivacyNotice;
 use App\Support\ThemeOptions;
 use App\Traits\GeneratesUniqueSlug;
 use App\Traits\HandlesPublishStatus;
@@ -24,6 +25,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Validator as ValidationValidator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -143,7 +146,7 @@ class PageController extends Controller
     {
         Gate::authorize('update', $page);
 
-        $validated = $this->validatePage($request);
+        $validated = $this->validatePage($request, $page);
 
         $oldSlug = $page->slug;
         $page->update([
@@ -260,11 +263,37 @@ class PageController extends Controller
     }
 
     /**
+     * The privacy notice can't be published or scheduled while it still has the
+     * contact placeholder (App\Support\PrivacyNotice); saving it as a draft is
+     * fine. The notice is the page at /privacy now, or the one this title would
+     * put there, so renaming it doesn't slip the placeholder out under another
+     * address. The error is on "status", next to the field that was chosen.
+     */
+    private function refuseUnfilledPrivacyNotice(ValidationValidator $validator, Request $request, ?Page $page): void
+    {
+        $validator->after(function ($validator) use ($request, $page) {
+            if (! in_array($request->input('status'), ['published', 'scheduled'], true)) {
+                return;
+            }
+            $title = $request->input('title');
+            if ($page?->slug !== PrivacyNotice::SLUG && ! (is_string($title) && Str::slug($title) === PrivacyNotice::SLUG)) {
+                return;
+            }
+            // The content as it will be saved: what was sent, else what is stored.
+            $blocks = $request->exists('blocks') ? $request->input('blocks') : $page?->blocks;
+            $content = $request->exists('content') ? $request->input('content') : $page?->content;
+            if (PrivacyNotice::containsPlaceholder($blocks, $content)) {
+                $validator->errors()->add('status', PrivacyNotice::PUBLISH_BLOCKED);
+            }
+        });
+    }
+
+    /**
      * `blocks` is optional. Without the key (as the current page form sends it) the
      * stored blocks are left alone; null turns the page into a legacy page; a list
      * is validated per block type and stored in the BlockRegistry shape.
      */
-    private function validatePage(Request $request): array
+    private function validatePage(Request $request, ?Page $page = null): array
     {
         $hasBlocks = $request->exists('blocks');
         $blocks = $request->input('blocks');
@@ -292,6 +321,7 @@ class PageController extends Controller
         if ($hasBlocks) {
             $this->blockRegistry->validateUniqueIds($validator, $blocks);
         }
+        $this->refuseUnfilledPrivacyNotice($validator, $request, $page);
 
         $validated = $this->sanitizeContent($validator->validate());
         unset($validated['blocks']);

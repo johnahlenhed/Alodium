@@ -497,6 +497,22 @@ body {
     font-weight: 600;
 }
 
+/*
+ * The analytics note's link to the privacy notice: the note's own colour, so
+ * its contrast is the one footerBackground.js checks for the note on every
+ * footer colour (never the browser's default blue, which nothing checks), told
+ * apart from the text by its underline rather than by colour.
+ */
+.site-footer__note a {
+    color: inherit;
+    text-decoration-line: underline;
+    text-underline-offset: 0.2em;
+}
+
+.site-footer__note a:hover {
+    text-decoration-thickness: 2px;
+}
+
 .site-footer__nav ul {
     margin-inline-start: calc(-1 * var(--space-3));
 }

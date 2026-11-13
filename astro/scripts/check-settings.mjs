@@ -26,6 +26,7 @@ const VALID = Object.freeze({
         { label: 'Blog', href: '/blog' },
     ],
     front_page: { slug: 'about' },
+    privacy_page: { slug: 'privacy' },
 });
 
 let passed = 0;
@@ -63,6 +64,7 @@ test('a valid response is used as given, without warnings', () => {
         logo: VALID.logo,
         navigation: VALID.navigation,
         frontPage: { slug: 'about' },
+        privacyPage: { slug: 'privacy' },
     });
 });
 
@@ -266,6 +268,22 @@ test('header_padding: a whole number from 8 to 48, otherwise 12', () => {
         assert.equal(site.headerPadding, 12, JSON.stringify(value));
         assert.equal(warnings.length, 1, JSON.stringify(value));
         assert.match(warnings[0], /"header_padding" is not a whole number from 8 to 48; using 12\./);
+    }
+});
+
+test('privacy_page: null or a slug; missing is null without a warning', () => {
+    assert.deepEqual(normalize({ privacy_page: { slug: 'privacy' } }).site.privacyPage, { slug: 'privacy' });
+    assert.deepEqual(normalize({ privacy_page: { slug: 'integritet' } }).site.privacyPage, { slug: 'integritet' });
+    for (const value of [undefined, null]) {
+        const { site, warnings } = normalize({ privacy_page: value });
+        assert.equal(site.privacyPage, null);
+        assert.deepEqual(warnings, []);
+    }
+    assert.equal(SITE_DEFAULTS.privacyPage, null);
+    for (const value of [{}, { slug: '' }, { slug: '//evil.example' }, { slug: 'a/b' }, { slug: 'x?y' }, { slug: 42 }, 'privacy', ['privacy']]) {
+        const { site, warnings } = normalize({ privacy_page: value });
+        assert.equal(site.privacyPage, null, JSON.stringify(value));
+        assert.equal(warnings.length, 1, JSON.stringify(value));
     }
 });
 
