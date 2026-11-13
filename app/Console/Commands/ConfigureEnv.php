@@ -94,6 +94,8 @@ class ConfigureEnv extends Command
         // The same as the README's "openssl rand -hex 32" and "openssl rand -base64 32".
         $this->generate('WEBHOOK_SECRET', fn () => bin2hex(random_bytes(32)));
         $this->generate('BACKUP_ENCRYPTION_PASSPHRASE', fn () => base64_encode(random_bytes(32)));
+        // The GeoIP lookup cache's HMAC key (App\Support\GeoIpCache). Changing it only empties that cache.
+        $this->generate('GEOIP_CACHE_SALT', fn () => bin2hex(random_bytes(32)));
     }
 
     private function database(): void

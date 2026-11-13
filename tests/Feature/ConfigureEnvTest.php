@@ -121,12 +121,16 @@ class ConfigureEnvTest extends TestCase
         // As "openssl rand -hex 32" and "openssl rand -base64 32" in the README.
         $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $env['WEBHOOK_SECRET']);
         $this->assertSame(32, strlen(base64_decode($env['BACKUP_ENCRYPTION_PASSPHRASE'], true)));
+        // The GeoIP lookup cache's HMAC key (App\Support\GeoIpCache), its own secret.
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $env['GEOIP_CACHE_SALT']);
+        $this->assertNotSame($env['WEBHOOK_SECRET'], $env['GEOIP_CACHE_SALT']);
         // Quoted like the README's example: base64 has + / =.
         $this->assertStringContainsString('BACKUP_ENCRYPTION_PASSPHRASE="'.$env['BACKUP_ENCRYPTION_PASSPHRASE'].'"', $this->env());
 
         // The secrets are written, never shown.
         $this->assertStringNotContainsString($env['WEBHOOK_SECRET'], $output);
         $this->assertStringNotContainsString($env['BACKUP_ENCRYPTION_PASSPHRASE'], $output);
+        $this->assertStringNotContainsString($env['GEOIP_CACHE_SALT'], $output);
         $this->assertStringContainsString('Copy BACKUP_ENCRYPTION_PASSPHRASE from .env into a password manager now', $output);
 
         $this->assertSame(1, $this->configCache->runs, 'config:cache runs exactly once, at the end.');
@@ -172,6 +176,7 @@ class ConfigureEnvTest extends TestCase
         $this->writeEnv([
             'WEBHOOK_SECRET' => 'WEBHOOK_SECRET=old-webhook-secret',
             'BACKUP_ENCRYPTION_PASSPHRASE' => 'BACKUP_ENCRYPTION_PASSPHRASE="old+pass/phrase="',
+            'GEOIP_CACHE_SALT' => 'GEOIP_CACHE_SALT=old-geoip-cache-salt',
             'DB_USERNAME' => 'DB_USERNAME=client',
             'DB_PASSWORD' => 'DB_PASSWORD=old-db-password',
             'RESEND_API_KEY' => 'RESEND_API_KEY=re_old_key',

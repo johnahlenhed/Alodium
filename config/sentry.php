@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\SentryPrivacy;
+
 /**
  * Sentry Laravel SDK configuration file.
  *
@@ -35,6 +37,13 @@ return [
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#traces_sample_rate
     // Share of requests recorded for performance monitoring (0.1 = 10%).
     'traces_sample_rate' => (float) env('SENTRY_TRACES_SAMPLE_RATE', 0.1),
+
+    // The tracker's requests (/api/collect, /api/collect/{visit}, /api/events) are never
+    // traced, whatever the rate above, and an error in one is sent without its request body,
+    // headers or cache breadcrumbs. Every other request is unchanged. [class, method] arrays,
+    // not closures, so config:cache still works. See App\Support\SentryPrivacy.
+    'traces_sampler' => [SentryPrivacy::class, 'tracesSampler'],
+    'before_send' => [SentryPrivacy::class, 'beforeSend'],
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#profiles_sample_rate
     // Share of traced requests that are also profiled. Needs the PHP "excimer"

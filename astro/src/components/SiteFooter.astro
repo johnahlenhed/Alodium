@@ -11,15 +11,22 @@ interface Props {
         footerBackground: { color: string; scheme: 'light' | 'dark' } | null;
         /** How the footer is arranged (src/lib/layouts.js); "standard" adds no class. */
         footerLayout: string;
+        /** The published privacy notice, or null (src/lib/settings.js). */
+        privacyPage?: { slug: string } | null;
     };
     /** The same navigation as the header. */
     navigation: Array<{ label: string; href: string }>;
 }
 
-/** Not a setting: the site always uses the cookie-free tracker. */
-const ANALYTICS_NOTE = 'This site uses cookie-free analytics.';
+/**
+ * Not a setting: the site always uses the cookie-free tracker. "cookie-free
+ * analytics" links to the privacy notice once it is published; until then the
+ * sentence is plain text, so the footer never links to a page that isn't there.
+ */
+const ANALYTICS_NOTE = ['This site uses ', 'cookie-free analytics', '.'];
 
 const { settings, navigation } = Astro.props;
+const privacyHref = settings.privacyPage ? `/${settings.privacyPage.slug}` : null;
 const { footerBackground, footerLayout } = settings;
 const { pathname } = Astro.url;
 // The year the site was built (the site is static).
@@ -48,6 +55,8 @@ const year = new Date().getFullYear();
         </nav>
 
         {settings.footerText && <p class="site-footer__text">{settings.footerText}</p>}
-        <p class="site-footer__note">{ANALYTICS_NOTE}</p>
+        <p class="site-footer__note">
+            {ANALYTICS_NOTE[0]}{privacyHref ? <a href={privacyHref} aria-current={currentState(privacyHref, pathname)}>{ANALYTICS_NOTE[1]}</a> : ANALYTICS_NOTE[1]}{ANALYTICS_NOTE[2]}
+        </p>
     </div>
 </footer>

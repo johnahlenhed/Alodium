@@ -105,7 +105,7 @@ docs/testdata/       ssrf-smoke.xml (import by hand after a deploy, section 9)
 | `media` | Spatie Media Library. Polymorphic owner, `collection_name` (`library` on users, `featured` on posts/pages, `logo` on site settings), `custom_properties` (imported images: `source_url`, `source_hash`; logo: `logo_width`, `logo_height`). |
 | `site_settings` | One row (id 1): `site_name`, `site_description`, `footer_text`, `show_site_name`, `logo_height` (px the header shows the logo at, 24–96; null = the default 36), `brand_color`, `nav_background_color` (`#RRGGBB` or null = the page colour; see below), `footer_background_color` (`#RRGGBB` or null = the grey surface), `header_layout` and `footer_layout` (a value from `App\Support\LayoutOptions`; null = `standard`, the arrangement before the setting), `header_padding` (px of padding above and below the header's content, 8–48; null = the default 12), `font_body`, `font_heading`, `corners`, `buttons`, `front_page_id` (null on delete; may point at an unpublished page, which `GET /public/site` leaves out until it is published). `show_blog_in_nav` and `show_contact_in_nav` are no longer used: Blog and Contact are `navigation_items` entries. No column defaults: defaults live in `SiteSetting::defaults()`. |
 | `submissions` | Contact form messages: `name`, `email`, `message`, `read`. |
-| `visits` | One page view: `url`, `referrer`, `utm_source`, `utm_medium` and `utm_campaign` (cleaned lowercase labels of at most 100 characters, or null; `utm_term` and `utm_content` were dropped, see "UTM tags" in section 4), `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
+| `visits` | One page view, kept `ANALYTICS_RETENTION_DAYS` (90) days, then deleted with its events by `analytics:prune`: `url`, `referrer`, `utm_source`, `utm_medium` and `utm_campaign` (cleaned lowercase labels of at most 100 characters, or null; `utm_term` and `utm_content` were dropped, see "UTM tags" in section 4), `device_type`, `screen_width`, `language`, `country`, `duration`, `scroll_depth`, `token`, `created_at` (indexed). No IP column. |
 | `events` | Tracker events: `visit_id`, `type`, `payload` (JSON). |
 | `import_runs` | One WordPress import: `status` (importing/downloading/done/failed), `download_images`, `imported_posts`/`imported_pages`, `report` (JSON: skipped items, `warnings` per imported item with title, type, slug and message, errors, `notes` about the whole run (the dropped category and tag assignments), item types found, `front_page_suggestion`: the first published page imported at /home, or null), item and image counters (featured images included), `bytes_downloaded`, `failures` (JSON, max 200), `skipped_reasons` (JSON, reason => count for every skipped image), `allowed_hosts` (JSON). |
 | `jobs`, `job_batches`, `failed_jobs` | Laravel database queue. |
@@ -122,7 +122,7 @@ All under `/api`. Responses are JSON; `/api/*` errors are rendered as JSON.
 | `GET /public/posts/{slug}` | One post: the list fields without `excerpt`, plus `content`, `og_image`, `og_image_width`, `og_image_height`. 404 `{message}` for drafts and unknown slugs. |
 | `GET /public/pages` | Like posts, plus `blocks` (array, or null for legacy pages). |
 | `GET /public/pages/{slug}` | Like a post, plus `blocks` and `background_color` (null unless it passes the page background rule with the current brand colour). A block page returns `content: ""`. |
-| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, header_layout: "standard"\|"centered-menu"\|"centered"\|"stacked", footer_layout: "standard"\|"columns"\|"centered", header_padding: 8–48, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null}`. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
+| `GET /public/site` | `{name, description, footer_text, show_site_name, theme: {brand, fontBody, fontHeading, corners, buttons}, nav_background_color: "#RRGGBB"\|null, footer_background_color: "#RRGGBB"\|null, header_layout: "standard"\|"centered-menu"\|"centered"\|"stacked", footer_layout: "standard"\|"columns"\|"centered", header_padding: 8–48, logo: {url, width, height}\|null, navigation: [{label, href}], front_page: {slug}\|null, privacy_page: {slug}\|null}`. `privacy_page` is set while the privacy notice (`App\Support\PrivacyNotice`, a page at `/privacy`) is on the public site; the footer's analytics sentence links to it then. The logo's `width` and `height` are the size it is shown at: `logo_height`, and the width that keeps its proportions. `navigation` is Home, then the `navigation_items` entries; `href` is a path on the site or an http(s) address. |
 | `POST /public/contact` | Body `name, email, message, website` (honeypot). `{success: true}` or 422 errors. Sends a notification mail. |
 | `POST /collect` | Starts a visit. Returns `{visit_id, token}`. `utm_source`, `utm_medium` and `utm_campaign` are cleaned, never validated: a bad one is stored as null and the visit is kept. Anything else UTM is ignored. |
 | `PATCH /collect/{visit}` | Duration/scroll depth; needs the visit's `token`. `{success: true}`. |
@@ -576,6 +576,8 @@ forgot-password page, which fails the same way.
 | `content:publish-scheduled` | every minute | publishes due drafts with `publish_at` |
 | `db:backup` | daily 02:00 | `mysqldump` to `storage/app/backups`, keeps 30; optional encrypted off-server copy |
 | `media:backup-remote` | daily 02:30 | copies new/changed files from `storage/app/public` off-server (when configured) |
+| `analytics:prune` | daily 03:30 | deletes visits older than `analytics.retention_days` (`ANALYTICS_RETENTION_DAYS`, 90), events first, in batches of 1000; `--days` overrides; refuses less than 1 |
+| `cache:prune-expired` | hourly | deletes expired rows from the database cache store, which Laravel only removes when the same key is read again (GeoIP lookups, rate-limit counters); nothing to do for other stores |
 | `location:update` (package) | monthly, 1st at 03:00, only with `MAXMIND_LICENSE_KEY` set | downloads the GeoLite2 country database to `storage/app/geoip`; the dashboard's Site status (`SiteStatus::geoip()`) notes a missing file (information) and warns when it is unreadable or more than 45 days old |
 | `content:sanitize` | manually | re-sanitises stored content (`--dry-run` reports only) |
 | `db:backup-test-remote` | manually | encrypts, uploads, reads back and deletes a small test file to check the off-server setup |
@@ -627,6 +629,25 @@ The README requires the worker to run with `--timeout=660` and
 - **Tracker tokens**: each visit gets a random 40-character token, returned
   only on creation and compared with `hash_equals`. IPs are never stored;
   the country comes from an offline MaxMind database.
+- **The tracker and visitors' data**: no cookies or browser storage, no
+  fingerprinting, no identifier that links page views.
+  - The GeoIP lookup is cached until the end of the UTC day under
+    `geo:` + HMAC-SHA256(date|IP) keyed with `GEOIP_CACHE_SALT`
+    (`App\Support\GeoIpCache`): its own secret, not `APP_KEY`, so a database
+    dump or backup holds nothing an IP can be recovered from (an unkeyed hash of
+    an IPv4 address can be reversed in minutes), and the same IP gets a new key
+    each day. Whoever has the secret could recompute one day's keys, so the rows
+    are deleted soon after: `cache:prune-expired`, hourly. No secret: no caching.
+  - Sentry (`config/sentry.php`, `App\Support\SentryPrivacy`): the tracker's
+    routes are never traced (`traces_sampler` returns 0 for them, whatever
+    `traces_sample_rate` is), and an error in one is sent with only the request's
+    URL and method (no body, headers, query string or cookies) and without cache
+    breadcrumbs, whose keys come from the IP. Other routes are unchanged.
+  - Nginx (README section 5, `deploy/add-domain.sh`): the admin server block's
+    `access_log` skips `/api/collect` and `/api/events` (a `map` on
+    `$request_uri`; `access_log off` in a location of its own would not apply,
+    as the request ends in the `index.php` location).
+  - Page views are deleted after `ANALYTICS_RETENTION_DAYS` (`analytics:prune`).
 - **Webhook**: `hash_equals` on `X-Webhook-Secret`; an empty secret disables it.
 - **Rate limits**: tracker 120/min, contact 5/min, webhook 10/min per IP. The
   public GET endpoints share 60/min per IP (`public-content` limiter in
@@ -727,11 +748,11 @@ of these steps replaces a value that is already set:
 | Values | Set by |
 |---|---|
 | `APP_KEY` | `php artisan app:ensure-key` (also in `composer setup`) |
-| `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE` (generated); `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (generated if left empty, with the SQL for the user printed); `RESEND_API_KEY`, `SENTRY_LARAVEL_DSN`, `BACKUP_S3_*` (asked for, each can be skipped) | `php artisan app:configure-env` (`ConfigureEnv`); run it again to add what was skipped |
+| `WEBHOOK_SECRET`, `BACKUP_ENCRYPTION_PASSPHRASE`, `GEOIP_CACHE_SALT` (generated); `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` (generated if left empty, with the SQL for the user printed); `RESEND_API_KEY`, `SENTRY_LARAVEL_DSN`, `BACKUP_S3_*` (asked for, each can be skipped) | `php artisan app:configure-env` (`ConfigureEnv`); run it again to add what was skipped |
 | `APP_URL`, `PUBLIC_SITE_URL`, `MAIL_FROM_ADDRESS` (`hello@` the site domain) | `deploy/add-domain.sh setup`, from the domains; it fills in only empty values and `.env.example`'s placeholders, and keeps values of their own unless `--force` |
 | `MAXMIND_LICENSE_KEY` | `deploy/add-domain.sh geoip` |
 | `APP_ENV`, `APP_DEBUG`, `ASTRO_REBUILD_SCRIPT` | by hand, README steps 3 and 9 |
-| everything else, including `DB_QUEUE_RETRY_AFTER` and `LOG_STACK=daily` (one log file per day, the newest `LOG_DAILY_DAYS` = 14 kept) | the defaults in `.env.example` |
+| everything else, including `DB_QUEUE_RETRY_AFTER`, `ANALYTICS_RETENTION_DAYS=90` and `LOG_STACK=daily` (one log file per day, the newest `LOG_DAILY_DAYS` = 14 kept) | the defaults in `.env.example` |
 
 `app:configure-env` writes `.env` in one pass, checks that every value reads back
 as written (the same `.env` parser Laravel uses), quotes values only where `.env` needs it,
@@ -774,6 +795,27 @@ Astro (`astro/.env`, `astro/.env.production`):
 
 - **Tracker blockers**: visitors who block trackers are never counted, by
   design. The counts are a lower bound (section 4, "Tracker blockers").
+- **Analytics privacy, what is still open** (section 9, "The tracker and
+  visitors' data", for what was done):
+  - outbound-click events store the full link (`events.payload.url`, query
+    string included), and `payload` accepts any JSON;
+  - `visits.referrer` is stored as the browser sends it, query string included;
+  - the public site's own page requests are still in Nginx's access log (IP,
+    user agent, full address including any UTM parameters), as is everything on
+    the admin domain except the tracker's routes;
+  - backups keep pruned page views for up to 30 more days (local and off-server);
+  - the GeoIP cache keys can be recomputed for their day by whoever has
+    `GEOIP_CACHE_SALT`, until `cache:prune-expired` deletes them;
+  - the privacy notice (`App\Support\PrivacyNotice`) starts as a draft with a
+    contact placeholder, and can't be published or scheduled while the
+    placeholder is in it (`PageController::refuseUnfilledPrivacyNotice()`);
+    until someone publishes it, the footer's sentence has no link. New sites get
+    it with their first admin (or the local seeder); an existing site only when
+    someone runs `php artisan privacy-notice:seed`. Its text states the retention period
+    as it was when the page was made, and a fixed 30 days for backups: changing
+    `ANALYTICS_RETENTION_DAYS` or the backup count later doesn't update it.
+    The footer finds it by its address: retitling the page moves it (as any
+    page) and the footer then shows the sentence without the link.
 - **UTM tags: left out on purpose** (section 4, "UTM tags"):
   - **Filtering** the analytics page by a source, medium or campaign. Every
     statistics query would need the filter (about 1½–2 days).
