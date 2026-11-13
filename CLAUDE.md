@@ -82,6 +82,7 @@ tests/ ← Feature/, Unit/, Fakes/ (fake DNS and HTTP), Fixtures/
 - All errors are caught silently — the tracker must never break the host site
 - Only `utm_source`, `utm_medium` and `utm_campaign` are captured, cleaned by the rules in `App\Support\UtmValue` (lowercase, at most 100 characters, emails and ids dropped; the tracker and the link builder apply the same rules, `tests/Fixtures/utm-values.json`). `utm_term` and `utm_content` are never read or stored (a privacy decision). All five are removed from the visible URL
 - A bad UTM value is stored as null, never a validation error: a 422 would lose the whole page view
+- The tracker's routes stay out of Sentry (`App\Support\SentryPrivacy`: never traced; errors without request body, headers or cache breadcrumbs) and out of Nginx's access log; the GeoIP cache key is a daily HMAC of the IP (`App\Support\GeoIpCache`, `GEOIP_CACHE_SALT`), never the IP or a plain hash of it
 
 ## Commands
 ```bash
@@ -110,6 +111,9 @@ node resources/js/utils/utm.check.mjs                          # UTM rules in tr
 php artisan queue:work     # Astro rebuilds, import image downloads, media conversions
 php artisan schedule:work  # Locally: runs content:publish-scheduled, db:backup, media:backup-remote
 php artisan content:sanitize --dry-run   # How many stored posts/pages the sanitiser would change
+php artisan analytics:prune              # Delete page views older than ANALYTICS_RETENTION_DAYS (90); scheduled nightly
+php artisan cache:prune-expired          # Delete expired database-cache rows (GeoIP lookups, rate limits); scheduled hourly
+php artisan privacy-notice:seed          # Add the default privacy notice (draft, /privacy) to a site that already has accounts; never replaces /privacy
 
 # Public site (in astro/, Laravel must be running)
 npm run build:local        # Build with astro/.env into astro/dist

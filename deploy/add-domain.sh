@@ -112,11 +112,23 @@ env_content() {
 nginx_content() {
     local template
     read -r -d '' template <<'NGINX' || true
+# The tracker's requests (/api/collect, /api/collect/{visit}, /api/events) aren't
+# logged: an access log line holds the visitor's IP address and user agent. A map on
+# the original address, because "access_log off" in a location of its own would not
+# apply: the request ends in the index.php location (try_files), which does log it.
+map $request_uri $alodium_log_request {
+    ~^/api/(collect|events)(/|\?|$)  0;
+    default                            1;
+}
+
 # Laravel: admin panel, public content API, tracker
 server {
     listen 80;
     server_name ADMIN_DOMAIN;
     root /var/www/alodium/public;
+
+    # Ubuntu's default log and format, minus the tracker's requests (map above).
+    access_log /var/log/nginx/access.log combined if=$alodium_log_request;
 
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";

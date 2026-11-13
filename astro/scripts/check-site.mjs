@@ -88,7 +88,12 @@ for (const file of pageFiles) {
     if (footerName !== `© ${year} ${site.name}`) fail(`footer line is "${footerName}"`);
     const footerText = first(html, /<p class="site-footer__text">([^<]*)<\/p>/);
     if ((footerText === undefined ? null : decode(footerText)) !== site.footer_text) fail(`footer text is ${JSON.stringify(footerText)}`);
-    if (!html.includes('<p class="site-footer__note">This site uses cookie-free analytics.</p>')) fail('the analytics line is missing');
+    // The analytics line, linking to the privacy notice exactly when the API says it is published.
+    const note = first(html, /<p class="site-footer__note"[^>]*>([\s\S]*?)<\/p>/) ?? '';
+    if (decode(note.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim() !== 'This site uses cookie-free analytics.') fail(`the analytics line is "${note}"`);
+    const privacyHref = site.privacy_page ? `/${site.privacy_page.slug}` : null;
+    const noteLinks = [...note.matchAll(/<a href="([^"]*)"/g)].map((m) => m[1]);
+    if (JSON.stringify(noteLinks) !== JSON.stringify(privacyHref ? [privacyHref] : [])) fail(`the analytics line links to ${JSON.stringify(noteLinks)}, expected ${privacyHref ?? 'nothing'} (privacy_page)`);
 
     // The header's colour (nav_background_color): a scheme class and --nav-bg, or
     // neither; then its layout class (header_layout), none for "standard"; and its

@@ -156,6 +156,24 @@ try {
     const footerOrder = order(await renderFooter(footer('standard')));
     check(footerOrder.every((index, i) => index > 0 && (i === 0 || index > footerOrder[i - 1])), `footer: the content is not in the order name, menu, text, note (${footerOrder.join(', ')})`);
     console.log('ok - render: the footer reads name, menu, text, note');
+
+    // The analytics note links to the privacy notice once it is published (settings.privacyPage),
+    // and is plain text before: never a link to a page the site doesn't have.
+    const note = (html) => html.match(/<p class="site-footer__note"[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '';
+    const noteText = (html) => note(html).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    for (const layout of FOOTER_LAYOUTS) {
+        const without = await renderFooter(footer(layout));
+        check(!/<a\b/.test(note(without)), `footer ${layout}, no privacy page: the analytics note has a link`);
+        check(noteText(without) === 'This site uses cookie-free analytics.', `footer ${layout}, no privacy page: the note reads "${noteText(without)}"`);
+
+        const linked = await renderFooter({ ...footer(layout), privacyPage: { slug: 'privacy' } });
+        const links = [...note(linked).matchAll(/<a href="([^"]*)"([^>]*)>([^<]*)<\/a>/g)].map((m) => [m[1], m[3]]);
+        check(same(links, [['/privacy', 'cookie-free analytics']]), `footer ${layout}, with the privacy page: the note's links are ${JSON.stringify(links)}`);
+        check(noteText(linked) === 'This site uses cookie-free analytics.', `footer ${layout}, with the privacy page: the note reads "${noteText(linked)}"`);
+    }
+    const onPrivacyPage = await container.renderToString(SiteFooter, { props: { settings: { ...footer('standard'), privacyPage: { slug: 'privacy' } }, navigation: NAVIGATION }, request: new Request('http://localhost:4321/privacy') });
+    check(/<a href="\/privacy" aria-current="page"/.test(note(onPrivacyPage)), 'footer on /privacy: the link is not marked as the current page');
+    console.log(`ok - render: the analytics note links to the privacy notice when it is published (${FOOTER_LAYOUTS.join(', ')}), plain text before`);
 } finally {
     await server.close();
 }

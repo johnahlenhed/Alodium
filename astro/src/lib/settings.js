@@ -103,6 +103,7 @@ export function normalizeSite(raw, { apiOrigin, warn = (message) => console.warn
         logo: logo(raw.logo, apiOrigin, warn),
         navigation: navigation(raw.navigation, warn),
         frontPage: frontPage(raw.front_page, warn),
+        privacyPage: privacyPage(raw.privacy_page, warn),
     };
 }
 
@@ -200,11 +201,24 @@ function navigation(value, warn) {
 
 function frontPage(value, warn) {
     if (value === null) return null;
-    const slug = value?.slug;
-    if (typeof slug === 'string' && slug !== '' && isSitePath(`/${slug}`) && !/[/?#]/.test(slug)) return { slug };
+    if (isPageSlug(value?.slug)) return { slug: value.slug };
     warn('"front_page" is invalid; the home page shows the latest posts.');
     return null;
 }
+
+/**
+ * The published privacy notice the footer links to (App\Support\PrivacyNotice):
+ * { slug } or null. Missing (an API from before it) is null without a warning.
+ */
+function privacyPage(value, warn) {
+    if (value === undefined || value === null) return null;
+    if (isPageSlug(value?.slug)) return { slug: value.slug };
+    warn('"privacy_page" is invalid; the footer is built without the link.');
+    return null;
+}
+
+/** A page's slug: one path segment on this site, nothing else. */
+const isPageSlug = (slug) => typeof slug === 'string' && slug !== '' && isSitePath(`/${slug}`) && !/[/?#]/.test(slug);
 
 /** The navigation without the front page's own address: the front page is "Home" already. */
 export function navigationFor(site) {
