@@ -1,9 +1,10 @@
 /**
  * The Alodium mark in the admin, the same drawing as public/favicon.svg (its
- * viewBox and path only). Drawn in currentColor rather than the favicon's fixed
- * colour, so set the colour with a text-* class: text-on-nav in the navigation
- * bar, text-primary on the login page. The public site's mark is separate
- * (astro/src/assets/alodium-mark.svg).
+ * viewBox and path only). Drawn in currentColor rather than the favicon's own
+ * colours, so set the colour with a text-* class: text-on-nav in the navigation
+ * bar, text-primary on the login page. The public site's built-in mark
+ * (astro/src/assets/alodium-mark.svg) is the same drawing: change them together
+ * (docs/ARCHITECTURE.md, Logo).
  */
 export default function ApplicationLogo(props) {
     return (
