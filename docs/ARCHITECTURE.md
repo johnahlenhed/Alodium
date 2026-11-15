@@ -466,11 +466,21 @@ brand colour setting. It is derived from the default brand colour `#1B2A4A`.
 - **Form controls** (inputs, selects, textareas, checkboxes, radios) have a
   `gray-400` border, 3.1:1 against the surface, for WCAG 1.4.11. Buttons keep
   `gray-300`: their text identifies them.
-- **Logo:** `ApplicationLogo.jsx` is the Alodium mark, the path from
-  `astro/src/assets/alodium-mark.svg`, drawn in `currentColor`. The public
-  site's copy is a placeholder until a client uploads their own logo; the admin
-  always shows Alodium's. `public/favicon.svg` and `favicon.ico` are copies of
-  the public site's favicons.
+- **Logo:** one drawing of the Alodium mark (viewBox `0 0 240 240`, one
+  even-odd path), kept in five files with no build step between them, so a
+  new mark means changing all of them together:
+  - `resources/js/Components/ApplicationLogo.jsx`: the admin's logo (login
+    page, navigation bar), the path inlined in `currentColor`. The admin
+    always shows it.
+  - `astro/src/assets/alodium-mark.svg`: the public site's built-in mark,
+    which `BrandMark.astro` inlines (viewBox and path only) in `currentColor`
+    until a client uploads their own logo.
+  - `public/favicon.svg` and `astro/public/favicon.svg` (identical): navy
+    `#1B2A4A`, switching to `#E8EDF3` with `prefers-color-scheme: dark` so the
+    tab icon stays visible in a dark browser.
+  - `public/favicon.ico` and `public/apple-touch-icon.png`, with identical
+    copies in `astro/public/`: raster versions of the same mark, which can't
+    follow the dark theme.
 - **`ThemePreview.jsx`** shows the public site, so it keeps its own colours
   (white card, the chosen brand colour). Its card has `data-theme="light"`, so
   it stays light in the dark theme.

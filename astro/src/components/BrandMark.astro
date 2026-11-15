@@ -2,9 +2,11 @@
 /**
  * The Alodium mark, inlined so it takes its colour from CSS (currentColor).
  * Built from src/assets/alodium-mark.svg at build time: only its viewBox and
- * path are used, which leaves out the file's metadata (an 8 KB content
- * credential) and its <title>. The mark is decorative: the site name is
- * always next to it as text, so screen readers would otherwise read it twice.
+ * path are used, which leaves out the file's <title> (and any metadata a
+ * replacement file brings along). The admin draws the same mark
+ * (ApplicationLogo.jsx; docs/ARCHITECTURE.md, Logo). The mark is decorative:
+ * the site name is always next to it as text, so screen readers would
+ * otherwise read it twice.
  */
 import source from '../assets/alodium-mark.svg?raw';
 
